@@ -1,5 +1,6 @@
 import {
   Binding,
+  BoundTableSource,
   BoxElement,
   type Element,
   FieldElement,
@@ -132,7 +133,7 @@ function createCalculationTable(): TableElement {
   const cell = new TextStyle("Pretendard", 8, { align: "center", overflow: "shrink" });
   return new TableElement(
     "calculation-table", new Frame(8, 194, 194, 50), 3, false,
-    new Binding("calculations"),
+    new BoundTableSource(new Binding("calculations")),
     [
       new TableColumn("name", "구분", "{{row.name}}", 48, "center", null),
       new TableColumn("formula", "산출식 또는 산출방법", "{{row.formula}}", 104, "center", null),
@@ -147,7 +148,7 @@ function createMoneyTable(id: string, x: number, path: string): TableElement {
   const header = new TextStyle("Pretendard", 9, { weight: 700, align: "center" });
   const cell = new TextStyle("Pretendard", 9, { align: "center" });
   return new TableElement(
-    id, new Frame(x, 75, 95, 68), 3, false, new Binding(path),
+    id, new Frame(x, 75, 95, 68), 3, false, new BoundTableSource(new Binding(path)),
     [
       new TableColumn("name", id === "payments" ? "임금 항목" : "공제 항목", "{{row.name}}", 49, "center", null),
       new TableColumn("amount", id === "payments" ? "지급 금액(원)" : "공제 금액(원)", "{{row.amount}}", 46, "right", null),

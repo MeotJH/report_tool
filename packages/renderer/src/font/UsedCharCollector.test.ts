@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   Binding,
+  BoundTableSource,
   BindingResolver,
   FieldElement,
   Frame,
@@ -47,7 +48,7 @@ function createTemplate(): Template {
     ),
     new TableElement(
       "items", new Frame(10, 30, 100, 40), 2, false,
-      new Binding("items"),
+      new BoundTableSource(new Binding("items")),
       [
         new TableColumn("name", "항목", "{{row.name}}", 50, "left", null),
         new TableColumn("amount", "금액", "{{row.amount}}원", 50, "right", null),

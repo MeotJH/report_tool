@@ -382,7 +382,8 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
 - 완료 조건: T16과 동일한 방식의 Visitor 배선 테스트.
 
 ### T18. TableColumn + TableElement
-- 파일: `packages/core/src/domain/element/TableColumn.ts`, `packages/core/src/domain/element/TableElement.ts`
+- 파일: `packages/core/src/domain/element/TableColumn.ts`, `packages/core/src/domain/element/TableElement.ts`,
+  `packages/core/src/domain/element/TableSource.ts`
 - 선행: T14, T07, T05, T15
 - 목표: 급여 항목처럼 **행 수가 사람마다 다른** 반복 영역. 고정 좌표만으로는 표현할 수 없어
   전체 설계에서 반드시 필요하다고 판단한 요소다.
@@ -391,14 +392,17 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
     (예: `'{{row.name}}'` — **행 스코프에서만** 데이터를 참조한다, 바깥 데이터는 못 봄.
     MVP 단순화 결정), `width: number`(mm), `align: 'left'|'center'|'right'`,
     `formatSpec: FormatSpec | null`
-  - `TableElement extends Element`: 추가 필드 `binding: Binding`(배열을 가리켜야 함),
+  - Phase 9 사용성 보강에서 표의 행 공급 책임을 `TableSource` Strategy로 확장한다.
+    `StaticTableSource`는 템플릿에 고정 행을 저장하고, `BoundTableSource`는 기존 `Binding`이
+    가리키는 배열을 행으로 해석한다.
+  - `TableElement extends Element`: 추가 필드 `source: TableSource`,
     `columns: TableColumn[]`, `rowHeight: number`(mm), `headerStyle: TextStyle`,
     `cellStyle: TextStyle`, `showHeader: boolean`, `overflow: 'clip'`
     (`'newPage'`는 v1. MVP는 `'clip'`만 존재해도 되지만 필드 자체는 미래를 위해 남겨둔다)
   - `accept` → `visitor.visitTable(this)`, `withFrame` 동일 패턴
   - 셀 값을 만드는 로직(`renderCell(column, rowData): string`)은 이 클래스에 넣지 않는다 —
     렌더링은 renderer 레이어(T43)의 책임이다. `TableElement`는 데이터 구조만 갖는다
-- 완료 조건: Visitor 배선 테스트 + `TableColumn`이 값 객체로서 필드를 정확히 보관하는지 확인.
+- 완료 조건: Visitor 배선 테스트 + `TableColumn` 필드 보관 + 두 Source의 행 해석과 불변성 확인.
 
 ### T19. ImageElement
 - 파일: `packages/core/src/domain/element/ImageElement.ts`
@@ -442,6 +446,8 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
     `json.type` 값으로 분기해 각 클래스의 생성자를 호출. 알 수 없는 `type`이면 예외
   - `ElementFactory.toJSON(element: Element): Record<string, unknown>` — `element.toJSON()`
     호출 + 공통 필드(`id`, `frame`, `z`, `locked`)와 `type` 태그를 덧붙임
+  - Phase 9 표 확장 이후 `source`가 없는 기존 Table JSON의 `binding`은
+    `BoundTableSource`로 복원한다. 정적·데이터 Source는 각각 왕복 테스트를 유지한다.
 - 완료 조건: 7종 요소 각각에 대해 `fromJSON(toJSON(원본))`이 원본과 필드가 전부 같은지
   확인하는 **왕복(round-trip) 테스트** 7개. 이게 통과하지 않으면 저장·불러오기가 깨진다.
 
@@ -1163,15 +1169,27 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
   - `fields`를 순회해 목록으로 렌더. `type: 'array'`인 항목은 `children`을 들여쓰기해서 보여줌
     (표 컬럼 고를 때 참고용 — MVP에서 실제로 표 컬럼을 여기서 바로 연결하지 않아도 됨,
     T53에서 기본 컬럼으로 시작하는 것으로 충분)
-  - 항목 클릭 시 `onPick(path, spec)` 호출 → 상위 컴포넌트가 `FieldTool`을 그 정보로
-    준비시키거나, 이미 캔버스에 있는 `FieldElement`가 선택된 상태라면 `BindFieldCommand` 실행
+  - 항목 클릭 시 `onPick(path, spec)` 호출 → 선택된 필드가 없으면 내용 영역의 빈 자리에
+    기본 크기 `FieldElement`를 즉시 추가한다. 이미 캔버스에 있는 `FieldElement`가 선택된
+    상태라면 새 요소를 추가하지 않고 `BindFieldCommand`를 실행한다.
+  - 새 필드 카드를 흰 문서로 직접 드래그하면 드롭한 mm 좌표에 추가한다. 문서 가장자리에서
+    놓더라도 내용 영역을 벗어나지 않게 보정한다.
   - `sensitive: true`인 필드는 옆에 "🔒" 표시 + 클릭 시 기본 `formatSpec`으로
     `{kind: 'mask', keepHead: 6, keepTail: 1}`을 자동 제안 (T12 `MaskFormatter`와 연결)
+  - **MVP 디자인 보강**: 필드 라벨·전체 경로·타입으로 검색할 수 있는 검색창을 제공하고,
+    각 필드는 라벨·경로·타입 배지·명시적인 추가 버튼을 가진 카드형 항목으로 표시한다.
+    배열 필드는 그룹으로 묶어 자식 필드의 문맥을 유지하고, 검색 결과에서도 부모 그룹을 남긴다.
+  - 필드 카드를 드래그하는 동안 문서에 드롭 안내와 강조선을 표시한다. 이미 놓인
+    `FieldElement`가 선택된 상태라면 같은 목록을 "연결 변경" 모드로 보여 추가와 재바인딩을
+    혼동하지 않게 하고, "새 필드 추가" 버튼으로 선택을 해제해 추가 모드로 돌아갈 수 있게 한다.
 - 완료 조건 (수동 확인): 가짜 `FieldSchema`로 목록이 올바르게 그려지고, 클릭 시
-  `onPick`이 올바른 인자로 호출되는지 브라우저 콘솔로 확인.
+  `onPick`이 올바른 인자로 호출되는지 브라우저 콘솔로 확인. 검색어에 맞는 중첩 필드만
+  표시되는지, 클릭 즉시 추가·직접 드롭·민감 필드·연결 변경 안내가 구분되는지도 확인.
 
 ### T57. Designer 파사드 + 빌드 설정
-- 파일: `packages/designer/src/Designer.ts`, `packages/designer/vite.config.ts`, `packages/designer/vite.config.standalone.ts`
+- 파일: `packages/designer/src/Designer.ts`, `packages/designer/src/view/DesignerShell.tsx`,
+  `packages/designer/src/view/DesignerStyles.ts`, `packages/designer/vite.config.ts`,
+  `packages/designer/vite.config.standalone.ts`
 - 선행: T54, T55, T56
 - 목표: 호스트가 이 라이브러리를 쓸 때 보게 되는 **유일한 공개 진입점**. 지금까지 만든
   모든 내부 클래스는 이 파사드 뒤에 숨는다.
@@ -1187,9 +1205,142 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
   - [ARCHITECTURE.md 7절](ARCHITECTURE.md#7-프레임워크-선택)의 듀얼 빌드:
     `vite.config.ts`(esm, React를 `external`), `vite.config.standalone.ts`(umd, React 포함)
     두 설정 파일을 만들고 `package.json`의 `build` 스크립트에서 둘 다 실행
+  - **MVP 디자인 보강**: 화면 구조는 `DesignerShell.tsx`, Shadow DOM 전용 스타일은
+    `DesignerStyles.ts`로 분리한다. 흰 문서가 중립색 작업 공간 위에 떠 있는 편집기 구조,
+    현재 도구가 강조되는 상단 툴바, 우측 데이터 필드 사이드바, 문서·선택 상태를 보여주는
+    하단 상태바를 기본 디자인으로 사용한다. hover·focus·disabled 상태를 빠뜨리지 않는다.
+    필드 카드를 드래그하는 동안 흰 문서를 드롭 대상으로 강조하고, 드롭하면 화면 좌표를 mm로
+    변환해 같은 추가 Command 흐름으로 전달한다.
 - 완료 조건: `apps/admin`(Phase 13에서 만듦)에서 `new Designer({...})`로 실제로 마운트해서
   캔버스가 뜨고, 요소를 추가·이동·삭제·undo·필드 바인딩까지 전부 손으로 해봤을 때
-  문제없이 동작하는지 확인. **Phase 9의 진짜 완료 조건은 이 수동 시나리오다.**
+  문제없이 동작하는지 확인. 활성 도구, 필드 검색·추가 안내, 선택 수와 요소 수가 실제 상태와
+  일치하는지도 확인한다. 필드 카드 클릭 시 요소 수가 즉시 늘고, 직접 드롭한 위치에도 필드가
+  생기며, 기존 필드를 선택한 뒤 클릭하면 요소 수 대신 바인딩만 바뀌는지도 확인한다.
+  **Phase 9의 진짜 완료 조건은 이 수동 시나리오다.**
+
+#### T57 Figma식 MVP 편집 경험 보강
+
+Figma의 외형을 복제하는 것이 아니라 다음 사용 원칙을 가져온다.
+
+- 캔버스에 보이는 내용은 가능한 한 캔버스에서 직접 편집한다.
+- 선택 대상에 따라 우측 Inspector가 즉시 바뀌며 현재 변경 범위를 명확히 보여준다.
+- 숨겨진 템플릿 문법 대신 필드 이름과 시각적 Token을 사용한다.
+- 모든 템플릿 변경은 Command를 거쳐 Undo/Redo할 수 있어야 한다.
+- hover·선택선·핸들·드롭 강조·빈 상태·오류 상태로 가능한 행동을 먼저 보여준다.
+- 입력 중인 텍스트와 편집기 단축키의 포커스 범위를 구분한다.
+
+기본 화면은 `왼쪽 Layers/Data 패널 → 가운데 Canvas → 오른쪽 Inspector` 구조를 사용한다.
+아무것도 선택하지 않으면 페이지 속성, 표를 선택하면 표 속성, 셀을 선택하면 셀·열 속성을
+Inspector에 표시한다. 디자인 모드와 데이터 미리보기 모드는 같은 위치의 토글로 전환한다.
+
+##### P0 — 표 편집기: 다른 편집 기능보다 먼저 완료
+
+표는 급여명세서·계약서 데이터 표현의 중심이므로 아래 T57-C~I를 모두 통과하기 전에는
+Phase 9 표 기능을 완료로 표시하지 않는다.
+
+- [x] **T57-A 키보드 편집**: 편집기 포커스 안에서 `Cmd/Ctrl+Z`,
+  `Cmd/Ctrl+Shift+Z`, `Ctrl+Y`, `Delete/Backspace`, `Escape`, 방향키 1mm 이동,
+  `Shift+방향키` 10mm 이동을 지원한다. 입력창과 호스트 페이지의 키 입력은 가로채지 않는다.
+- [x] **T57-B 표 Source 도메인**: `StaticTableSource`와 `BoundTableSource`가 같은
+  `TableElement`에서 행 공급 Strategy로 동작하고, 기존 binding JSON을 데이터 표로 복원한다.
+- [x] **T57-C 표 편집 Command**
+  - 정적 셀 값, 헤더, 행, 열, 열 너비, 행 높이, 헤더 표시 여부를 불변 방식으로 변경한다.
+  - 행·열 추가/삭제, 정적↔데이터 Source 전환, 열 Token 연결을 각각 의미가 드러나는
+    Command로 기록한다.
+  - 한 번의 사용자 행동은 한 번의 Undo로 복원하고 새 명령 실행 뒤 redo 이력을 비운다.
+  - 완료 조건: 각 명령 execute→undo→redo 대칭 테스트와 잘못된 표/행/열 대상 예외 테스트.
+- [ ] **T57-D 정적 표 직접 편집**
+  - 표 도구로 기본 `항목/금액` 2열과 빈 데이터 행 3개를 만들고 새 표를 즉시 선택한다.
+  - 셀 또는 헤더를 더블클릭하면 캔버스 위치에 HTML 입력기를 겹쳐 바로 편집한다.
+  - `Enter` 확정, `Escape` 취소, `Tab/Shift+Tab` 다음·이전 셀, IME 한글 조합을 지원한다.
+  - 한 번 클릭은 셀 선택, 바깥 클릭은 표 선택/선택 해제로 구분하고 편집 중 선택선을 유지한다.
+  - 완료 조건: 마우스만으로 표 생성→헤더 변경→세 행 입력이 가능하고 새로고침용 JSON
+    왕복 뒤 값이 남으며 모든 입력을 Undo/Redo할 수 있다.
+- [ ] **T57-E 행·열 구조 편집**
+  - 표 가장자리 hover 시 행/열 추가 `+` affordance를 보여주고 우측 Inspector에도 같은 버튼을 둔다.
+  - 선택 행·열 추가, 복제, 삭제와 전체 행·열 개수 입력을 제공한다.
+  - 열 경계 드래그로 너비, 행 설정으로 높이를 바꾸며 전체 폭과 최소 셀 크기를 지킨다.
+  - 헤더 표시 토글, 열 순서 변경, 정렬(left/center/right)을 제공한다.
+  - 완료 조건: 2×3 표를 3×4로 바꾸고 열 너비·순서를 변경한 뒤 Undo로 단계별 복원된다.
+- [ ] **T57-F 표 Inspector**
+  - 공통: X/Y/너비/높이, 표 유형, 행·열 수, 헤더 표시, 행 높이, 테두리·배경을 제공한다.
+  - 표 선택: 정적/데이터 Source와 전체 구조 속성을 표시한다.
+  - 셀 선택: 셀 값, 선택 열의 헤더·너비·정렬·포맷을 표시한다.
+  - 입력값은 blur에 의존하지 않고 Enter 또는 명시적 확정 시 Command 하나로 반영한다.
+  - 여러 입력에서 오류가 나면 필드 가까이에 원인을 표시하고 기존 템플릿을 변경하지 않는다.
+- [ ] **T57-G 데이터 표와 Token 드롭**
+  - 왼쪽 Data 패널에서 배열 필드를 캔버스 빈 곳에 드롭하면 데이터 표를 생성한다.
+  - 배열을 정적 표에 드롭하거나 Inspector에서 전환하면 데이터 손실 내용을 먼저 보여주고
+    데이터 표로 바꾼다. 반대 전환은 현재 미리보기 행을 복사할지 빈 정적 행으로 시작할지 고른다.
+  - 배열 자식 필드를 본문 열 또는 Inspector의 열 Drop Zone에 놓으면 해당 열에 연결한다.
+  - `FieldSchema.label`을 헤더 기본값으로 제안하되 사용자가 직접 바꾼 헤더는 덮어쓰지 않는다.
+  - `{{row.amount}}` 같은 문법은 숨기고 `[금액 · currency]` 형태의 Token chip으로 표시한다.
+  - 다른 배열 소속 필드, 배열이 아닌 Source, 삭제된 경로는 드롭 전에 차단하거나 경고한다.
+- [ ] **T57-H 디자인/데이터 미리보기**
+  - 디자인 모드는 헤더와 Token chip을, 미리보기 모드는 최대 세 개의 실제 샘플 행을 표시한다.
+  - `DesignerOptions.sampleData?: unknown`으로 호스트가 샘플 데이터를 주입하며 라이브러리는
+    데이터를 직접 읽거나 저장하지 않는다.
+  - 빈 배열, 누락 필드, 잘못된 타입을 빈 화면으로 숨기지 않고 표 가까이에 상태를 표시한다.
+  - 미리보기 값과 실제 PDF Renderer가 같은 `TableSource.resolveRows()` 결과를 사용한다.
+- [ ] **T57-I 표 저장·PDF·브라우저 통합 완료 조건**
+  - 정적/데이터 표 JSON 왕복, 기존 binding JSON 마이그레이션, PDF 렌더 결과를 모두 검증한다.
+  - 정적 표의 저장 셀과 데이터 표의 샘플 데이터가 서로 섞이거나 발행 데이터로 동결되지 않는지 확인한다.
+  - 실제 브라우저에서 아래 사용자 시나리오를 처음부터 끝까지 수행하고 결과를 기록한다.
+
+```text
+정적 표 생성 → 셀/헤더 입력 → 행·열 추가 → 너비 변경 → Undo/Redo
+  → 데이터 표 전환 → 배열 Source 선택 → 자식 Token 열 드롭
+  → 디자인/미리보기 전환 → 저장 JSON 재로드 → PDF 렌더 확인
+```
+
+##### P1 — 표 완료 후 일반 Figma식 편집 경험
+
+- [x] **T57-J 텍스트 직접 편집**: 더블클릭으로 캔버스 위 입력기(IME)를 띄우고 Enter 확정 /
+  Escape 취소. Inspector에서 내용·종류·글꼴·크기·굵기·색상·정렬·넘침 정책을 Command로 변경한다.
+- [x] **T57-K 선택·Transform**: 8개 리사이즈 핸들, Inspector의 mm 입력, 페이지 여백 표시,
+  스냅과 실제 정렬 안내선(다른 요소·페이지 경계·여백·중심선)을 제공한다.
+- [x] **T57-L 복제·다중 선택**: `Cmd/Ctrl+C/V/D`, Shift 선택, 드래그 영역 선택과 선택 집합의
+  이동·삭제·정렬을 `CompositeCommand`로 한 번의 Undo 단위로 처리한다.
+- [x] **T57-M Layers 패널**: 요소 이름(내용에서 도출)·종류·순서를 표시하고 선택, 잠금, 숨김,
+  앞/뒤 순서 변경을 제공한다. 캔버스 선택과 양방향으로 동기화한다.
+- [x] **T57-N 캔버스 탐색**: 확대·축소(⌘±, ⌘+휠), 화면 맞춤(⌘1), 100% 복귀(⌘0),
+  Space+드래그 화면 이동과 현재 확대율 표시를 제공한다.
+- [x] **T57-O 발견 가능성·접근성**: 버튼 tooltip에 단축키, 현재 도구/선택/모드 표시,
+  요소별 경고 배지, 비활성 사유, 빈 상태의 다음 행동을 제공한다.
+- [x] **T57-P 요소 7종 전부 생성**: 이미지·서명 도구를 추가해 도메인이 표현하는 모든 요소를
+  편집기에서 만들 수 있게 한다. 클릭만 해도 기본 크기로 생성된다.
+- [x] **T57-Q 페이지 설정 편집**: 선택이 없을 때 Inspector가 용지·방향·여백을 편집하고
+  `ChangePageCommand`로 Undo 가능하게 만든다.
+- [x] **T57-R 정렬·분배**: 다중 선택 정렬 6종과 균등 분배 2종. 단일 선택은 페이지 배치
+  영역, 다중 선택은 선택 경계를 기준으로 삼는다.
+- [x] **T57-S 검증 표시**: `TemplateValidator` 오류와 편집 경고(페이지 이탈, 이미지 출처
+  없음, 서명자 없음, 빈 정적 표)를 캔버스·Layers·Inspector·상태바에 표시한다.
+- [x] **T57-T 설계/미리보기 전환**: `DesignerOptions.sampleData`로 호스트가 샘플 데이터를
+  주입하고, 설계 모드는 Token, 미리보기 모드는 실제 값을 보여준다. 라이브러리는 데이터를
+  직접 읽거나 저장하지 않는다.
+
+##### P2 — 남은 항목
+
+- [ ] **T57-D 정적 표 직접 편집** (위 P0): 셀·헤더 더블클릭 입력, Tab 이동. 현재는
+  Inspector에서 헤더·너비·정렬·행·열 추가/삭제만 가능하다.
+- [ ] **T57-G 데이터 표와 Token 드롭** (위 P0): 배열 필드를 캔버스·표 열에 놓아
+  데이터 표로 만드는 경로. 현재 정적 → 데이터 전환은 Inspector에서 막아 두었다.
+- [ ] **T57-U 열 formatSpec 적용**: `TableColumn.formatSpec`이 PDF와 캔버스 양쪽에서
+  무시되고 있다. 두 경로가 공유하는 셀 값 계산 지점에 포맷을 적용해야 한다.
+- [ ] **T57-V PDF 미리보기 버튼**: 서버의 `preview` 렌더 결과를 pdf.js로 표시하는 경로
+  (6.2 결정에 따라 캔버스는 근사치일 뿐이다).
+- [ ] **T57-W 다중 페이지**: `Template`이 `PageSpec` 하나만 갖고 요소에 페이지 인덱스가
+  없다. 급여명세서는 되지만 계약서는 안 된다. 저장 스키마 변경이므로 `schemaVersion` 2와
+  마이그레이션이 필요하다.
+
+##### Phase 9 UX 완료 게이트
+
+- 표 P0 시나리오를 사용자 설명 없이 처음부터 완료할 수 있어야 한다.
+- 모든 템플릿 변경은 Undo/Redo되고 입력창의 native Undo와 충돌하지 않아야 한다.
+- Canvas, Inspector, Layers의 선택과 값이 항상 동일해야 한다.
+- `getTemplate()`과 `onChange` 결과만으로 저장·복원이 가능해야 한다.
+- 브라우저 수동 검증, 전체 테스트, 세 패키지 TypeScript 검사와 Designer 빌드가 모두 통과해야 한다.
+- 위 조건 전에는 Phase 10으로 이동하거나 Phase 9 구현 완료로 표시하지 않는다.
 
 ---
 ## Phase 10 — Viewer: 문서 열람 + 서명 (presentation, browser)

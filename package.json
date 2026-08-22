@@ -11,10 +11,11 @@
   },
   "scripts": {
     "poc:pdf": "node apps/poc/font-poc.mjs",
+    "dev:designer": "npm run dev --workspace @report-tool/designer",
     "test": "vitest run",
     "typecheck:core": "tsc -p packages/core",
     "typecheck:renderer": "tsc -p packages/renderer",
-    "typecheck:designer": "tsc -p packages/designer --noEmit"
+    "typecheck:designer": "tsc -p packages/designer --noEmit && tsc -p packages/designer/playground"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

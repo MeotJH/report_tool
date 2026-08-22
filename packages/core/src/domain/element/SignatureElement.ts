@@ -1,6 +1,13 @@
 import { Frame } from "../value/Frame.js";
-import { Element } from "./Element.js";
+import { Element, type ElementCommonChanges } from "./Element.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
+
+/** 서명 자리의 설정 중 Inspector가 바꾸려는 값만 전달하게 한다. */
+export interface SignatureChanges {
+  readonly signer?: string;
+  readonly required?: boolean;
+  readonly label?: string | undefined;
+}
 
 /**
  * 발행 시 비어 있고 서명 단계에서 채워질 영역을 일반 이미지와 구분해 표현한다.
@@ -17,8 +24,9 @@ export class SignatureElement extends Element {
     public readonly signer: string,
     public readonly required: boolean = true,
     public readonly label?: string,
+    hidden = false,
   ) {
-    super(id, frame, z, locked);
+    super(id, frame, z, locked, hidden);
   }
 
   /** 방문자가 서명 영역 전용 처리 경로를 사용하도록 연결한다. */
@@ -26,16 +34,32 @@ export class SignatureElement extends Element {
     return visitor.visitSignature(this);
   }
 
-  /** 서명 설정을 보존하면서 배치 영역만 바꾼다. */
-  withFrame(frame: Frame): SignatureElement {
+  /** 안내 문구 삭제도 유효한 변경이므로 전달한 키만 교체한다. */
+  withSignature(changes: SignatureChanges): SignatureElement {
     return new SignatureElement(
       this.id,
-      frame,
+      this.frame,
       this.z,
       this.locked,
+      changes.signer ?? this.signer,
+      changes.required ?? this.required,
+      "label" in changes ? changes.label : this.label,
+      this.hidden,
+    );
+  }
+
+  /** 서명 설정을 보존하면서 공통 배치 상태만 바꾼다. */
+  protected withCommon(changes: ElementCommonChanges): SignatureElement {
+    const resolved = this.mergeCommon(changes);
+    return new SignatureElement(
+      this.id,
+      resolved.frame,
+      resolved.z,
+      resolved.locked,
       this.signer,
       this.required,
       this.label,
+      resolved.hidden,
     );
   }
 

@@ -130,8 +130,7 @@ export class PdfElementVisitor implements ElementVisitor<void> {
 
   /** 표 데이터가 배열이 아닐 때 빈 표로 처리해 렌더링 전체가 깨지지 않게 한다. */
   private resolveRows(element: TableElement): readonly unknown[] {
-    const rows = element.binding.path.resolve(this.data);
-    return Array.isArray(rows) ? rows : [];
+    return element.source.resolveRows(this.data);
   }
 
   /** 한 표 행의 열 너비와 정렬을 유지하며 셀 테두리와 문구를 함께 그린다. */

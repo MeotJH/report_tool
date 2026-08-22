@@ -12,6 +12,7 @@ import { LineElement } from "./LineElement";
 import { SignatureElement } from "./SignatureElement";
 import { TableColumn } from "./TableColumn";
 import { TableElement } from "./TableElement";
+import { BoundTableSource } from "./TableSource";
 import { TextElement } from "./TextElement";
 
 const frame = new Frame(10, 20, 30, 40);
@@ -49,7 +50,7 @@ describe("Element Visitor", () => {
         frame,
         2,
         false,
-        new Binding("items"),
+        new BoundTableSource(new Binding("items")),
         [new TableColumn("name", "항목", "{{row.name}}", 30, "left", null)],
         8,
         style,

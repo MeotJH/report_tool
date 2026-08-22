@@ -53,7 +53,11 @@ export type { BoxElementOptions } from "./domain/element/BoxElement.js";
 export type { Content } from "./domain/element/Content.js";
 export { ContentResolver } from "./domain/element/ContentResolver.js";
 export { Element } from "./domain/element/Element.js";
-export type { ElementType } from "./domain/element/Element.js";
+export type {
+  ElementCommonChanges,
+  ElementType,
+  ResolvedElementCommon,
+} from "./domain/element/Element.js";
 export { ElementFactory } from "./domain/element/ElementFactory.js";
 export type { ElementVisitor } from "./domain/element/ElementVisitor.js";
 export { FieldElement } from "./domain/element/FieldElement.js";
@@ -63,11 +67,22 @@ export type {
   ImageFit,
 } from "./domain/element/ImageElement.js";
 export { LineElement } from "./domain/element/LineElement.js";
+export type { LineAppearanceChanges } from "./domain/element/LineElement.js";
 export { SignatureElement } from "./domain/element/SignatureElement.js";
+export type { SignatureChanges } from "./domain/element/SignatureElement.js";
 export { TableColumn } from "./domain/element/TableColumn.js";
 export type { TableColumnAlign } from "./domain/element/TableColumn.js";
 export { TableElement } from "./domain/element/TableElement.js";
 export type { TableOverflow } from "./domain/element/TableElement.js";
+export {
+  BoundTableSource,
+  StaticTableSource,
+  TableSource,
+} from "./domain/element/TableSource.js";
+export type {
+  TableCellValue,
+  TableRow,
+} from "./domain/element/TableSource.js";
 export { TemplateExpression } from "./domain/element/TemplateExpression.js";
 export { TextElement } from "./domain/element/TextElement.js";
 export { BindingResolver } from "./domain/template/BindingResolver.js";

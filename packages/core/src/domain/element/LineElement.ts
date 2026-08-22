@@ -1,13 +1,20 @@
 import { Frame } from "../value/Frame.js";
-import { Element } from "./Element.js";
+import { Element, type ElementCommonChanges } from "./Element.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
+
+/** 선의 표현 속성 중 바꾸려는 것만 Inspector가 전달하게 한다. */
+export interface LineAppearanceChanges {
+  readonly stroke?: string;
+  readonly strokeWidth?: number;
+  readonly dash?: readonly number[] | undefined;
+}
 
 /**
  * 표와 문서 영역을 구분하는 선의 색상·굵기·점선 패턴을 표현한다.
  */
 export class LineElement extends Element {
-  public readonly type = "line";
   public readonly dash: readonly number[] | undefined;
+  public readonly type = "line";
 
   /** 선의 필수 표현과 선택적 점선 패턴을 외부 변경에서 보호해 보존한다. */
   constructor(
@@ -18,8 +25,9 @@ export class LineElement extends Element {
     public readonly stroke: string,
     public readonly strokeWidth: number,
     dash?: readonly number[],
+    hidden = false,
   ) {
-    super(id, frame, z, locked);
+    super(id, frame, z, locked, hidden);
     this.dash = dash === undefined ? undefined : [...dash];
   }
 
@@ -28,16 +36,32 @@ export class LineElement extends Element {
     return visitor.visitLine(this);
   }
 
-  /** 선의 표현과 점선 패턴을 보존하면서 배치 영역만 바꾼다. */
-  withFrame(frame: Frame): LineElement {
+  /** 점선 해제를 유효한 변경으로 다루기 위해 전달한 키만 교체한다. */
+  withAppearance(changes: LineAppearanceChanges): LineElement {
     return new LineElement(
       this.id,
-      frame,
+      this.frame,
       this.z,
       this.locked,
+      changes.stroke ?? this.stroke,
+      changes.strokeWidth ?? this.strokeWidth,
+      "dash" in changes ? changes.dash : this.dash,
+      this.hidden,
+    );
+  }
+
+  /** 선의 표현과 점선 패턴을 보존하면서 공통 배치 상태만 바꾼다. */
+  protected withCommon(changes: ElementCommonChanges): LineElement {
+    const resolved = this.mergeCommon(changes);
+    return new LineElement(
+      this.id,
+      resolved.frame,
+      resolved.z,
+      resolved.locked,
       this.stroke,
       this.strokeWidth,
       this.dash,
+      resolved.hidden,
     );
   }
 

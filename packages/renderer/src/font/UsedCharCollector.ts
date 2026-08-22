@@ -43,12 +43,7 @@ export class UsedCharCollector implements ElementVisitor<string> {
   /** 표 머리글과 모든 행·열의 최종 셀 문자를 함께 수집한다. */
   visitTable(element: TableElement): string {
     const headers = element.columns.map((column) => column.header).join("");
-    const resolved = element.binding.path.resolve(this.data);
-    if (!Array.isArray(resolved)) {
-      return headers;
-    }
-
-    const cells = resolved.flatMap((row) => element.columns.map((column) => (
+    const cells = element.source.resolveRows(this.data).flatMap((row) => element.columns.map((column) => (
       TemplateExpression.render(column.cellTemplate, { row })
     )));
     return headers + cells.join("");

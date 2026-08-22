@@ -1,5 +1,5 @@
 import { Frame } from "../value/Frame.js";
-import { Element } from "./Element.js";
+import { Element, type ElementCommonChanges } from "./Element.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
 
 /** 장식 상자의 선택적 표현 속성을 호출부에서 명확하게 전달하게 한다. */
@@ -27,8 +27,9 @@ export class BoxElement extends Element {
     z: number,
     locked: boolean,
     options: BoxElementOptions = {},
+    hidden = false,
   ) {
-    super(id, frame, z, locked);
+    super(id, frame, z, locked, hidden);
     this.fill = options.fill;
     this.stroke = options.stroke;
     this.strokeWidth = options.strokeWidth;
@@ -40,14 +41,29 @@ export class BoxElement extends Element {
     return visitor.visitBox(this);
   }
 
-  /** 사각 도형 표현을 보존하면서 배치 영역만 바꾼다. */
-  withFrame(frame: Frame): BoxElement {
-    return new BoxElement(this.id, frame, this.z, this.locked, {
+  /**
+   * Inspector에서 지정한 표현만 교체한다.
+   *
+   * 채움과 테두리는 "없음"도 유효한 값이므로 전달한 키만 교체하고 나머지는 유지한다.
+   */
+  withAppearance(options: BoxElementOptions): BoxElement {
+    return new BoxElement(this.id, this.frame, this.z, this.locked, {
+      fill: "fill" in options ? options.fill : this.fill,
+      stroke: "stroke" in options ? options.stroke : this.stroke,
+      strokeWidth: "strokeWidth" in options ? options.strokeWidth : this.strokeWidth,
+      radius: "radius" in options ? options.radius : this.radius,
+    }, this.hidden);
+  }
+
+  /** 사각 도형 표현을 보존하면서 공통 배치 상태만 바꾼다. */
+  protected withCommon(changes: ElementCommonChanges): BoxElement {
+    const resolved = this.mergeCommon(changes);
+    return new BoxElement(this.id, resolved.frame, resolved.z, resolved.locked, {
       fill: this.fill,
       stroke: this.stroke,
       strokeWidth: this.strokeWidth,
       radius: this.radius,
-    });
+    }, resolved.hidden);
   }
 
   /** 사각 도형의 고유 속성을 렌더러와 무관한 저장 데이터로 변환한다. */

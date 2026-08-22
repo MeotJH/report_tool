@@ -16,7 +16,7 @@ export interface ElementVisitor<TResult> {
   /** 데이터에 연결된 단일 필드를 출력 기술에 맞게 처리한다. */
   visitField(element: FieldElement): TResult;
 
-  /** 반복 데이터 표를 출력 기술에 맞게 처리한다. */
+  /** 정적 또는 반복 데이터 표를 출력 기술에 맞게 처리한다. */
   visitTable(element: TableElement): TResult;
 
   /** 고정 또는 데이터 이미지를 출력 기술에 맞게 처리한다. */

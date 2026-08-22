@@ -1,6 +1,6 @@
 import { Binding } from "../value/Binding.js";
 import { Frame } from "../value/Frame.js";
-import { Element } from "./Element.js";
+import { Element, type ElementCommonChanges } from "./Element.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
 
 /** 이미지가 배치 영역에 맞춰지는 방식을 제한한다. */
@@ -29,8 +29,9 @@ export class ImageElement extends Element {
     z: number,
     locked: boolean,
     options: ImageElementOptions,
+    hidden = false,
   ) {
-    super(id, frame, z, locked);
+    super(id, frame, z, locked, hidden);
     this.validateSource(options);
     this.assetId = options.assetId;
     this.binding = options.binding;
@@ -42,13 +43,32 @@ export class ImageElement extends Element {
     return visitor.visitImage(this);
   }
 
-  /** 이미지 출처와 맞춤 정책을 보존하면서 배치 영역만 바꾼다. */
-  withFrame(frame: Frame): ImageElement {
-    return new ImageElement(this.id, frame, this.z, this.locked, {
+  /** 영역 채우기 방식만 바꿔도 출처 검증을 다시 통과하게 한다. */
+  withFit(fit: ImageFit): ImageElement {
+    return new ImageElement(this.id, this.frame, this.z, this.locked, {
+      assetId: this.assetId,
+      binding: this.binding,
+      fit,
+    }, this.hidden);
+  }
+
+  /** 고정 자산과 데이터 출처를 교체할 때도 하나만 남는 규칙을 강제한다. */
+  withSource(options: Readonly<{ assetId?: string; binding?: Binding }>): ImageElement {
+    return new ImageElement(this.id, this.frame, this.z, this.locked, {
+      assetId: options.assetId,
+      binding: options.binding,
+      fit: this.fit,
+    }, this.hidden);
+  }
+
+  /** 이미지 출처와 맞춤 정책을 보존하면서 공통 배치 상태만 바꾼다. */
+  protected withCommon(changes: ElementCommonChanges): ImageElement {
+    const resolved = this.mergeCommon(changes);
+    return new ImageElement(this.id, resolved.frame, resolved.z, resolved.locked, {
       assetId: this.assetId,
       binding: this.binding,
       fit: this.fit,
-    });
+    }, resolved.hidden);
   }
 
   /** 이미지 고유 속성을 특정 이미지 라이브러리와 무관한 저장 데이터로 변환한다. */

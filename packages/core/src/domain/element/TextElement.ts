@@ -1,7 +1,7 @@
 import { Frame } from "../value/Frame.js";
 import { TextStyle } from "../value/TextStyle.js";
 import type { Content } from "./Content.js";
-import { Element } from "./Element.js";
+import { Element, type ElementCommonChanges } from "./Element.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
 
 /**
@@ -18,8 +18,9 @@ export class TextElement extends Element {
     locked: boolean,
     public readonly content: Content,
     public readonly style: TextStyle,
+    hidden = false,
   ) {
-    super(id, frame, z, locked);
+    super(id, frame, z, locked, hidden);
   }
 
   /** 방문자가 텍스트 전용 처리 경로를 사용하도록 연결한다. */
@@ -27,16 +28,19 @@ export class TextElement extends Element {
     return visitor.visitText(this);
   }
 
-  /** 텍스트 내용과 스타일을 보존하면서 배치 영역만 바꾼다. */
-  withFrame(frame: Frame): TextElement {
-    return new TextElement(
-      this.id,
-      frame,
-      this.z,
-      this.locked,
-      this.content,
-      this.style,
-    );
+  /** 캔버스 직접 입력이 스타일과 배치를 유지한 채 문구만 바꾸게 한다. */
+  withContent(content: Content): TextElement {
+    return this.copy({ content });
+  }
+
+  /** Inspector의 글꼴·크기·정렬 변경이 문구를 잃지 않게 한다. */
+  withStyle(style: TextStyle): TextElement {
+    return this.copy({ style });
+  }
+
+  /** 텍스트 내용과 스타일을 보존하면서 공통 배치 상태만 바꾼다. */
+  protected withCommon(changes: ElementCommonChanges): TextElement {
+    return this.copy({}, changes);
   }
 
   /** 텍스트 고유 속성을 라이브러리 구현과 무관한 저장 데이터로 변환한다. */
@@ -45,5 +49,22 @@ export class TextElement extends Element {
       content: { ...this.content },
       style: this.style.toJSON(),
     };
+  }
+
+  /** 모든 변경 메서드가 같은 생성자 복사 규칙을 공유하게 한다. */
+  private copy(
+    changes: Readonly<{ content?: Content; style?: TextStyle }>,
+    common: ElementCommonChanges = {},
+  ): TextElement {
+    const resolved = this.mergeCommon(common);
+    return new TextElement(
+      this.id,
+      resolved.frame,
+      resolved.z,
+      resolved.locked,
+      changes.content ?? this.content,
+      changes.style ?? this.style,
+      resolved.hidden,
+    );
   }
 }

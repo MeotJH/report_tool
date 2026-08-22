@@ -22,7 +22,7 @@
 | 6 | T29~T32 Application 포트 | 구현 완료 | 학습 생략 | 2026-08-22 |
 | 7 | T33~T37 Application 서비스 | 구현 완료 | 학습 생략 | 2026-08-22 |
 | 8 | T38~T43 PDF Renderer | 구현 완료 | 학습 확인 완료 | 2026-08-22 |
-| 9 | T44~T57 Designer | 구현 중 | 학습 확인 중 | 2026-08-22 |
+| 9 | T44~T57 Designer | MVP 편집 보강 진행 중 | 학습 확인 중 | 2026-08-22 |
 | 10 | T58~T63 Viewer | 미착수 | 미착수 | - |
 | 11 | T64~T68 Server HTTP 계층 | 미착수 | 미착수 | - |
 | 12 | T69~T73 참조 어댑터 | 미착수 | 미착수 | - |
@@ -31,9 +31,9 @@
 
 ## 현재 학습 게이트
 
-- 현재 구현 대상: Phase 9, T44 디자이너 패키지 초기화 및 학습 확인 완료
-- 사용자 실습: 디자이너 공개 진입점에 패키지 식별 상수를 추가하고 타입 검사 통과
-- 다음 작업 진행 가능 여부: T44 커밋 후 T45 진행 가능
+- 현재 구현 대상: Phase 9, 표 P0 T57-D 정적 표 직접 편집
+- 사용자 실습: 표 P0 사용 흐름 완료 뒤 Command·Source·UI 단위로 다시 제안
+- 다음 Phase 진행 가능 여부: Phase 9 실습 검토 및 커밋 후 가능
 
 ## 작업 기록
 
@@ -153,3 +153,87 @@
   - 사용자 실습으로 공개 진입점에 패키지 식별 상수를 추가했고 타입 검사를 통과했다.
   - `const` 문자열 값이 별도의 `as const` 없이도 리터럴 타입으로 추론되는 동작을 확인했다.
   - T44 학습 확인 완료. 전체 검증과 커밋 후 T45로 진행할 수 있다.
+- 2026-08-22: Phase 9 T45~T57 구현 완료.
+  - `KonvaElementVisitor`가 7종 도메인 요소를 편집용 Konva 노드로 변환하고 모든 루트 노드에
+    `elementId`를 보존하도록 구현했다.
+  - `SelectionModel`, `SnapGuide`와 추가·삭제·변형·바인딩 Command 및 undo/redo 스택을 구현했다.
+  - 선택·텍스트·필드·도형·표 Tool과 `EditorController`를 연결해 포인터 입력이 불변 Template
+    변경 명령으로만 확정되도록 구성했다.
+  - `CanvasStage`가 mm↔px 변환, Konva 수명주기, 선택·드래그 안내선을 담당하게 했다.
+  - React `FieldPalette`가 중첩 필드와 민감 필드를 표시하고, 민감 필드 선택 시 마스킹 포맷을
+    자동 제안하도록 `Designer` 파사드에 연결했다.
+  - Shadow DOM 안에 toolbar·canvas·palette를 마운트하고 `destroy()`에서 React·Konva·구독을
+    모두 정리하도록 구현했다.
+  - 실패 테스트 5개 파일을 먼저 확인한 뒤 Designer 단위 테스트 17개를 통과시켰다.
+  - 실제 브라우저에서 7종 요소 배치와 이미지 자리표시자를 확인하고, 텍스트 추가, 선택 이동,
+    삭제, undo/redo, 필드 재바인딩을 검증했다. 변경 상태는 요소 수와 필드 경로에 즉시 반영됐다.
+  - ESM(React·core external)과 standalone UMD(React 포함) 듀얼 빌드를 구성했다.
+  - 현대적인 문서 편집기 형태로 `DesignerShell`과 Shadow DOM 전용 `DesignerStyles`를 분리했다.
+  - 필드 라벨·경로·타입 검색, 카드형 필드 항목, 타입 배지, 민감 필드 표시, 추가·연결 변경
+    안내 및 현재 도구 강조와 상태바를 추가했다.
+  - `FieldPaletteFilter`가 검색 결과에서도 중첩 부모 그룹을 보존하도록 테스트 우선 구현했다.
+  - 실제 브라우저에서 현대화된 레이아웃, 검색 결과 5개→1개 축소, 민감 필드 표시와 필드 배치
+    모드 전환을 확인했다.
+  - 필드 카드 클릭만으로 빈 자리에 즉시 추가하고, 카드를 흰 문서에 직접 놓으면 해당 mm 좌표에
+    추가하는 흐름으로 개선했다. 기존 필드 선택 상태의 클릭은 재바인딩 동작을 유지했다.
+  - `FieldPlacementPlanner`가 자동 빈자리 탐색과 문서 경계 보정을 담당하도록 분리하고 테스트
+    3개로 기본 위치·충돌 회피·경계 제한을 검증했다.
+  - 실측 크기: ESM 279.85KB(gzip 72.61KB), standalone 805.63KB(gzip 242.29KB).
+  - `npm test`: 테스트 파일 38개, 테스트 153개 통과.
+  - `npm run typecheck:core`, `npm run typecheck:renderer`, `npm run typecheck:designer`: 통과.
+  - `npm run build --workspace @report-tool/designer`: 통과하고 공개 `Designer` import를 확인했다.
+  - 브라우저에서 필드 클릭 시 요소 수 4→5와 선택 0→1을 확인했고, 선택된 필드에 다른 데이터
+    필드를 클릭했을 때 요소 수가 5로 유지되어 재바인딩과 추가가 구분됨을 확인했다.
+  - 사용자 실습: 선택된 ID를 다시 전달하면 해제하는 `SelectionModel.toggle(id)` 추가 대기.
+- 2026-08-22: Phase 9 T57-A 키보드 편집 구현 완료.
+  - `EditorKeyboardController`가 브라우저 이벤트 자체를 소유하지 않고 undo/redo, 삭제, 취소,
+    mm 이동을 네 Shortcut Strategy에 전달하도록 구성했다.
+  - `KeyboardShortcutAdapter`가 Shadow DOM 편집기 안에서만 키 입력을 전달하고 입력창·버튼의
+    기본 포커스를 보존하도록 구성했다.
+  - 방향키 이동도 `TransformElementCommand`를 사용하므로 툴바 이동과 동일한 undo 이력에
+    포함되며, 삭제도 기존 `RemoveElementCommand`를 재사용한다.
+  - 실패 테스트를 먼저 확인한 뒤 단축키 규칙 테스트 4개를 통과시켰다.
+  - 브라우저에서 방향키 이동 후 Undo 활성화, `Cmd+Z` 원복, Backspace 삭제로 요소 4→3,
+    검색 입력 중 Backspace가 검색어만 변경하는 동작을 확인했다.
+  - `npm test`: 테스트 파일 39개, 테스트 157개 통과.
+  - core·renderer·designer TypeScript 검사와 Designer 빌드가 통과했다.
+  - 실측 크기: ESM 282.92KB(gzip 73.44KB), standalone 808.20KB(gzip 243.06KB).
+  - 사용자 요구에 따라 텍스트 편집보다 정적·데이터 표의 직접 편집 기반을 우선한다.
+- 2026-08-22: Phase 9 T57-B 표 Source 도메인 구현 완료.
+  - 기존 `TableElement.binding`을 `TableElement.source`로 교체하고, 행 공급 책임을
+    `StaticTableSource`와 `BoundTableSource` Strategy로 분리했다.
+  - 상단 표 도구는 셀 값을 템플릿에 저장할 정적 표를 생성하며, 기존 Renderer와 Designer는
+    구체 Source 대신 `resolveRows(data)`를 호출하도록 변경했다.
+  - 새 표 JSON은 `source.kind`를 저장한다. source가 없는 기존 binding JSON은
+    `ElementFactory`가 `BoundTableSource`로 복원해 이전 데이터 표를 유지한다.
+  - 실패 테스트 2개 파일을 먼저 확인한 뒤 정적 행 불변성, 데이터 배열 해석, 두 Source 왕복,
+    기존 JSON 호환 테스트를 통과시켰다.
+  - `npm test`: 테스트 파일 40개, 테스트 161개 통과.
+  - core·renderer·designer TypeScript 검사와 Designer 빌드가 통과했다.
+  - 실측 크기: ESM 282.93KB(gzip 73.44KB), standalone 808.44KB(gzip 243.13KB).
+  - 반복 학습 문서: `docs/PHASE_09_TABLE_SOURCE_LEARNING.md`.
+  - 아직 셀 입력 UI는 없다. 다음 구현 단위는 T57-C 표 편집 Command다.
+- 2026-08-22: Phase 9 UX 우선순위와 완료 기준 재정의.
+  - 사용자가 실제로 정적 표를 작성하고 데이터 표로 전환하는 흐름을 제품의 최우선 가치로 확정했다.
+  - `TASKS.md`의 T57-C~I를 표 P0로 확장하고 직접 셀 편집, 행·열 구조 변경, Inspector,
+    Token 드롭, 디자인/미리보기, JSON·PDF·브라우저 통합 검증을 완료 게이트로 묶었다.
+  - 표 P0가 끝나기 전에는 텍스트·Transform·Layers·캔버스 탐색보다 먼저 구현하며,
+    Phase 9 또는 표 기능을 완료로 표시하지 않는다.
+  - 완성 뒤에도 `LEARNING_PROGRESS` → 표 학습 문서 → 실행 테스트 순서로 반복 학습할 수 있게
+    각 하위 작업의 이유·흐름·보장 범위·실습을 누적한다.
+- 2026-08-22: Phase 9 T57-C 표 편집 Command 구현 완료.
+  - `TableEditor`가 정적 셀, 행·열 구조, 헤더, 열 너비, 행 높이, 헤더 표시, Source 전환,
+    데이터 Token 연결 규칙을 캔버스 UI와 분리해 담당한다.
+  - 11개 의미 기반 Command가 변경 전 `TableElement`를 보존하고 기존 `CommandStack`을 통해
+    한 번의 사용자 행동을 한 번의 Undo/Redo 단위로 처리한다.
+  - 열 추가·삭제는 `StaticTableSource`의 모든 행에도 빈 셀을 추가하거나 제거해 열 정의와
+    저장 행 구조가 어긋나지 않게 했다.
+  - 실패한 명령은 이전 상태를 기록하지 않으며, 데이터 표 직접 셀 편집, 잘못된 행·열,
+    중복 key, 마지막 열 삭제, 0 이하 크기, 잘못된 Token key를 명확한 예외로 차단한다.
+  - 명령 테스트 11개에서 개별 결과와 경계값을 확인하고, 모든 명령을 연속 실행한 뒤 전체
+    Undo→Redo하여 처음 상태와 최종 상태가 정확히 복원되는지 검증했다.
+  - `npm test`: 테스트 파일 41개, 테스트 172개 통과.
+  - core·renderer·designer TypeScript 검사와 Designer 빌드가 통과했다.
+  - 실측 크기: ESM 282.93KB(gzip 73.44KB), standalone 809.67KB(gzip 243.56KB).
+  - 반복 학습 문서: `docs/PHASE_09_TABLE_COMMANDS_LEARNING.md`.
+  - 아직 캔버스 셀 입력 UI는 없다. 다음 구현 단위는 T57-D 정적 표 직접 편집이다.

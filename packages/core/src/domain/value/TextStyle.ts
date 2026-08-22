@@ -48,6 +48,24 @@ export class TextStyle {
     this.overflow = options.overflow ?? "wrap";
   }
 
+  /**
+   * 지정한 표현 속성만 바꾼 새 스타일을 만든다.
+   *
+   * Inspector는 글꼴·크기·정렬을 각각 따로 바꾸므로, 바꾸지 않은 나머지를
+   * 호출부가 매번 나열하면 새 속성이 추가될 때 조용히 초기화된다.
+   */
+  with(changes: Partial<TextStyleOptions & { font: string; size: number }>): TextStyle {
+    return new TextStyle(changes.font ?? this.font, changes.size ?? this.size, {
+      weight: changes.weight ?? this.weight,
+      italic: changes.italic ?? this.italic,
+      color: changes.color ?? this.color,
+      align: changes.align ?? this.align,
+      valign: changes.valign ?? this.valign,
+      lineHeight: changes.lineHeight ?? this.lineHeight,
+      overflow: changes.overflow ?? this.overflow,
+    });
+  }
+
   /** 글자 축소 정책이 나머지 스타일을 잃지 않고 크기만 변경하게 한다. */
   scaledBy(factor: number): TextStyle {
     return new TextStyle(this.font, this.size * factor, {

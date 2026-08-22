@@ -17,6 +17,12 @@ import { LineElement } from "./LineElement.js";
 import { SignatureElement } from "./SignatureElement.js";
 import { TableColumn, type TableColumnAlign } from "./TableColumn.js";
 import { TableElement, type TableOverflow } from "./TableElement.js";
+import {
+  BoundTableSource,
+  StaticTableSource,
+  type TableCellValue,
+  type TableSource,
+} from "./TableSource.js";
 import { TextElement } from "./TextElement.js";
 
 /** JSON에서 모든 요소가 공통으로 복원해야 하는 값을 한 번에 전달한다. */
@@ -25,6 +31,7 @@ interface CommonElementValues {
   readonly frame: Frame;
   readonly z: number;
   readonly locked: boolean;
+  readonly hidden: boolean;
 }
 
 /**
@@ -67,6 +74,7 @@ export class ElementFactory {
       },
       z: element.z,
       locked: element.locked,
+      hidden: element.hidden,
     };
   }
 
@@ -80,6 +88,7 @@ export class ElementFactory {
       common.locked,
       json.content as Content,
       ElementFactory.readTextStyle(json.style),
+      common.hidden,
     );
   }
 
@@ -93,6 +102,7 @@ export class ElementFactory {
       common.locked,
       ElementFactory.readBinding(json.binding),
       ElementFactory.readTextStyle(json.style),
+      common.hidden,
     );
   }
 
@@ -104,13 +114,14 @@ export class ElementFactory {
       common.frame,
       common.z,
       common.locked,
-      ElementFactory.readBinding(json.binding),
+      ElementFactory.readTableSource(json),
       ElementFactory.readColumns(json.columns),
       json.rowHeight as number,
       ElementFactory.readTextStyle(json.headerStyle),
       ElementFactory.readTextStyle(json.cellStyle),
       json.showHeader as boolean,
       json.overflow as TableOverflow,
+      common.hidden,
     );
   }
 
@@ -125,7 +136,7 @@ export class ElementFactory {
       assetId: json.assetId as string | undefined,
       binding,
       fit: json.fit as ImageFit,
-    });
+    }, common.hidden);
   }
 
   /** 사각 도형의 선택적 표현을 공통 상태에 결합해 복원한다. */
@@ -136,7 +147,7 @@ export class ElementFactory {
       stroke: json.stroke as string | undefined,
       strokeWidth: json.strokeWidth as number | undefined,
       radius: json.radius as number | undefined,
-    });
+    }, common.hidden);
   }
 
   /** 선 도형의 필수 표현과 점선 패턴을 공통 상태에 결합해 복원한다. */
@@ -150,6 +161,7 @@ export class ElementFactory {
       json.stroke as string,
       json.strokeWidth as number,
       json.dash as readonly number[] | undefined,
+      common.hidden,
     );
   }
 
@@ -164,10 +176,17 @@ export class ElementFactory {
       json.signer as string,
       json.required as boolean,
       json.label as string | undefined,
+      common.hidden,
     );
   }
 
-  /** 요소 종류와 무관한 식별·배치 상태를 저장 데이터에서 복원한다. */
+  /**
+   * 요소 종류와 무관한 식별·배치 상태를 저장 데이터에서 복원한다.
+   *
+   * `hidden`은 나중에 추가된 편집 상태이므로 없으면 false로 본다.
+   * 이렇게 하면 필드가 없는 기존 템플릿이 예전과 똑같이 동작하므로
+   * schemaVersion을 올리지 않아도 된다.
+   */
   private static readCommon(json: Record<string, unknown>): CommonElementValues {
     const frame = json.frame as Record<string, unknown>;
     return {
@@ -180,6 +199,7 @@ export class ElementFactory {
       ),
       z: json.z as number,
       locked: json.locked as boolean,
+      hidden: json.hidden === true,
     };
   }
 
@@ -231,5 +251,21 @@ export class ElementFactory {
       json.align as TableColumnAlign,
       formatSpec,
     );
+  }
+
+  /** 새 source 형식과 기존 binding 형식을 모두 표 데이터 전략으로 복원한다. */
+  private static readTableSource(json: Record<string, unknown>): TableSource {
+    if (json.source === undefined) {
+      return new BoundTableSource(ElementFactory.readBinding(json.binding));
+    }
+    const source = json.source as Record<string, unknown>;
+    if (source.kind === "bound") {
+      return new BoundTableSource(ElementFactory.readBinding(source.binding));
+    }
+    if (source.kind === "static") {
+      const rows = source.rows as readonly Record<string, TableCellValue>[];
+      return new StaticTableSource(rows);
+    }
+    throw new Error("지원하지 않는 표 데이터 출처다");
   }
 }

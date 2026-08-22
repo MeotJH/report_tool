@@ -1,5 +1,6 @@
 import { FieldElement } from "../element/FieldElement.js";
 import { TableElement } from "../element/TableElement.js";
+import { BoundTableSource } from "../element/TableSource.js";
 import { Template } from "./Template.js";
 
 /**
@@ -50,13 +51,21 @@ export class TemplateValidator {
   /** 데이터 요소가 저장 경로 없이 발행되는 것을 템플릿 경계에서 방어한다. */
   private findEmptyBindingErrors(template: Template): ValidationError[] {
     return template.getElements()
-      .filter((element) => (
-        element instanceof FieldElement || element instanceof TableElement
-      ))
-      .filter((element) => element.binding.path.toString().length === 0)
+      .filter((element) => this.hasEmptyBinding(element))
       .map((element) => new ValidationError(
         element.id,
         "데이터 바인딩 경로가 비어 있다",
       ));
+  }
+
+  /** 데이터 출처가 있는 요소만 각자의 Binding 위치에서 빈 경로를 검사한다. */
+  private hasEmptyBinding(element: unknown): boolean {
+    if (element instanceof FieldElement) {
+      return element.binding.path.toString().length === 0;
+    }
+    if (element instanceof TableElement && element.source instanceof BoundTableSource) {
+      return element.source.binding.path.toString().length === 0;
+    }
+    return false;
   }
 }

@@ -54,4 +54,46 @@ export class PageSpec {
       this.heightMm() - top - bottom,
     );
   }
+
+  /** 편집기 페이지 속성 패널이 현재 용지 규격을 표시할 수 있게 한다. */
+  sizeName(): PageSize {
+    return this.size;
+  }
+
+  /** 편집기 페이지 속성 패널이 현재 인쇄 방향을 표시할 수 있게 한다. */
+  orientationName(): PageOrientation {
+    return this.orientation;
+  }
+
+  /** 내부 배열을 노출하지 않고 현재 여백 값을 제공한다. */
+  marginMm(): PageMargin {
+    return [...this.margin];
+  }
+
+  /** 용지 규격만 바꾼 새 페이지 설정을 만들어 여백과 방향을 유지한다. */
+  withSize(size: PageSize): PageSpec {
+    return new PageSpec(size, this.orientation, this.margin);
+  }
+
+  /** 인쇄 방향만 바꾼 새 페이지 설정을 만들어 용지와 여백을 유지한다. */
+  withOrientation(orientation: PageOrientation): PageSpec {
+    return new PageSpec(this.size, orientation, this.margin);
+  }
+
+  /**
+   * 배치 가능한 영역이 사라지는 여백을 미리 막고 새 페이지 설정을 만든다.
+   *
+   * Frame이 음수 크기에서 던지는 예외보다 원인이 분명한 메시지를 주기 위해
+   * contentFrame()을 부르지 않고 남는 폭과 높이를 직접 계산한다.
+   */
+  withMargin(margin: PageMargin): PageSpec {
+    const [top, right, bottom, left] = margin;
+    if (margin.some((value) => value < 0)) {
+      throw new Error("페이지 여백은 음수가 될 수 없다");
+    }
+    if (this.widthMm() - left - right <= 0 || this.heightMm() - top - bottom <= 0) {
+      throw new Error("여백이 너무 커서 배치할 수 있는 영역이 남지 않는다");
+    }
+    return new PageSpec(this.size, this.orientation, margin);
+  }
 }

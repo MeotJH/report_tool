@@ -1,20 +1,35 @@
 {
   "name": "@report-tool/designer",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/designer.esm.js",
+  "module": "./dist/designer.esm.js",
   "types": "./dist/index.d.ts",
+  "unpkg": "./dist/designer.standalone.js",
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/designer.esm.js"
+    },
+    "./standalone": "./dist/designer.standalone.js"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build && vite build --config vite.config.standalone.ts && tsc -p tsconfig.json --emitDeclarationOnly"
   },
   "dependencies": {
     "@report-tool/core": "*",
     "konva": "^10.3.1",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
     "react-konva": "^19.2.5"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4"
+    "@types/react-dom": "^19.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "vite": "^8.2.2"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   }
 }

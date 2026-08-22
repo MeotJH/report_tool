@@ -83,6 +83,12 @@ export class Template {
     return this.copy({ status: "published" });
   }
 
+  /** 용지·방향·여백 변경도 요소 편집과 같은 초안 규칙을 따르게 한다. */
+  withPage(page: PageSpec): Template {
+    this.assertDraft();
+    return this.copy({ page });
+  }
+
   /** 초안 원본을 보존하면서 이름이 변경된 새 편집 상태를 만든다. */
   rename(newName: string): Template {
     this.assertDraft();

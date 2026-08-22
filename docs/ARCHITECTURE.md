@@ -58,7 +58,8 @@ packages/
 │   │   │   ├── ElementFactory.ts     JSON → Element 역직렬화
 │   │   │   ├── TextElement.ts
 │   │   │   ├── FieldElement.ts       단일 데이터 필드
-│   │   │   ├── TableElement.ts       반복 영역 (행 수가 가변)
+│   │   │   ├── TableElement.ts       정적·데이터 표의 공통 배치와 표현
+│   │   │   ├── TableSource.ts        정적 행 / Binding 배열 공급 Strategy
 │   │   │   ├── ImageElement.ts
 │   │   │   ├── BoxElement.ts
 │   │   │   ├── LineElement.ts
@@ -108,27 +109,54 @@ packages/
 ├── designer/src/
 │   ├── Designer.ts                   파사드. 호스트가 쓰는 유일한 진입점
 │   ├── controller/
-│   │   ├── EditorController.ts       편집 상태 총괄
-│   │   ├── SelectionModel.ts         선택 요소 관리
-│   │   └── SnapGuide.ts              스냅·정렬 보조선
+│   │   ├── EditorController.ts       편집 상태 총괄 (템플릿·선택·도구·보기·모드)
+│   │   ├── EditorActions.ts          사용자 행동 → Command 변환 (삭제·복제·정렬·순서·페이지)
+│   │   ├── EditorKeyboardController.ts 단축키 전략 모음
+│   │   ├── SelectionModel.ts         선택 요소 관리 (다중 선택)
+│   │   ├── SnapGuide.ts              스냅 계산 + 걸린 기준선 반환
+│   │   ├── ResizeHandleSet.ts        8방향 손잡이 위치·크기변경 계산
+│   │   ├── ViewportState.ts          확대율 (문서가 아니므로 Undo 대상 아님)
+│   │   ├── TransformPreview.ts       확정 전 화면 전용 상태 (드래그·안내선·영역선택)
+│   │   ├── FrameBounds.ts            다중 선택 경계 계산
+│   │   ├── LayerOrder.ts             z를 촘촘한 정수로 재배정
+│   │   ├── ElementAlignment.ts       정렬·분배 배치 계산
+│   │   ├── ElementCloner.ts          Factory 왕복 기반 복제
+│   │   ├── ElementClipboard.ts       편집기 전용 복사 보관소
+│   │   ├── TemplateIssueFinder.ts    core 검증 오류 + 편집 경고 수집
+│   │   ├── FieldPlacementPlanner.ts  팔레트 필드 배치 위치 결정
+│   │   └── TableEditor.ts            표 편집 규칙
 │   ├── command/
 │   │   ├── EditorCommand.ts          Command 추상 클래스
 │   │   ├── CommandStack.ts           undo / redo
+│   │   ├── CompositeCommand.ts       여러 변경을 Undo 한 번으로 묶는다
 │   │   ├── AddElementCommand.ts
 │   │   ├── RemoveElementCommand.ts
 │   │   ├── TransformElementCommand.ts  이동+크기변경 통합 (분리해도 로직이 같음)
-│   │   └── BindFieldCommand.ts
+│   │   ├── ChangeElementCommand.ts   배치 외 속성 변경 전체 (아래 6.4 참조)
+│   │   ├── ChangePageCommand.ts      용지·방향·여백
+│   │   ├── BindFieldCommand.ts
+│   │   └── TableCommands.ts          표 셀·행·열·Source 명령
 │   ├── tool/
-│   │   ├── EditorTool.ts             Tool 추상 클래스
-│   │   ├── SelectTool.ts
+│   │   ├── EditorTool.ts             Tool 추상 클래스 + DragCreateTool
+│   │   ├── SelectTool.ts             이동·크기변경·영역선택 Gesture 전략
 │   │   ├── TextTool.ts
 │   │   ├── FieldTool.ts
 │   │   ├── ShapeTool.ts              박스·선
-│   │   └── TableTool.ts
+│   │   ├── TableTool.ts
+│   │   ├── ImageTool.ts
+│   │   └── SignatureTool.ts
 │   └── view/
 │       ├── CanvasStage.ts            Konva 래핑. 라이브러리 격리 지점
+│       ├── CanvasOverlay.ts          페이지·여백·선택선·핸들·안내선 등 보조 도형
+│       ├── CanvasMetrics.ts          mm ↔ px 변환의 유일한 기준
 │       ├── KonvaElementVisitor.ts    Element → Konva 도형 변환 (편집용, 아래 6.3 참조)
-│       └── FieldPalette.ts           바인딩 드롭다운 UI (React)
+│       ├── LayerNamer.ts             요소 이름 도출 Visitor (저장하지 않는다)
+│       ├── DesignerShell.tsx         3칸 레이아웃 (Layers/Data · Canvas · Inspector)
+│       ├── LayersPanel.tsx           순서·잠금·숨김
+│       ├── InspectorPanel.tsx        선택별 속성 (없음=페이지, 1개, 다중)
+│       ├── TextEditOverlay.tsx       캔버스 위 입력기 (IME)
+│       ├── FieldPalette.tsx          바인딩 드롭다운 UI (React)
+│       └── inspector/               속성 입력 컨트롤과 요소별 Visitor
 │
 ├── viewer/src/
 │   ├── Viewer.ts                     파사드
@@ -160,7 +188,7 @@ apps/admin/adapters/           참조용 어댑터 구현 (인메모리·파일�
 | 패턴 | 적용 위치 | 해결하는 문제 |
 |---|---|---|
 | **Visitor** | `ElementVisitor` | 요소 종류 × 렌더러 종류의 조합 폭발. 렌더러를 추가해도 도메인을 건드리지 않는다 |
-| **Strategy** | `ValueFormatter` | 통화·날짜·마스킹 포맷을 `switch` 없이 교체 |
+| **Strategy** | `ValueFormatter`, `TableSource` | 포맷 알고리즘과 표 행 공급 방식을 교체 |
 | **Command** | `EditorCommand` | undo/redo. 상태 diff 방식은 캔버스에서 금방 한계에 부딪힌다 |
 | **Port & Adapter** | `application/port` | I/O를 전부 격리해 호스트 인프라를 꽂을 수 있게 한다 |
 | **Factory** | `ElementFactory` | JSON 역직렬화 시 타입별 클래스 생성을 한 곳에 모은다 |
@@ -305,6 +333,28 @@ Node의 `fs`와 `Buffer`에 의존한다는 사실을 T40 구현에서 확인했
 변환하지만, 최종 결과물의 근거(authoritative)는 되지 않는다. 편집 중 실제 인쇄 결과가
 궁금하면 "미리보기" 버튼으로 PDF 렌더러를 preview 모드로 호출한다.
 
+### 6.4 속성 변경 Command를 하나로 두는 이유
+
+요소는 불변이므로 스타일·문구·바인딩·표현·잠금·숨김·순서 변경은 모두 "다른 인스턴스로
+바꾼다"와 같다. 속성마다 Command 클래스를 만들면 Inspector 항목이 늘어날 때마다 같은
+모양의 클래스가 계속 늘어나므로, `ChangeElementCommand(before, after)` 하나로 모은다.
+배치 변경만 `TransformElementCommand`로 따로 두는데, 드래그와 방향키가 다루는 값이
+요소 전체가 아니라 Frame 두 개이기 때문이다.
+
+같은 이유로 `Element`의 공통 상태 변경 메서드도 하나뿐이다. 하위 클래스는
+`withCommon`만 구현하고, `withFrame`·`withZ`·`withLocked`·`withHidden`은 기반
+클래스가 그것으로 구현한다. 요소를 추가할 때 구현해야 하는 메서드가 종류마다
+늘어나지 않는다.
+
+`hidden`은 나중에 추가된 편집 상태이므로 저장 데이터에 없으면 `false`로 읽는다.
+필드가 없는 기존 템플릿이 예전과 똑같이 동작하므로 `schemaVersion`은 1로 유지한다.
+
+### 6.5 요소 이름을 저장하지 않는 이유
+
+Layers 패널의 이름은 `LayerNamer`가 내용에서 도출한다. 템플릿에 저장하면 문구를 고친
+뒤에도 옛 이름이 남아 목록과 문서가 어긋난다. 도출하면 항상 현재 내용과 일치하고
+저장 스키마도 늘지 않는다.
+
 ## 7. 프레임워크 선택
 
 ### 두 가지를 분리해서 판단한다
@@ -343,7 +393,10 @@ Preact는 3KB로 매력적이지만, 에디터 UI에 필요한 드롭다운·모
 
 용량 근거: 에디터는 이미 Konva를 약 130KB 싣고 뷰어는 pdf.js를 그보다 크게 싣는다.
 문서 편집기에서 250KB대는 정상 범위이며, 여기서 45KB는 노이즈다.
-(수치는 대략치. 번들 구성 후 실측하여 갱신할 것)
+
+**Phase 9 실측(2026-08-22)**: Figma식 편집 경험 보강 후 Vite production build 기준 ESM은
+355.51KB(gzip 89.66KB), React를 포함한 standalone UMD는 872.54KB(gzip 259.52KB)다.
+ESM은 React·React DOM·`@report-tool/core`를 external로 두며, standalone은 모두 포함한다.
 
 ### 듀얼 빌드로 양쪽을 모두 만족시킨다
 

@@ -1,1 +1,2 @@
-export const designer = "@report-tool/designer";
+export { Designer } from "./Designer.js";
+export type { DesignerOptions } from "./Designer.js";
