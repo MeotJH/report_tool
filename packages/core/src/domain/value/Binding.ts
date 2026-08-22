@@ -26,4 +26,14 @@ export class Binding {
     this.fallback = options.fallback ?? null;
     this.required = options.required ?? false;
   }
+
+  /** 바인딩 설정을 내부 DataPath 구조가 노출되지 않는 순수 데이터로 변환한다. */
+  toJSON(): Record<string, unknown> {
+    return {
+      path: this.path.toString(),
+      formatSpec: this.formatSpec,
+      fallback: this.fallback,
+      required: this.required,
+    };
+  }
 }

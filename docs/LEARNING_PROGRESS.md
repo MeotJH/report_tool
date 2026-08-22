@@ -16,7 +16,7 @@
 | 0 | T01~T02 프로젝트 기반 설정 | 구현 완료 | 학습 확인 완료 | 2026-08-22 |
 | 1 | T03~T07 Domain 값 객체 | 구현 완료 | 학습 확인 완료 | 2026-08-22 |
 | 2 | T08~T13 Domain 값 포맷터 | 구현 완료 | 학습 확인 완료 | 2026-08-22 |
-| 3 | T14~T22 Domain 요소 | 미착수 | 미착수 | - |
+| 3 | T14~T22 Domain 요소 | 구현 완료 | 학습 확인 완료 | 2026-08-22 |
 | 4 | T23~T25 템플릿 엔티티 | 미착수 | 미착수 | - |
 | 5 | T26~T28 발행 문서 엔티티 | 미착수 | 미착수 | - |
 | 6 | T29~T32 Application 포트 | 미착수 | 미착수 | - |
@@ -31,8 +31,8 @@
 
 ## 현재 학습 게이트
 
-- 다음 구현 대상: Phase 3, T14~T22
-- 사용자 실습: Phase 2 실습 완료
+- 다음 구현 대상: Phase 4, T23~T25
+- 사용자 실습: Phase 3 실습 완료
 - 다음 Phase 진행 가능 여부: 가능
 
 ## 작업 기록
@@ -64,3 +64,15 @@
   - `npm test`: 테스트 파일 12개, 테스트 44개 통과.
   - `npm run typecheck:core`: 사용자 실습 반영 후 재검증 통과.
   - `@report-tool/core` 공개 import로 `0.153`이 `15.3%`로 변환되는 것을 확인했다.
+- 2026-08-22: Phase 3 T14~T22 구현 완료.
+  - `Element` 공통 계약과 7종 요소, `ElementVisitor`를 구현했다.
+  - 고정·템플릿 문구를 코드 실행 없이 해석하는 `ContentResolver`를 구현했다.
+  - `ElementFactory`로 7종 요소의 실제 JSON 문자열 왕복을 구현하고 검증했다.
+  - `DataPath`, `Binding`, `TextStyle`에 안정적인 JSON 저장을 위한 표현을 추가했다.
+  - 실패 테스트 확인 후 구현했으며 `npm test`: 테스트 파일 15개, 테스트 69개 통과.
+  - `npm run typecheck:core`: 통과.
+  - domain 외부 런타임 의존성 부재와 `@report-tool/core` 공개 API 왕복을 확인했다.
+  - 사용자 실습: `ElementVisitor<number>`로 Text와 Box의 면적을 `accept()` 경유로 계산했다.
+  - AI가 사용자 요청에 따라 실습 코드의 들여쓰기와 중복 표현을 정리했다.
+  - `npm test`: 테스트 파일 15개, 테스트 71개 통과.
+  - `npm run typecheck:core`: 사용자 실습 반영 후 재검증 통과.

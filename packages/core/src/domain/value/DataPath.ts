@@ -27,4 +27,9 @@ export class DataPath {
 
     return current;
   }
+
+  /** 데이터 바인딩 경로를 내부 배열 구조에 의존하지 않는 저장 문자열로 제공한다. */
+  toString(): string {
+    return this.segments.join(".");
+  }
 }

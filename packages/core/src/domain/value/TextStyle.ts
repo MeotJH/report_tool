@@ -60,4 +60,19 @@ export class TextStyle {
       overflow: this.overflow,
     });
   }
+
+  /** 텍스트 스타일을 클래스 구현과 무관한 템플릿 저장 데이터로 변환한다. */
+  toJSON(): Record<string, unknown> {
+    return {
+      font: this.font,
+      size: this.size,
+      weight: this.weight,
+      italic: this.italic,
+      color: this.color,
+      align: this.align,
+      valign: this.valign,
+      lineHeight: this.lineHeight,
+      overflow: this.overflow,
+    };
+  }
 }
