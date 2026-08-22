@@ -21,7 +21,7 @@
 | 5 | T26~T28 발행 문서 엔티티 | 구현 완료 | 학습 생략 | 2026-08-22 |
 | 6 | T29~T32 Application 포트 | 구현 완료 | 학습 생략 | 2026-08-22 |
 | 7 | T33~T37 Application 서비스 | 구현 완료 | 학습 생략 | 2026-08-22 |
-| 8 | T38~T43 PDF Renderer | 미착수 | 미착수 | - |
+| 8 | T38~T43 PDF Renderer | 구현 완료 | 학습 확인 완료 | 2026-08-22 |
 | 9 | T44~T57 Designer | 미착수 | 미착수 | - |
 | 10 | T58~T63 Viewer | 미착수 | 미착수 | - |
 | 11 | T64~T68 Server HTTP 계층 | 미착수 | 미착수 | - |
@@ -31,9 +31,9 @@
 
 ## 현재 학습 게이트
 
-- 다음 구현 대상: Phase 8, T38~T43
-- 사용자 실습: Phase 7 실습은 사용자 요청으로 생략
-- 다음 Phase 진행 가능 여부: Phase 7 커밋 후 가능
+- 현재 구현 대상: Phase 9, T44 디자이너 패키지 초기화
+- 사용자 실습: Phase 8의 `ImageProvider` 누락 예외 테스트 통과
+- 다음 Phase 진행 가능 여부: Phase 8 커밋 후 T44 진행 가능
 
 ## 작업 기록
 
@@ -116,3 +116,32 @@
   - `npm run typecheck:core`: 통과, 생성된 `dist/index.d.ts`에서 서비스 공개 API를 확인했다.
   - domain에서 application을 역참조하는 import가 없음을 확인했다.
   - 사용자 요청에 따라 작은 변경 실습은 생략하고 다음 Phase로 진행한다.
+- 2026-08-22: Phase 8 T38~T43 구현 완료.
+  - `@report-tool/renderer` workspace와 PDF·fontkit·subset-font 의존성을 구성했다.
+  - Element Visitor로 텍스트·필드·표·서명란의 실제 출력 문자를 모으는 `UsedCharCollector`를 구현했다.
+  - harfbuzz 기반으로 TTF를 미리 서브셋하는 `FontSubsetter`를 구현했다.
+  - wrap·shrink·truncate 전략으로 PDF 텍스트 영역을 계산하는 `PdfTextLayout`을 구현했다.
+  - 실패 테스트를 먼저 확인한 뒤 `npm test`: 테스트 파일 29개, 테스트 121개 통과.
+  - `npm run typecheck:core`, `npm run typecheck:renderer`: 통과.
+  - 실제 Pretendard Regular TTF가 2661.9KB에서 15.2KB로 줄어드는 것을 확인했다.
+  - 생성 PDF를 macOS Quick Look으로 PNG 변환해 한글·영문·숫자 글리프가 빠짐없이 표시됨을 확인했다.
+  - `pdftoppm`은 설치되어 있지 않아 동일 목적의 Quick Look 렌더링으로 시각 검증했다.
+  - `subset-font`가 Node `fs`·`Buffer`에 의존하므로 T43의 브라우저 직접 렌더 요구와 충돌할 수 있음을 발견했다.
+    T42~T43 구현 전에 preview도 서버에서 수행할지, 브라우저용 서브셋 방식을 별도로 둘지 결정해야 한다.
+  - 사용자 참고 이미지의 인적사항·지급·공제·계산 방법 구조를 `PayslipTestFixture`로 작성했다.
+  - 실제 Pretendard TTF로 A4 한 페이지를 만드는 `PayslipRender.acceptance.test.ts`를 추가했다.
+  - `PdfElementVisitor`가 텍스트·필드·표·상자·선을 PDF에 그리고 이미지 자리는 점선으로 표시하게 했다.
+  - `PdfDocumentRenderer`가 폰트 서브셋·임베딩, z 순서 렌더, preview 워터마크를 조율하게 했다.
+  - 생성된 `apps/poc/generated-payslip.pdf`를 Quick Look PNG로 변환해 참고 양식과 같은 큰 구조를 확인했다.
+  - `npm test`: 테스트 파일 31개, 테스트 123개 통과.
+  - `npm run typecheck:core`, `npm run typecheck:renderer`: 통과.
+  - 고정 이미지는 `ImageProvider`, 데이터 이미지는 바인딩된 `ImageAsset`으로 실제 PNG/JPEG를 임베딩하게 했다.
+  - 원본·서브셋 폰트의 `ISU-20194` advance width가 동일하고 PNG 표현도 같아 서브셋 원인이 아님을 확인했다.
+  - `subset-font`의 Node 의존성을 반영해 preview와 authoritative PDF를 모두 서버에서 생성하도록 결정했다.
+  - 브라우저 직접 실행 차단과 서버 preview 워터마크를 자동 테스트로 검증했다.
+  - `npm test`: 테스트 파일 31개, 테스트 128개 통과.
+  - `npm run typecheck:core`, `npm run typecheck:renderer`: 통과.
+  - 사용자 실습: 고정 이미지가 있는데 `ImageProvider`를 주입하지 않으면 명시적 예외가 나는 테스트 추가 대기.
+  - 사용자 실습에서 고정 `ImageElement`와 비동기 예외 assertion을 올바르게 구성했다.
+  - `toThrow(string)`이 완전 일치가 아닌 부분 문자열 포함 검사라는 Vitest 동작을 확인하고 기대 문구를 정리했다.
+  - Phase 8 학습 확인 완료. 전체 검증과 커밋 후 Phase 9로 진행한다.

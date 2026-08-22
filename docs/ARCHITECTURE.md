@@ -32,7 +32,7 @@
 | 패키지 | 레이어 | 실행 환경 | 역할 |
 |---|---|---|---|
 | `@report-tool/core` | domain + application | isomorphic | 스키마·규칙·유스케이스·포트 정의 |
-| `@report-tool/renderer` | infrastructure | isomorphic | PDF·Canvas 렌더링 |
+| `@report-tool/renderer` | infrastructure | node | 한글 폰트 서브셋과 PDF 렌더링 |
 | `@report-tool/designer` | presentation | browser | 캔버스 에디터 |
 | `@report-tool/viewer` | presentation | browser | 문서 열람 + 서명 |
 | `@report-tool/server` | infra + presentation | node | 발행·배포·서명 접수 HTTP |
@@ -271,17 +271,20 @@ const font = await pdfDoc.embedFont(subsetBytes, { subset: false });
 
 `UsedCharCollector`가 템플릿과 데이터를 순회해 실제 등장 문자만 모은다.
 
-### 6.2 렌더러를 isomorphic으로 유지하는 이유
+### 6.2 PDF 렌더러를 서버에서 하나만 유지하는 이유
 
-미리보기(브라우저)와 발행본(서버)이 다른 코드로 그려지면 반드시 어긋난다.
-같은 `PdfDocumentRenderer`를 양쪽에서 쓰되 `RenderMode`로만 구분한다.
+미리보기와 발행본이 다른 코드로 그려지면 반드시 어긋난다. 따라서 두 결과 모두 서버의
+같은 `PdfDocumentRenderer`를 사용하고 `RenderMode`로만 구분한다. 브라우저 디자이너는
+preview PDF를 호스트 서버에 요청하고 pdf.js로 표시한다.
 
 ```ts
 type RenderMode = 'preview' | 'authoritative';
 ```
 
-`authoritative`는 브라우저 환경에서 호출되면 예외를 던진다.
-우회는 가능하지만 실수로 프론트에서 발행본을 만드는 것을 막는다.
+초기 설계는 preview 렌더러를 브라우저에서도 실행하려 했지만, 채택한 `subset-font` 2.5.0이
+Node의 `fs`와 `Buffer`에 의존한다는 사실을 T40 구현에서 확인했다. 브라우저용 서브셋 경로를
+별도로 만들면 같은 렌더 파이프라인이라는 장점이 약해지므로 MVP에서는 두 모드 모두 서버에서
+실행한다. 브라우저 환경에서 직접 호출하면 즉시 예외를 던진다.
 
 ---
 
@@ -292,9 +295,9 @@ type RenderMode = 'preview' | 'authoritative';
 어긋난다"는 6.2의 원리를 스스로 어기게 된다. 두 렌더러가 시간이 지나며 미묘하게 달라지는 것은
 거의 확정된 미래다.
 
-그래서 미리보기는 별도 렌더러를 만들지 않고 **PDF 렌더러를 `preview` 모드로 호출한 뒤
-pdf.js로 표시**하는 경로 하나만 둔다. 화면에 보이는 것과 나중에 나올 발행본이 항상 같은
-코드로 만들어지므로 어긋날 수가 없다.
+그래서 미리보기는 별도 렌더러를 만들지 않고 **서버의 PDF 렌더러를 `preview` 모드로 호출한 뒤
+브라우저에서 pdf.js로 표시**하는 경로 하나만 둔다. 화면에 보이는 것과 나중에 나올 발행본이
+항상 같은 코드로 만들어지므로 어긋날 수가 없다.
 
 다만 캔버스 에디터 자체(요소를 드래그·리사이즈하는 화면)는 텍스트를 픽셀 단위로 재현하는
 "렌더러"가 아니라 **조작 가능한 도형**을 보여주는 것이므로 별도로 존재해야 한다.

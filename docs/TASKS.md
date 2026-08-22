@@ -73,7 +73,7 @@
 | 5 | Domain: 발행 문서 엔티티 | T26~T28 | isomorphic |
 | 6 | Application: 포트 | T29~T32 | isomorphic |
 | 7 | Application: 서비스 | T33~T37 | isomorphic |
-| 8 | Renderer: PDF 생성 | T38~T43 | node + browser |
+| 8 | Renderer: PDF 생성 | T38~T43 | node |
 | 9 | Designer: 캔버스 에디터 | T44~T57 | browser |
 | 10 | Viewer: 열람 + 서명 | T58~T63 | browser |
 | 11 | Server: HTTP 계층 | T64~T68 | node |
@@ -633,8 +633,9 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
   ```
 - 완료 조건: `npx tsc` 통과.
 
-### T31. StorageAdapter, FontProvider, AuthAdapter
-- 파일: `packages/core/src/application/port/StorageAdapter.ts`, `.../FontProvider.ts`, `.../AuthAdapter.ts`
+### T31. StorageAdapter, FontProvider, ImageProvider, AuthAdapter
+- 파일: `packages/core/src/application/port/StorageAdapter.ts`, `.../FontProvider.ts`,
+  `.../ImageProvider.ts`, `.../AuthAdapter.ts`
 - 선행: T02
 - 목표: PDF 바이트 저장, 폰트 파일 공급, 배포 토큰 발급·검증을 각각 분리한 포트.
 - 구현:
@@ -645,6 +646,13 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
   }
   export interface FontProvider {
     load(family: string, weight: number): Promise<Uint8Array>;  // TTF 바이트
+  }
+  export interface ImageAsset {
+    readonly bytes: Uint8Array;
+    readonly mediaType: 'image/png' | 'image/jpeg';
+  }
+  export interface ImageProvider {
+    load(assetId: string): Promise<ImageAsset>;
   }
   export interface AuthAdapter {
     issueToken(documentId: string, recipientId: string, ttlSeconds: number): Promise<string>;
@@ -893,6 +901,11 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
     PoC와 동일한 결과가 나오는지 PNG 비교
   - 자간 이상의 원인을 확정하고 이 문서(T42 항목)에 결론을 한 줄로 남긴다
 
+  **재검증 결론(2026-08-22)**: 원본 Pretendard와 harfbuzz 서브셋 폰트로 만든 PNG에서
+  `ISU-20194` 간격이 동일했고, pdf-lib로 측정한 advance width도 소수점 5자리까지 같았다.
+  따라서 서브셋 과정은 원인이 아니며 원본 Pretendard의 하이픈 advance/sidebearing 표현으로
+  판단한다. MVP에서는 별도 보정을 하지 않는다.
+
 ### T43. PdfDocumentRenderer
 - 파일: `packages/renderer/src/pdf/PdfDocumentRenderer.ts`
 - 선행: T39, T40, T42, T32
@@ -900,12 +913,11 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
   요소 그리기, `preview` 모드 워터마크까지 전체를 조율한다.
 - 구현:
   - `class PdfDocumentRenderer implements DocumentRenderer`
-  - `constructor(private readonly fontProvider: FontProvider)`
+  - `constructor(private readonly fontProvider: FontProvider, private readonly imageProvider?: ImageProvider)`
   - `async render(template: Template, data: unknown, mode: RenderMode): Promise<Uint8Array>`:
-    1. **`mode === 'authoritative'`인데 `typeof window !== 'undefined'`이면 즉시 예외**
-       (`throw new Error('발행본 렌더는 서버에서만 허용된다')`) — [ARCHITECTURE.md 6.2](ARCHITECTURE.md#62-렌더러를-isomorphic으로-유지하는-이유)의
-       "실수 방지" 장치를 실제로 코드에 넣는 지점. 우회 가능하다는 것을 알고 있지만
-       실수로 브라우저에서 발행본을 만드는 것은 막는다
+    1. **`typeof window !== 'undefined'`이면 즉시 예외** — 채택한 `subset-font`가 Node의
+       `fs`·`Buffer`에 의존하므로 preview와 authoritative 모두 서버의 같은 렌더러를 사용한다.
+       브라우저는 서버가 만든 preview PDF를 받아 표시한다.
     2. `const bindingResolver = new BindingResolver()`
     3. `const usedChars = new UsedCharCollector(data, bindingResolver).collect(template)`
     4. `template.fonts`(화이트리스트 폰트명 목록)의 각 굵기(400, 700)에 대해
@@ -921,9 +933,7 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
        (담당자가 미리보기와 발행본을 착각하지 않도록 하는 최소한의 안전장치)
     9. `return pdf.save()`
 - 완료 조건:
-  - `mode: 'authoritative'`를 브라우저 환경(예: happy-dom/jsdom으로 `window` 존재하게 만든
-    테스트 환경, 또는 그냥 전역에 `globalThis.window = {}`를 임시로 준 테스트)에서 호출하면
-    예외가 나는지 확인
+  - 브라우저 환경에서 `preview`와 `authoritative`를 호출하면 각각 예외가 나는지 확인
   - `mode: 'preview'`로 렌더한 PDF에 워터마크 텍스트가 포함되는지 (pdf-lib로 다시 읽어
     텍스트 추출은 어려우므로, 간단히는 "예외 없이 끝나고 바이트 길이가 워터마크 없는
     버전보다 커졌는지"로 대체 확인 가능)

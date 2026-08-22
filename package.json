@@ -12,7 +12,8 @@
   "scripts": {
     "poc:pdf": "node apps/poc/font-poc.mjs",
     "test": "vitest run",
-    "typecheck:core": "tsc -p packages/core"
+    "typecheck:core": "tsc -p packages/core",
+    "typecheck:renderer": "tsc -p packages/renderer"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

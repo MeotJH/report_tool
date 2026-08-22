@@ -125,6 +125,7 @@ async function build({ subset }) {
 const off = await build({ subset: false });
 const on  = await build({ subset: true });
 
+writeFileSync('apps/poc/payslip-no-subset.pdf', off.bytes);
 writeFileSync('apps/poc/payslip.pdf', on.bytes);
 
 const kb = (b) => (b.length / 1024).toFixed(1) + ' KB';

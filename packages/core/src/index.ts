@@ -10,6 +10,10 @@ export type {
 export type { DocumentStore } from "./application/port/DocumentStore.js";
 export type { FontProvider } from "./application/port/FontProvider.js";
 export type { HashProvider } from "./application/port/HashProvider.js";
+export type {
+  ImageAsset,
+  ImageProvider,
+} from "./application/port/ImageProvider.js";
 export type { StorageAdapter } from "./application/port/StorageAdapter.js";
 export type { TemplateStore } from "./application/port/TemplateStore.js";
 export { DistributionService } from "./application/service/DistributionService.js";
