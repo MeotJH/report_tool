@@ -7,6 +7,23 @@ export { NumberFormatter } from "./domain/format/NumberFormatter.js";
 export { PercentFormatter } from "./domain/format/PercentFormatter.js";
 export { PlainTextFormatter } from "./domain/format/PlainTextFormatter.js";
 export { ValueFormatter } from "./domain/format/ValueFormatter.js";
+export { AuditEntry } from "./domain/document/AuditEntry.js";
+export type {
+  AuditAction,
+  AuditEntryOptions,
+} from "./domain/document/AuditEntry.js";
+export { DocumentHash } from "./domain/document/DocumentHash.js";
+export { IssuedDocument } from "./domain/document/IssuedDocument.js";
+export type {
+  IssuedDocumentStatus,
+  IssuedPdf,
+  IssueDocumentOptions,
+} from "./domain/document/IssuedDocument.js";
+export { SignatureRecord } from "./domain/document/SignatureRecord.js";
+export type {
+  SignatureRecordOptions,
+  SignatureStroke,
+} from "./domain/document/SignatureRecord.js";
 export { BoxElement } from "./domain/element/BoxElement.js";
 export type { BoxElementOptions } from "./domain/element/BoxElement.js";
 export type { Content } from "./domain/element/Content.js";
