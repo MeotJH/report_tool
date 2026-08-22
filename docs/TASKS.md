@@ -285,7 +285,7 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
     제외한 나머지를 `maskChar`로 치환
   - `PlainTextFormatter`: `format(rawValue)` → `rawValue == null ? '' : String(rawValue)`
 - 완료 조건:
-  - `new MaskFormatter(6, 1).format('9004171234567')` → `'900417*******7'`
+  - `new MaskFormatter(6, 1).format('9004171234567')` → `'900417******7'`
   - `new PlainTextFormatter().format(42)` → `'42'`, `.format(null)` → `''`
 
 ### T13. FormatterRegistry (Factory)

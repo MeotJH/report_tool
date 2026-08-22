@@ -6,4 +6,5 @@ export type FormatSpec =
   | { kind: "currency"; currency: "KRW" | "USD"; showSymbol?: boolean }
   | { kind: "number"; decimals?: number; thousands?: boolean }
   | { kind: "date"; pattern: string }
-  | { kind: "mask"; keepHead?: number; keepTail?: number; maskChar?: string };
+  | { kind: "mask"; keepHead?: number; keepTail?: number; maskChar?: string }
+  | { kind: "percent"; decimals?: number };
