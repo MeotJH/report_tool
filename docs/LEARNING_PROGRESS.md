@@ -19,7 +19,7 @@
 | 3 | T14~T22 Domain 요소 | 구현 완료 | 학습 확인 완료 | 2026-08-22 |
 | 4 | T23~T25 템플릿 엔티티 | 구현 완료 | 학습 확인 완료 | 2026-08-22 |
 | 5 | T26~T28 발행 문서 엔티티 | 구현 완료 | 학습 생략 | 2026-08-22 |
-| 6 | T29~T32 Application 포트 | 미착수 | 미착수 | - |
+| 6 | T29~T32 Application 포트 | 구현 완료 | 학습 생략 | 2026-08-22 |
 | 7 | T33~T37 Application 서비스 | 미착수 | 미착수 | - |
 | 8 | T38~T43 PDF Renderer | 미착수 | 미착수 | - |
 | 9 | T44~T57 Designer | 미착수 | 미착수 | - |
@@ -31,9 +31,9 @@
 
 ## 현재 학습 게이트
 
-- 다음 구현 대상: Phase 6, T29~T32
-- 사용자 실습: Phase 5 실습은 사용자 요청으로 생략
-- 다음 Phase 진행 가능 여부: Phase 5 커밋 후 가능
+- 다음 구현 대상: Phase 7, T33~T37
+- 사용자 실습: Phase 6 실습은 사용자 요청으로 생략
+- 다음 Phase 진행 가능 여부: Phase 6 커밋 후 가능
 
 ## 작업 기록
 
@@ -95,4 +95,14 @@
   - 실패 테스트를 먼저 확인한 후 `npm test`: 테스트 파일 21개, 테스트 103개 통과.
   - `npm run typecheck:core`: 통과.
   - `@report-tool/core` 공개 import로 같은 해시의 서명이 `signed` 상태로 전환되는 것을 확인했다.
+  - 사용자 요청에 따라 작은 변경 실습은 생략하고 다음 Phase로 진행한다.
+- 2026-08-22: Phase 6 T29~T32 구현 완료.
+  - 템플릿과 발행 문서의 영속화를 분리하는 `TemplateStore`, `DocumentStore` 포트를 정의했다.
+  - 호스트 데이터와 필드 구조를 공급하는 `DataProvider` 포트를 정의했다.
+  - PDF 저장, 폰트 공급, 인증을 분리하는 `StorageAdapter`, `FontProvider`, `AuthAdapter`를 정의했다.
+  - PDF 렌더링과 SHA-256 계산을 분리하는 `DocumentRenderer`, `HashProvider`를 정의했다.
+  - 모든 포트를 `@report-tool/core`의 공개 타입으로 노출했다.
+  - 이 Phase는 실행 구현이 없는 타입 계약이므로 새 런타임 테스트를 작성하지 않았다.
+  - `npm run typecheck:core`: 통과, 생성된 `dist/index.d.ts`에서 공개 타입을 확인했다.
+  - `npm test`: 기존 테스트 파일 21개, 테스트 103개 통과.
   - 사용자 요청에 따라 작은 변경 실습은 생략하고 다음 Phase로 진행한다.

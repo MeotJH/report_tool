@@ -1,3 +1,17 @@
+export type { AuthAdapter } from "./application/port/AuthAdapter.js";
+export type {
+  DataProvider,
+  FieldSchema,
+} from "./application/port/DataProvider.js";
+export type {
+  DocumentRenderer,
+  RenderMode,
+} from "./application/port/DocumentRenderer.js";
+export type { DocumentStore } from "./application/port/DocumentStore.js";
+export type { FontProvider } from "./application/port/FontProvider.js";
+export type { HashProvider } from "./application/port/HashProvider.js";
+export type { StorageAdapter } from "./application/port/StorageAdapter.js";
+export type { TemplateStore } from "./application/port/TemplateStore.js";
 export { CurrencyFormatter } from "./domain/format/CurrencyFormatter.js";
 export { DateFormatter } from "./domain/format/DateFormatter.js";
 export type { FormatSpec } from "./domain/format/FormatSpec.js";
