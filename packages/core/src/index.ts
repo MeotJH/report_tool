@@ -29,6 +29,16 @@ export { TableElement } from "./domain/element/TableElement.js";
 export type { TableOverflow } from "./domain/element/TableElement.js";
 export { TemplateExpression } from "./domain/element/TemplateExpression.js";
 export { TextElement } from "./domain/element/TextElement.js";
+export { BindingResolver } from "./domain/template/BindingResolver.js";
+export { Template } from "./domain/template/Template.js";
+export type {
+  TemplateOptions,
+  TemplateStatus,
+} from "./domain/template/Template.js";
+export {
+  TemplateValidator,
+  ValidationError,
+} from "./domain/template/TemplateValidator.js";
 export { Binding } from "./domain/value/Binding.js";
 export type { BindingOptions } from "./domain/value/Binding.js";
 export { DataPath } from "./domain/value/DataPath.js";
