@@ -10,6 +10,7 @@ import {
   TableColumn,
   TableElement,
   Template,
+  TextElement,
   TextStyle,
   type Element,
 } from "@report-tool/core";
@@ -32,7 +33,7 @@ function table(id: string, source: StaticTableSource | BoundTableSource): TableE
   const style = new TextStyle("Pretendard", 9);
   return new TableElement(
     id, new Frame(20, 20, 60, 30), 0, false, source,
-    [new TableColumn("item", "항목", "{{row.item}}", 30, "left", null)],
+    [new TableColumn("item", "항목", "{{row.item}}", 60, "left", null)],
     7, style, style, true, "clip",
   );
 }
@@ -103,6 +104,20 @@ describe("TemplateIssueFinder", () => {
     ));
 
     expect(issues).toEqual([]);
+  });
+
+  it("열 너비 합이 표 너비와 다르면 경고한다", () => {
+    const style = new TextStyle("Pretendard", 9);
+    const narrow = new TableElement(
+      "t", new Frame(20, 20, 60, 30), 0, false, new StaticTableSource([{ item: "가" }]),
+      [new TableColumn("item", "항목", "{{row.item}}", 90, "left", null)],
+      7, style, style, true, "clip",
+    );
+
+    const issues = finder.find(createTemplate(narrow));
+
+    expect(issues.map((issue) => issue.message))
+      .toEqual(["열 너비 합 90mm가 표 너비 60mm와 다르다"]);
   });
 
   it("정상 요소만 있으면 아무 문제도 알리지 않는다", () => {

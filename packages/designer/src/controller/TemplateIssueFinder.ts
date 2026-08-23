@@ -89,7 +89,29 @@ export class TemplateIssueFinder {
     if (this.isEmptyStaticTable(element)) {
       warnings.push(this.warning(element, "표에 입력된 행이 없다"));
     }
+    warnings.push(...this.overflowingColumnWarning(element));
     return warnings;
+  }
+
+  /**
+   * 열 너비 합이 표 너비와 다른 표를 드러낸다.
+   *
+   * 합이 더 크면 마지막 열이 표 밖에 그려지고, 편집기는 요소를 프레임으로 찾으므로
+   * 그 열은 눌러도 끌어다 놓아도 반응하지 않는다. 보이는데 만질 수 없는 상태다.
+   */
+  private overflowingColumnWarning(element: Element): readonly TemplateIssue[] {
+    if (!(element instanceof TableElement)) return [];
+    const total = element.columns.reduce((sum, column) => sum + column.width, 0);
+    if (Math.abs(total - element.frame.width) < 0.1) return [];
+    return [this.warning(
+      element,
+      `열 너비 합 ${this.round(total)}mm가 표 너비 ${this.round(element.frame.width)}mm와 다르다`,
+    )];
+  }
+
+  /** 경고 문구에 부동소수 오차가 그대로 노출되지 않게 한다. */
+  private round(millimeters: number): number {
+    return Math.round(millimeters * 10) / 10;
   }
 
   /** 종이 경계를 조금이라도 벗어나면 인쇄에서 잘리므로 경고 대상으로 본다. */

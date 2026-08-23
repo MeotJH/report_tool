@@ -6,9 +6,12 @@ import {
   TableElement,
   TableSource,
 } from "@report-tool/core";
+import { TableColumnFitter } from "./TableColumnFitter.js";
 
 /** 표 편집 규칙을 UI 이벤트와 분리해 Command와 이후 속성 패널이 함께 사용하게 한다. */
 export class TableEditor {
+  private readonly columnFitter = new TableColumnFitter();
+
   /** 데이터 표의 원본을 훼손하지 않도록 정적 표에서만 셀 값을 교체한다. */
   updateCell(
     table: TableElement,
@@ -34,13 +37,19 @@ export class TableEditor {
     return table.withSource(source.removeRow(index));
   }
 
-  /** 열 정의와 정적 행의 셀 구조가 어긋나지 않도록 두 값을 함께 추가한다. */
+  /**
+   * 열 정의와 정적 행의 셀 구조가 어긋나지 않도록 두 값을 함께 추가한다.
+   *
+   * 새 열은 폭을 새로 만들지 않고 기존 열에서 비례로 나눠 받는다. 그냥 붙이면
+   * 열 너비 합이 표 프레임을 넘어 그 열이 표 밖에 그려지고, 편집기가 요소를
+   * 프레임으로 찾으므로 그 열에는 데이터를 연결할 수도 없게 된다.
+   */
   addColumn(table: TableElement, column: TableColumn, index: number): TableElement {
     this.assertColumnInsertIndex(table, index);
     this.assertUniqueColumnKey(table, column.key);
     const columns = [...table.columns];
     columns.splice(index, 0, column);
-    return this.withAddedSourceColumn(table.withColumns(columns), column.key);
+    return this.withAddedSourceColumn(this.withFittedColumns(table, columns), column.key);
   }
 
   /** 열 정의를 삭제할 때 정적 행에 남은 사용하지 않는 셀 값도 함께 제거한다. */
@@ -48,7 +57,7 @@ export class TableEditor {
     if (table.columns.length === 1) throw new Error("표에는 열이 하나 이상 필요하다");
     const removed = this.columnAt(table, index);
     const columns = table.columns.filter((_column, columnIndex) => columnIndex !== index);
-    return this.withRemovedSourceColumn(table.withColumns(columns), removed.key);
+    return this.withRemovedSourceColumn(this.withFittedColumns(table, columns), removed.key);
   }
 
   /** 헤더 문구 변경이 열의 데이터 연결과 표시 설정을 잃지 않게 한다. */
@@ -157,6 +166,14 @@ export class TableEditor {
     if (!/^[A-Za-z0-9_.]+$/.test(fieldKey)) {
       throw new Error("데이터 Token key 형식이 올바르지 않다");
     }
+  }
+
+  /** 열 구조가 바뀔 때마다 너비 합을 표 프레임에 다시 맞춘다. */
+  private withFittedColumns(
+    table: TableElement,
+    columns: readonly TableColumn[],
+  ): TableElement {
+    return table.withColumns(this.columnFitter.fitToWidth(columns, table.frame.width));
   }
 
   /** 지정 위치의 열 하나만 교체한 새 배열을 만들어 원본 열 배열을 보존한다. */
