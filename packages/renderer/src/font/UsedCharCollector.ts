@@ -7,14 +7,16 @@ import {
   type ImageElement,
   type LineElement,
   type SignatureElement,
+  TableCellResolver,
   type TableElement,
   Template,
-  TemplateExpression,
   type TextElement,
 } from "@report-tool/core";
 
 /** 실제 출력 문자열만 모아 한글 폰트 서브셋이 필요한 글리프를 빠짐없이 알게 한다. */
 export class UsedCharCollector implements ElementVisitor<string> {
+  private readonly cellResolver = new TableCellResolver();
+
   /** 데이터 해석 규칙을 렌더러와 동일하게 사용해 수집 문자와 출력 문자가 어긋나지 않게 한다. */
   constructor(
     private readonly data: unknown,
@@ -43,9 +45,9 @@ export class UsedCharCollector implements ElementVisitor<string> {
   /** 표 머리글과 모든 행·열의 최종 셀 문자를 함께 수집한다. */
   visitTable(element: TableElement): string {
     const headers = element.columns.map((column) => column.header).join("");
-    const cells = element.source.resolveRows(this.data).flatMap((row) => element.columns.map((column) => (
-      TemplateExpression.render(column.cellTemplate, { row })
-    )));
+    const cells = element.source
+      .resolveRows(this.data)
+      .flatMap((row) => this.cellResolver.resolveRow(element.columns, row, this.data));
     return headers + cells.join("");
   }
 

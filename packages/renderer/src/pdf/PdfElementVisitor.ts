@@ -8,10 +8,11 @@ import {
   type ImageElement,
   type LineElement,
   type SignatureElement,
+  TableCellResolver,
   type TableColumn,
   type TableElement,
-  TemplateExpression,
   type TextAlign,
+  TextLayout,
   TextStyle,
   type TextElement,
 } from "@report-tool/core";
@@ -22,12 +23,13 @@ import {
   rgb,
   type RGB,
 } from "pdf-lib";
-import { PdfTextLayout } from "./PdfTextLayout.js";
 
 /** 도메인 요소를 좌표와 스타일 규칙에 맞춰 실제 PDF 페이지 명령으로 변환한다. */
 export class PdfElementVisitor implements ElementVisitor<void> {
   private static readonly POINTS_PER_MM = 72 / 25.4;
   private static readonly DEFAULT_BORDER_MM = 0.2;
+
+  private readonly cellResolver = new TableCellResolver();
 
   /** 요소 해석에 필요한 데이터와 PDF 자원을 한 렌더링 세션 동안 공유한다. */
   constructor(
@@ -36,7 +38,7 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     private readonly fonts: ReadonlyMap<string, PDFFont>,
     private readonly data: unknown,
     private readonly bindingResolver: BindingResolver,
-    private readonly textLayout: PdfTextLayout,
+    private readonly textLayout: TextLayout,
     private readonly images: ReadonlyMap<string, PDFImage>,
   ) {}
 
@@ -64,9 +66,7 @@ export class PdfElementVisitor implements ElementVisitor<void> {
       if ((rowIndex + 1) * element.rowHeight > element.frame.height) {
         break;
       }
-      const cells = element.columns.map((column) => (
-        TemplateExpression.render(column.cellTemplate, { row })
-      ));
+      const cells = this.cellResolver.resolveRow(element.columns, row, this.data);
       this.drawTableRow(element, cells, rowIndex, false);
       rowIndex += 1;
     }

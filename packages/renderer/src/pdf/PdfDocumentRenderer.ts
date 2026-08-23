@@ -8,6 +8,7 @@ import {
   type ImageProvider,
   type RenderMode,
   Template,
+  TextLayout,
 } from "@report-tool/core";
 import {
   degrees,
@@ -20,7 +21,6 @@ import {
 import { FontSubsetter } from "../font/FontSubsetter.js";
 import { UsedCharCollector } from "../font/UsedCharCollector.js";
 import { PdfElementVisitor } from "./PdfElementVisitor.js";
-import { PdfTextLayout } from "./PdfTextLayout.js";
 
 /** 도메인 템플릿을 한글 폰트가 포함된 미리보기 또는 권위 PDF로 변환한다. */
 export class PdfDocumentRenderer implements DocumentRenderer {
@@ -163,7 +163,7 @@ export class PdfDocumentRenderer implements DocumentRenderer {
       fonts,
       data,
       bindingResolver,
-      new PdfTextLayout(),
+      new TextLayout(),
       images,
     );
     [...template.getElements()]
