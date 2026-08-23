@@ -1,13 +1,11 @@
-import {
-  ConstantVariable,
-  DataVariable,
-  type FieldSchema,
-  type TemplateVariable,
-  type VariableValueType,
+import type {
+  FieldSchema,
+  TemplateVariable,
+  VariableValueType,
 } from "@report-tool/core";
 
 /** 팔레트 한 줄이 어디서 왔는지 구분해 사용자가 신뢰도를 판단하게 한다. */
-export type PaletteOrigin = "host" | "declared" | "constant";
+export type PaletteOrigin = "host" | "declared";
 
 /**
  * 데이터 패널 한 줄이 필요한 모든 정보를 담은다.
@@ -24,8 +22,6 @@ export interface PaletteEntry {
   readonly children: readonly PaletteEntry[];
   /** 배열 자식이면 소속 배열의 경로. 최상위 항목은 null이다. */
   readonly arrayPath: string | null;
-  /** 상수일 때만 현재 값을 함께 보여준다. */
-  readonly value?: string;
 }
 
 /**
@@ -36,7 +32,7 @@ export interface PaletteEntry {
  * 경로를 우선한다.
  */
 export class PaletteEntryBuilder {
-  /** 호스트 필드 → 선언 필드 → 상수 순서로 한 목록을 만든다. */
+  /** 호스트 필드 뒤에 템플릿이 선언한 변수를 이어 한 목록을 만든다. */
   build(
     hostFields: FieldSchema,
     variables: readonly TemplateVariable[],
@@ -44,13 +40,9 @@ export class PaletteEntryBuilder {
     const hostEntries = this.fromSchema(hostFields, "", null);
     const claimed = new Set(this.collectPaths(hostEntries));
     const declared = variables
-      .filter((variable): variable is DataVariable => variable.kind === "data")
-      .filter((variable) => !claimed.has(variable.path()))
-      .map((variable) => this.fromDataVariable(variable, "", null));
-    const constants = variables
-      .filter((variable): variable is ConstantVariable => variable.kind === "constant")
-      .map((variable) => this.fromConstant(variable));
-    return [...hostEntries, ...declared, ...constants];
+      .filter((variable) => !claimed.has(variable.name))
+      .map((variable) => this.fromVariable(variable, "", null));
+    return [...hostEntries, ...declared];
   }
 
   /** 호스트 스키마를 경로와 소속 배열을 보존하며 재귀적으로 변환한다. */
@@ -82,8 +74,8 @@ export class PaletteEntryBuilder {
    * 자식 변수의 이름은 배열 한 줄 안의 키이므로, 호스트 스키마와 같은 규칙으로
    * 부모 경로를 앞에 붙여야 팔레트에서 끌어 놓을 때 같은 경로 체계를 쓴다.
    */
-  private fromDataVariable(
-    variable: DataVariable,
+  private fromVariable(
+    variable: TemplateVariable,
     parentPath: string,
     arrayPath: string | null,
   ): PaletteEntry {
@@ -95,23 +87,9 @@ export class PaletteEntryBuilder {
       origin: "declared",
       sensitive: false,
       children: variable.children.map(
-        (child) => this.fromDataVariable(child, path, path),
+        (child) => this.fromVariable(child, path, path),
       ),
       arrayPath,
-    };
-  }
-
-  /** 상수는 값을 함께 보여줘 무엇이 찍힐지 바로 알게 한다. */
-  private fromConstant(variable: ConstantVariable): PaletteEntry {
-    return {
-      path: variable.path(),
-      label: variable.name,
-      type: "string",
-      origin: "constant",
-      sensitive: false,
-      children: [],
-      arrayPath: null,
-      value: variable.value,
     };
   }
 

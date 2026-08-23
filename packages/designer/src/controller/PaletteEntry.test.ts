@@ -1,8 +1,4 @@
-import {
-  ConstantVariable,
-  DataVariable,
-  type FieldSchema,
-} from "@report-tool/core";
+import { TemplateVariable, type FieldSchema } from "@report-tool/core";
 import { describe, expect, it } from "vitest";
 import { PaletteEntryBuilder } from "./PaletteEntry.js";
 
@@ -44,7 +40,7 @@ describe("PaletteEntryBuilder", () => {
 
   it("사용자가 선언한 데이터 변수를 선언 출처로 덧붙인다", () => {
     const entries = builder.build(hostFields, [
-      new DataVariable("pay.bonus", "상여금", "currency", true),
+      new TemplateVariable("pay.bonus", "상여금", "currency", true),
     ]);
 
     const bonus = entries.find((entry) => entry.path === "pay.bonus");
@@ -55,9 +51,9 @@ describe("PaletteEntryBuilder", () => {
 
   it("선언한 배열의 자식도 함께 펼친다", () => {
     const entries = builder.build({}, [
-      new DataVariable("deductionItems", "공제 항목", "array", false, [
-        new DataVariable("item", "항목", "string"),
-        new DataVariable("amount", "금액", "currency"),
+      new TemplateVariable("deductionItems", "공제 항목", "array", false, [
+        new TemplateVariable("item", "항목", "string"),
+        new TemplateVariable("amount", "금액", "currency"),
       ]),
     ]);
 
@@ -68,7 +64,7 @@ describe("PaletteEntryBuilder", () => {
 
   it("호스트가 이미 제공하는 경로는 선언을 중복 표시하지 않는다", () => {
     const entries = builder.build(hostFields, [
-      new DataVariable("baseSalary", "다른 이름", "currency"),
+      new TemplateVariable("baseSalary", "다른 이름", "currency"),
     ]);
 
     const matches = entries.filter((entry) => entry.path === "baseSalary");
@@ -77,24 +73,12 @@ describe("PaletteEntryBuilder", () => {
     expect(matches[0]?.label).toBe("기본급");
   });
 
-  it("상수는 예약 이름공간 경로와 현재 값을 함께 보여준다", () => {
-    const entries = builder.build({}, [new ConstantVariable("회사명", "아이에스유")]);
-
-    expect(entries[0]).toMatchObject({
-      path: "const.회사명",
-      label: "회사명",
-      origin: "constant",
-      value: "아이에스유",
-    });
-  });
-
-  it("호스트 필드, 선언 필드, 상수 순서로 보여준다", () => {
+  it("호스트 필드 뒤에 선언 필드를 이어 보여준다", () => {
     const entries = builder.build(hostFields, [
-      new ConstantVariable("회사명", "아이에스유"),
-      new DataVariable("pay.bonus", "상여금", "currency"),
+      new TemplateVariable("pay.bonus", "상여금", "currency"),
     ]);
 
     expect(entries.map((entry) => entry.origin))
-      .toEqual(["host", "host", "declared", "constant"]);
+      .toEqual(["host", "host", "declared"]);
   });
 });

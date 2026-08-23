@@ -1,10 +1,7 @@
 import { Element } from "../element/Element.js";
 import { ElementFactory } from "../element/ElementFactory.js";
 import { PageSpec } from "../value/PageSpec.js";
-import {
-  ConstantVariable,
-  TemplateVariable,
-} from "./TemplateVariable.js";
+import { TemplateVariable } from "./TemplateVariable.js";
 
 /** 템플릿이 편집·발행·보관 중 어느 상태인지 명확하게 제한한다. */
 export type TemplateStatus = "draft" | "published" | "archived";
@@ -99,26 +96,6 @@ export class Template {
   withVariables(variables: readonly TemplateVariable[]): Template {
     this.assertDraft();
     return this.copy({ variables });
-  }
-
-  /**
-   * 템플릿이 소유한 상수를 호스트 데이터 위에 얹은 조회 대상을 만든다.
-   *
-   * 편집기 미리보기와 PDF 렌더러가 각자 상수를 합치면 한쪽만 반영되는 순간이
-   * 생긴다. 합치는 규칙을 템플릿 자신에게 두고 두 경로가 이것만 호출하게 한다.
-   * `const`는 예약 이름공간이므로 호스트 데이터의 같은 키는 가려진다.
-   */
-  resolveData(hostData: unknown): unknown {
-    const constants = this.variables
-      .filter((variable): variable is ConstantVariable => variable.kind === "constant");
-    if (constants.length === 0) return hostData;
-    const base = typeof hostData === "object" && hostData !== null ? hostData : {};
-    return {
-      ...base,
-      [ConstantVariable.NAMESPACE]: Object.fromEntries(
-        constants.map((constant) => [constant.name, constant.value]),
-      ),
-    };
   }
 
   /** 용지·방향·여백 변경도 요소 편집과 같은 초안 규칙을 따르게 한다. */

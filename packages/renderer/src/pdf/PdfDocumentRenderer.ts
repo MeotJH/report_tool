@@ -34,30 +34,21 @@ export class PdfDocumentRenderer implements DocumentRenderer {
     private readonly imageProvider?: ImageProvider,
   ) {}
 
-  /**
-   * 문자 수집부터 폰트 임베딩과 요소 그리기까지 동일한 PDF 파이프라인으로 처리한다.
-   *
-   * 호스트 데이터를 그대로 쓰지 않고 `template.resolveData()`를 한 번 통과시킨다.
-   * 템플릿이 소유한 상수가 이 지점에서 합쳐지므로, 문자 수집·이미지 해석·요소 그리기가
-   * 모두 같은 값을 본다. 파이프라인 중간에서 각자 합치면 한쪽만 반영되는 순간이 생긴다.
-   */
+  /** 문자 수집부터 폰트 임베딩과 요소 그리기까지 동일한 PDF 파이프라인으로 처리한다. */
   async render(
     template: Template,
     data: unknown,
     mode: RenderMode,
   ): Promise<Uint8Array> {
     this.assertAllowedEnvironment(mode);
-    const resolvedData = template.resolveData(data);
     const bindingResolver = new BindingResolver();
-    const usedChars = this.collectUsedCharacters(
-      template, resolvedData, mode, bindingResolver,
-    );
+    const usedChars = this.collectUsedCharacters(template, data, mode, bindingResolver);
     const pdf = await PDFDocument.create();
     pdf.registerFontkit(fontkit);
     const fonts = await this.embedFonts(pdf, template.fonts, usedChars);
-    const images = await this.embedImages(pdf, template, resolvedData);
+    const images = await this.embedImages(pdf, template, data);
     const page = this.addPage(pdf, template);
-    this.drawElements(page, template, resolvedData, fonts, images, bindingResolver);
+    this.drawElements(page, template, data, fonts, images, bindingResolver);
     if (mode === "preview") this.drawPreviewWatermark(page, fonts);
     return pdf.save();
   }

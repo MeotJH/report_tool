@@ -1,13 +1,11 @@
 import {
-  ConstantVariable,
-  DataVariable,
-  type TemplateVariable,
+  TemplateVariable,
   type VariableValueType,
 } from "@report-tool/core";
 import { useState } from "react";
 
 /** 사용자가 만들 수 있는 변수 종류를 화면 용어로 제한한다. */
-type VariableKind = "constant" | "data" | "array";
+type VariableKind = "data" | "array";
 
 /** 배열 변수의 자식 한 줄을 입력 중인 상태로 담는다. */
 interface ChildDraft {
@@ -37,10 +35,9 @@ export function VariableEditor(props: {
   onAdd: (variable: TemplateVariable) => void;
   onClose: () => void;
 }) {
-  const [kind, setKind] = useState<VariableKind>("constant");
+  const [kind, setKind] = useState<VariableKind>("data");
   const [name, setName] = useState("");
   const [label, setLabel] = useState("");
-  const [value, setValue] = useState("");
   const [type, setType] = useState<VariableValueType>("string");
   const [required, setRequired] = useState(false);
   const [children, setChildren] = useState<readonly ChildDraft[]>([
@@ -52,7 +49,7 @@ export function VariableEditor(props: {
   /** 입력을 도메인 변수로 만들고, 도메인이 거부하면 원인을 그대로 보여준다. */
   const submit = (): void => {
     try {
-      props.onAdd(createVariable({ kind, name, label, value, type, required, children }));
+      props.onAdd(createVariable({ kind, name, label, type, required, children }));
       props.onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "변수를 만들 수 없다");
@@ -63,7 +60,6 @@ export function VariableEditor(props: {
     <div className="rt-variable-editor">
       <div className="rt-variable-kinds" role="group" aria-label="변수 종류">
         {([
-          { value: "constant" as const, label: "정적 값" },
           { value: "data" as const, label: "데이터 필드" },
           { value: "array" as const, label: "배열" },
         ]).map((option) => (
@@ -81,38 +77,24 @@ export function VariableEditor(props: {
       <p className="rt-variable-help">{describeKind(kind)}</p>
 
       <label className="rt-variable-field">
-        <span className="rt-field-name">{kind === "constant" ? "이름" : "데이터 경로"}</span>
+        <span className="rt-field-name">데이터 경로</span>
         <input
           type="text"
           value={name}
-          placeholder={kind === "constant" ? "회사명" : "pay.bonus"}
+          placeholder={kind === "array" ? "deductionItems" : "pay.bonus"}
           onChange={(event) => setName(event.currentTarget.value)}
         />
       </label>
 
-      {kind === "constant"
-        ? (
-          <label className="rt-variable-field">
-            <span className="rt-field-name">값</span>
-            <input
-              type="text"
-              value={value}
-              placeholder="모든 발행본에 같게 나갈 문구"
-              onChange={(event) => setValue(event.currentTarget.value)}
-            />
-          </label>
-        )
-        : (
-          <label className="rt-variable-field">
-            <span className="rt-field-name">표시 이름</span>
-            <input
-              type="text"
-              value={label}
-              placeholder="상여금"
-              onChange={(event) => setLabel(event.currentTarget.value)}
-            />
-          </label>
-        )}
+      <label className="rt-variable-field">
+        <span className="rt-field-name">표시 이름</span>
+        <input
+          type="text"
+          value={label}
+          placeholder={kind === "array" ? "공제 항목" : "상여금"}
+          onChange={(event) => setLabel(event.currentTarget.value)}
+        />
+      </label>
 
       {kind === "data"
         ? (
@@ -228,21 +210,17 @@ function createVariable(draft: Readonly<{
   kind: VariableKind;
   name: string;
   label: string;
-  value: string;
   type: VariableValueType;
   required: boolean;
   children: readonly ChildDraft[];
 }>): TemplateVariable {
   const name = draft.name.trim();
-  if (draft.kind === "constant") {
-    return new ConstantVariable(name, draft.value);
-  }
   const label = draft.label.trim() === "" ? name : draft.label.trim();
   if (draft.kind === "data") {
-    return new DataVariable(name, label, draft.type, draft.required);
+    return new TemplateVariable(name, label, draft.type, draft.required);
   }
-  return new DataVariable(name, label, "array", draft.required, draft.children.map(
-    (child) => new DataVariable(
+  return new TemplateVariable(name, label, "array", draft.required, draft.children.map(
+    (child) => new TemplateVariable(
       child.name.trim(),
       child.label.trim() === "" ? child.name.trim() : child.label.trim(),
       child.type,
@@ -253,7 +231,6 @@ function createVariable(draft: Readonly<{
 /** 각 종류가 무엇을 만드는지 고르기 전에 알려준다. */
 function describeKind(kind: VariableKind): string {
   const descriptions: Readonly<Record<VariableKind, string>> = {
-    constant: "모든 발행본에 같은 값으로 나갑니다. 회사명·문의처처럼 문서가 소유한 문구입니다.",
     data: "발행 시 호스트가 채웁니다. 값 하나가 들어갈 자리를 만듭니다.",
     array: "발행 시 항목 수만큼 행이 반복됩니다. 문서에 놓으면 표가 됩니다.",
   };

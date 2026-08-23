@@ -8,8 +8,6 @@ import {
 } from "../value/PageSpec.js";
 import { Template, type TemplateStatus } from "./Template.js";
 import {
-  ConstantVariable,
-  DataVariable,
   TemplateVariable,
   type VariableValueType,
 } from "./TemplateVariable.js";
@@ -80,26 +78,15 @@ export class TemplateFactory {
     return variables.map((variable) => TemplateFactory.readVariable(variable));
   }
 
-  /** 상수와 선언 필드를 저장된 종류 태그로 구분해 복원한다. */
-  private static readVariable(json: Record<string, unknown>): TemplateVariable {
-    if (json.kind === "constant") {
-      return new ConstantVariable(json.name as string, json.value as string);
-    }
-    if (json.kind === "data") {
-      return TemplateFactory.readDataVariable(json);
-    }
-    throw new Error("지원하지 않는 템플릿 변수 종류다");
-  }
-
   /** 배열 변수의 자식까지 재귀적으로 복원한다. */
-  private static readDataVariable(json: Record<string, unknown>): DataVariable {
+  private static readVariable(json: Record<string, unknown>): TemplateVariable {
     const children = (json.children ?? []) as readonly Record<string, unknown>[];
-    return new DataVariable(
+    return new TemplateVariable(
       json.name as string,
       json.label as string,
       json.type as VariableValueType,
       json.required === true,
-      children.map((child) => TemplateFactory.readDataVariable(child)),
+      children.map((child) => TemplateFactory.readVariable(child)),
     );
   }
 

@@ -31,8 +31,6 @@ export function FieldPalette({
   const [adding, setAdding] = useState(false);
   const filter = useMemo(() => new FieldPaletteFilter(), []);
   const filtered = useMemo(() => filter.filter(entries, query), [entries, filter, query]);
-  const dataEntries = filtered.filter((entry) => entry.origin !== "constant");
-  const constantEntries = filtered.filter((entry) => entry.origin === "constant");
   return (
     <section aria-label="데이터 필드" className="rt-field-palette">
       <div className="rt-palette-heading">
@@ -72,30 +70,18 @@ export function FieldPalette({
         />
       </label>
       <div className="rt-palette-scroll">
-        {filtered.length === 0 ? <div className="rt-empty">검색 결과가 없습니다.</div> : null}
-        {dataEntries.length === 0 ? null : (
-          <EntryList
-            entries={dataEntries}
-            mode={mode}
-            onPick={onPick}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            onRemoveVariable={onRemoveVariable}
-          />
-        )}
-        {constantEntries.length === 0 ? null : (
-          <>
-            <div className="rt-palette-group-title">템플릿 상수</div>
+        {filtered.length === 0
+          ? <div className="rt-empty">검색 결과가 없습니다.</div>
+          : (
             <EntryList
-              entries={constantEntries}
+              entries={filtered}
               mode={mode}
               onPick={onPick}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onRemoveVariable={onRemoveVariable}
             />
-          </>
-        )}
+          )}
       </div>
     </section>
   );
@@ -149,16 +135,14 @@ function EntryRow(props: EntryListProps & { entry: PaletteEntry }) {
         }}
         onDragEnd={() => props.onDragEnd?.()}
         aria-label={describeAction(entry, props.mode)}
-        title={`${entry.path}${entry.value === undefined ? "" : ` = ${entry.value}`}`}
+        title={entry.path}
       >
         <span className="rt-field-copy">
           <span className="rt-field-label">
             {isArray ? "▾ " : ""}{entry.label}
             {entry.sensitive ? <span title="민감 필드">🔒</span> : null}
           </span>
-          <span className="rt-field-path">
-            {entry.value === undefined ? entry.path : entry.value}
-          </span>
+          <span className="rt-field-path">{entry.path}</span>
         </span>
         <OriginBadge entry={entry} />
       </button>
@@ -170,7 +154,7 @@ function EntryRow(props: EntryListProps & { entry: PaletteEntry }) {
             className="rt-icon-button"
             title="이 변수 삭제"
             aria-label={`${entry.label} 변수 삭제`}
-            onClick={() => props.onRemoveVariable(variableNameOf(entry))}
+            onClick={() => props.onRemoveVariable(entry.path)}
           >
             ✕
           </button>
@@ -184,19 +168,11 @@ function OriginBadge(props: { entry: PaletteEntry }) {
   const labels: Readonly<Record<PaletteEntry["origin"], string>> = {
     host: props.entry.type === "array" ? "배열" : props.entry.type,
     declared: "선언",
-    constant: "상수",
   };
   const className = props.entry.origin === "host"
     ? "rt-type-badge"
     : `rt-type-badge rt-type-badge--${props.entry.origin}`;
   return <span className={className}>{labels[props.entry.origin]}</span>;
-}
-
-/** 상수는 예약 이름공간을 벗어난 실제 변수 이름으로 지워야 한다. */
-function variableNameOf(entry: PaletteEntry): string {
-  if (entry.origin !== "constant") return entry.path;
-  const separator = entry.path.indexOf(".");
-  return separator === -1 ? entry.path : entry.path.slice(separator + 1);
 }
 
 /** 보조 기술이 항목의 동작을 정확히 읽게 한다. */

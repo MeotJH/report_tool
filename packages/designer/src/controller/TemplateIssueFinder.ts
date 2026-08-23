@@ -1,5 +1,4 @@
 import {
-  ConstantVariable,
   ImageElement,
   SignatureElement,
   StaticTableSource,
@@ -55,16 +54,13 @@ export class TemplateIssueFinder {
   /**
    * 어디에도 정의되지 않은 데이터 경로를 참조하는 요소를 찾는다.
    *
-   * 상수는 core 검증기가 이미 오류로 잡으므로 여기서는 제외한다. 남은 경우는
-   * 호스트 목록에도 없고 템플릿 선언에도 없는 경로이며, 오타이거나 지운 변수의
+   * 호스트 목록에도 없고 템플릿 선언에도 없는 경로는 오타이거나 지운 변수의
    * 흔적이다. 발행하면 그 자리는 빈칸으로 나간다.
    */
   private findUnknownReferences(template: Template): readonly TemplateIssue[] {
     if (this.entries.length === 0) return [];
     const known = new Set(this.knownPaths(this.entries));
-    const constantPrefix = `${ConstantVariable.NAMESPACE}.`;
     return this.references.collect(template)
-      .filter((reference) => !reference.path.startsWith(constantPrefix))
       .filter((reference) => !known.has(reference.path))
       .map((reference) => ({
         elementId: reference.elementId,
