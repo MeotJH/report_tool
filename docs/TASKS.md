@@ -619,20 +619,11 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
 ### T30. DataProvider
 - 파일: `packages/core/src/application/port/DataProvider.ts`
 - 선행: T02
-- 목표: 담당자가 캔버스에서 "이 자리에 어떤 필드를 연결할지" 고를 수 있는 목록과,
-  실제 발행 시 쓸 데이터를 호스트로부터 받아온다.
+- 목표: 미리보기와 발행에 쓸 데이터를 호스트로부터 받아온다.
+  연결 가능한 필드 목록은 **호스트가 주지 않는다** — 템플릿의 `variables`가 유일한 근거다.
 - 구현:
   ```ts
-  export interface FieldSchema {
-    [path: string]: {
-      label: string;
-      type: 'string' | 'number' | 'currency' | 'date' | 'boolean' | 'array' | 'image';
-      children?: FieldSchema;   // type이 'array'일 때 행 스코프 필드
-      sensitive?: boolean;      // true면 에디터가 마스킹 포맷을 기본 제안
-    };
-  }
   export interface DataProvider {
-    fields(templateId: string): Promise<FieldSchema>;
     sample(templateId: string): Promise<unknown>;         // 미리보기용, 반드시 마스킹된 값
     resolve(templateId: string, recipientId: string): Promise<unknown>;  // 발행용 실제 데이터
   }
@@ -856,12 +847,13 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
   지정한 문자들이 전부 정상 렌더되는지 **눈으로 직접 확인** (PDF를 PNG로 렌더해서 본다 —
   이 프로젝트에서 실제로 버그를 찾아낸 방법과 동일).
 
-### T41. PdfTextLayout
-- 파일: `packages/renderer/src/pdf/PdfTextLayout.ts`
+### T41. TextLayout
+- 파일: `packages/core/src/domain/text/TextLayout.ts`
+  (N02에서 renderer의 `PdfTextLayout`을 core로 옮겼다 — 캔버스와 PDF가 함께 쓴다)
 - 선행: T05 (TextStyle)
 - 목표: 텍스트가 박스 폭을 넘칠 때 `TextStyle.overflow` 설정대로 줄바꿈/축소/말줄임 처리.
 - 구현:
-  - `class PdfTextLayout`: `layout(text: string, style: TextStyle, maxWidthMm: number, measureWidth: (text: string, size: number) => number): {lines: string[]; fontSize: number}` —
+  - `class TextLayout`: `layout(text: string, style: TextStyle, maxWidthMm: number, measureWidth: (text: string, size: number) => number): {lines: string[]; fontSize: number}` —
     `measureWidth`는 pdf-lib의 `font.widthOfTextAtSize`를 감싼 콜백으로 주입받는다
     (이 클래스가 pdf-lib 타입에 직접 의존하지 않도록 하는 최소한의 격리)
     - `overflow === 'wrap'`: 공백 기준으로 단어를 쌓다가 `maxWidthMm`(pt로 환산)을 넘기면 줄바꿈
@@ -881,7 +873,7 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
 - 구현:
   - `class PdfElementVisitor implements ElementVisitor<void>`: 생성자로
     `page: PDFPage`, `pageHeightMm: number`, `fonts: Map<string, PDFFont>`(굵기별),
-    `data: unknown`, `bindingResolver: BindingResolver`, `textLayout: PdfTextLayout` 주입
+    `data: unknown`, `bindingResolver: BindingResolver`, `textLayout: TextLayout` 주입
   - `visitText`/`visitField` 공통 로직을 `private drawTextBox(text: string, frame: Frame, style: TextStyle)`로
     뽑아 중복 제거. 내부에서 `frame.toPdfRect(this.pageHeightMm)`로 좌표 변환 후
     `page.drawText(...)` 호출. `align`에 따라 x 시작점을 `font.widthOfTextAtSize`로 보정
@@ -934,7 +926,7 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
        (**`subset: false`를 반드시 지정** — T40 결정 재확인)
     6. `template.page`로 페이지 크기 계산해 `pdf.addPage(...)`
     7. `template.getElements()`를 `z` 순서로 정렬 후 각각
-       `element.accept(new PdfElementVisitor(page, pageHeightMm, fontMap, data, bindingResolver, new PdfTextLayout()))`
+       `element.accept(new PdfElementVisitor(page, pageHeightMm, fontMap, data, bindingResolver, new TextLayout()))`
     8. `mode === 'preview'`이면 페이지 대각선에 반투명 `'PREVIEW'` 텍스트를 추가로 그림
        (담당자가 미리보기와 발행본을 착각하지 않도록 하는 최소한의 안전장치)
     9. `return pdf.save()`
@@ -1161,11 +1153,11 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
 
 ### T56. FieldPalette (React)
 - 파일: `packages/designer/src/view/FieldPalette.tsx`
-- 선행: T30(`FieldSchema`), T51
+- 선행: T23(`TemplateVariable`), T51
 - 목표: 담당자가 "이 필드를 캔버스에 놓겠다"를 선택하는 드롭다운/목록 UI. **문자열을
   직접 타이핑하게 하지 않는다** — 오타로 조용히 빈 값이 나가는 것을 막기 위해서다.
 - 구현:
-  - `function FieldPalette(props: {fields: FieldSchema; onPick: (path: string, spec: FieldSchema[string]) => void})`
+  - `function FieldPalette(props: {entries: readonly PaletteEntry[]; onInsert: (entry: PaletteEntry) => void})`
   - `fields`를 순회해 목록으로 렌더. `type: 'array'`인 항목은 `children`을 들여쓰기해서 보여줌
     (표 컬럼 고를 때 참고용 — MVP에서 실제로 표 컬럼을 여기서 바로 연결하지 않아도 됨,
     T53에서 기본 컬럼으로 시작하는 것으로 충분)
@@ -1182,7 +1174,7 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
   - 필드 카드를 드래그하는 동안 문서에 드롭 안내와 강조선을 표시한다. 이미 놓인
     `FieldElement`가 선택된 상태라면 같은 목록을 "연결 변경" 모드로 보여 추가와 재바인딩을
     혼동하지 않게 하고, "새 필드 추가" 버튼으로 선택을 해제해 추가 모드로 돌아갈 수 있게 한다.
-- 완료 조건 (수동 확인): 가짜 `FieldSchema`로 목록이 올바르게 그려지고, 클릭 시
+- 완료 조건 (수동 확인): 템플릿이 선언한 변수로 목록이 올바르게 그려지고, 클릭 시
   `onPick`이 올바른 인자로 호출되는지 브라우저 콘솔로 확인. 검색어에 맞는 중첩 필드만
   표시되는지, 클릭 즉시 추가·직접 드롭·민감 필드·연결 변경 안내가 구분되는지도 확인.
 
@@ -1194,7 +1186,7 @@ Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 �
 - 목표: 호스트가 이 라이브러리를 쓸 때 보게 되는 **유일한 공개 진입점**. 지금까지 만든
   모든 내부 클래스는 이 파사드 뒤에 숨는다.
 - 구현:
-  - `interface DesignerOptions { container: HTMLElement; template: Template; fields: FieldSchema; onChange?: (template: Template) => void; }`
+  - `interface DesignerOptions { container: HTMLElement; template: Template; sampleData?: unknown; onChange?: (template: Template) => void; }`
   - `class Designer`:
     - `constructor(options: DesignerOptions)` — 내부에서 `EditorController`, `CanvasStage`를
       생성하고 React로 `FieldPalette` 등 UI를 `options.container`에 마운트(`createRoot`)
@@ -1276,7 +1268,7 @@ Phase 9 표 기능을 완료로 표시하지 않는다.
     막지 않는 이유는 전환 전체가 Undo 한 번으로 복원되기 때문이다.
   - 배열 자식 필드를 본문 열에 놓으면 해당 열에 연결한다. 다른 배열 소속이거나 정적 표면
     열을 건드리지 않고 단일 필드를 만든다.
-  - `FieldSchema.label`을 헤더 기본값으로 제안하고, 숫자·금액·날짜 타입은 정렬과 포맷까지 제안한다.
+  - 선언 변수의 `label`을 헤더 기본값으로 제안하고, 숫자·금액·날짜 타입은 정렬과 포맷까지 제안한다.
   - 설계 모드에서는 열 값을 `⟨key⟩` Token으로, 미리보기 모드에서는 실제 샘플 값으로 보여준다.
   - 남긴 것: 정적 표로 되돌리는 반대 전환에서 미리보기 행을 복사하는 선택지,
     Inspector의 열 Drop Zone.
@@ -1331,7 +1323,7 @@ Phase 9 표 기능을 완료로 표시하지 않는다.
 - [x] **T57-Y 사용자가 데이터 필드를 직접 정의**: 데이터 패널에서 데이터 필드와
   배열을 추가·삭제한다. 배열은 자식 구성을 정하면 문서에 놓는 순간 그 구성이 표의
   열이 된다. 정의되지 않은 경로를 참조하는 요소는 편집기가 경고로 표시한다.
-  - 근거: 호스트 필드 목록은 "시스템이 줄 수 있는 값"이고 템플릿 변수는 "문서가
+  - 근거: 템플릿 변수는 "문서가
     필요한 값"이다. 선언을 막아도 승인된 필드가 특정 수령인 데이터에서 빠지는 것은
     막지 못하므로, 금지하는 대신 선언을 허용하고 검증으로 드러낸다.
   - 상수(정적 값)는 넣지 않는다. 고정 문구는 텍스트 요소와 정적 표 셀이 이미 저장하며,
@@ -1570,13 +1562,11 @@ Phase 9 표 기능을 완료로 표시하지 않는다.
 - 선행: T30
 - 목표: 실제 DB 대신 고정된 JSON 파일(가짜 직원 명단)을 데이터 소스로 흉내낸다.
 - 구현: 생성자에서 가짜 직원 데이터 배열(3~5명, 이름·사원번호·부서·급여항목 포함)을
-  들고 있음. `fields()`는 고정된 `FieldSchema` 반환(성명, 사원번호, 부서, 지급일,
-  주민등록번호(`sensitive: true`), 급여항목(`type: 'array'`) 등 — T42 PoC에서 쓴
-  임금명세서 항목을 그대로 스키마로 옮긴다). `sample()`은 첫 번째 가짜 직원인데
-  주민등록번호는 이미 마스킹된 채로 반환. `resolve(templateId, recipientId)`는
+  들고 있음. 데이터 키는 T42 PoC의 임금명세서 항목과 1:1로 맞춘다. `sample()`은 첫 번째
+  가짜 직원인데 주민등록번호는 이미 마스킹된 채로 반환. `resolve(templateId, recipientId)`는
   `recipientId`로 배열에서 찾아 그대로 반환(마스킹 없이 — 실제 발행이므로)
-- 완료 조건: `fields()`가 T42 PoC의 항목과 1:1 대응하는지, `sample()`의 주민번호가
-  마스킹된 문자열인지, `resolve('tpl_payslip','emp1')`이 실제 값을 반환하는지 확인.
+- 완료 조건: `sample()`의 주민번호가 마스킹된 문자열인지,
+  `resolve('tpl_payslip','emp1')`이 실제 값을 반환하는지 확인.
 
 ### T72. TokenAuthAdapter
 - 파일: `apps/admin/adapters/TokenAuthAdapter.ts`
@@ -1636,7 +1626,7 @@ import하면 도그푸딩의 의미가 없어진다.
 - 파일: `apps/admin/app/design/page.tsx`
 - 선행: T57, T74
 - 목표: 실제로 브라우저에서 급여명세서 양식을 그려보는 화면.
-- 구현: `useEffect`에서 `new Designer({ container: ref.current, template: 새 draft 템플릿, fields: await fetch('/api/templates/fields') 결과, onChange: (t) => 상태에 저장 })`.
+- 구현: `useEffect`에서 `new Designer({ container: ref.current, template: 새 draft 템플릿, onChange: (t) => 상태에 저장 })`.
   "저장" 버튼 → `TemplateStore.save()`를 호출하는 API 라우트로 POST. "발행" 버튼 →
   `TemplateService.publish()`를 호출하는 API 라우트로 POST
 - 완료 조건: T42 PoC와 동등한 임금명세서 양식을 **코드 없이 마우스로만** 만들 수 있는지 확인.

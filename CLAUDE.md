@@ -9,6 +9,9 @@
 - 코드 구조: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 전체 요약: [docs/SUMMARY.md](docs/SUMMARY.md)
 - **구현 작업 목록 (T01~T78)**: [docs/TASKS.md](docs/TASKS.md) — 항상 번호가 낮은 작업부터 진행한다
+- 문서 유형별 기능 공백(임금명세서·비밀유지서약서): [docs/PAYSLIP_GAP_ANALYSIS.md](docs/PAYSLIP_GAP_ANALYSIS.md)
+- **공백을 메우는 다음 작업 (N00~N19)**: [docs/TASKS_NEXT.md](docs/TASKS_NEXT.md) — T78 이후 진행 순서
+- **기능별 클론코딩 색인**: [docs/CLONE_GUIDE.md](docs/CLONE_GUIDE.md) — 커밋 하나 = 학습 단위 하나
 
 ---
 
