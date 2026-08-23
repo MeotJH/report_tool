@@ -1,4 +1,5 @@
 import {
+  Binding,
   BoundTableSource,
   StaticTableSource,
   TableColumn,
@@ -6,11 +7,14 @@ import {
   TableElement,
   TableSource,
 } from "@report-tool/core";
+import type { PaletteEntry } from "./PaletteEntry.js";
 import { TableColumnFitter } from "./TableColumnFitter.js";
+import { TableColumnPlanner } from "./TableColumnPlanner.js";
 
 /** 표 편집 규칙을 UI 이벤트와 분리해 Command와 이후 속성 패널이 함께 사용하게 한다. */
 export class TableEditor {
   private readonly columnFitter = new TableColumnFitter();
+  private readonly columnPlanner = new TableColumnPlanner();
 
   /** 데이터 표의 원본을 훼손하지 않도록 정적 표에서만 셀 값을 교체한다. */
   updateCell(
@@ -85,6 +89,33 @@ export class TableEditor {
   /** 정적·데이터 표 전환 시 기존 Source를 불변 인스턴스에 남겨 Undo가 복원하게 한다. */
   changeSource(table: TableElement, source: TableSource): TableElement {
     return table.withSource(source);
+  }
+
+  /**
+   * 표를 배열에 연결하고 열을 그 배열의 자식으로 다시 구성한다.
+   *
+   * 팔레트 드래그와 Inspector 드롭다운이 같은 규칙을 써야 한다. 두 경로가 갈리면
+   * "끌어다 놓았을 때"와 "골랐을 때"의 결과가 달라져 사용자가 둘 중 무엇을 믿어야
+   * 할지 알 수 없게 된다.
+   */
+  bindArray(
+    table: TableElement,
+    arrayPath: string,
+    children: readonly PaletteEntry[],
+  ): TableElement {
+    const columns = this.columnPlanner.fromArrayChildrenKeepingWidth(
+      children,
+      table.columns.map((column) => column.width),
+    );
+    return table
+      .withSource(new BoundTableSource(new Binding(arrayPath)))
+      .withColumns(columns);
+  }
+
+  /** 연결을 바꿀 때 사라질 사용자 입력 행이 몇 개인지 알려 준다. */
+  discardedRowCount(table: TableElement): number {
+    if (!(table.source instanceof StaticTableSource)) return 0;
+    return table.source.rows.length;
   }
 
   /** 데이터 토큰을 열 표현식으로 바꾸되 사용자가 정한 헤더의 보존 여부를 선택하게 한다. */

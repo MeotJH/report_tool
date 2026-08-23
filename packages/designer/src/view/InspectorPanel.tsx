@@ -1,6 +1,7 @@
 import type { Element } from "@report-tool/core";
 import type { EditorActions } from "../controller/EditorActions.js";
 import type { EditorController } from "../controller/EditorController.js";
+import type { PaletteEntry } from "../controller/PaletteEntry.js";
 import type { TemplateIssue } from "../controller/TemplateIssueFinder.js";
 import { ElementInspectorVisitor } from "./inspector/ElementInspectorVisitor.js";
 import { InspectorRow, InspectorSection, NumberField, ToggleField } from "./inspector/InspectorFields.js";
@@ -12,6 +13,8 @@ export interface InspectorPanelProps {
   readonly controller: EditorController;
   readonly actions: EditorActions;
   readonly issues: readonly TemplateIssue[];
+  /** 표를 어떤 데이터에 연결할 수 있는지 고르게 하려면 선언 목록이 필요하다. */
+  readonly entries: readonly PaletteEntry[];
 }
 
 /**
@@ -49,7 +52,7 @@ export function InspectorPanel(props: InspectorPanelProps) {
 function SingleElementInspector(props: InspectorPanelProps & { element: Element }) {
   const { element, actions, controller } = props;
   const issues = props.issues.filter((issue) => issue.elementId === element.id);
-  const visitor = new ElementInspectorVisitor(actions, controller);
+  const visitor = new ElementInspectorVisitor(actions, controller, props.entries);
   return (
     <>
       <div className="rt-inspector-target">

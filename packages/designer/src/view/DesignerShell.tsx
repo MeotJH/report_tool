@@ -62,7 +62,12 @@ export function DesignerShell(props: DesignerShellProps) {
           />
         </aside>
         <CanvasWorkspace {...props} />
-        <InspectorPanel controller={props.controller} actions={props.actions} issues={issues} />
+        <InspectorPanel
+          controller={props.controller}
+          actions={props.actions}
+          issues={issues}
+          entries={entries}
+        />
       </div>
       <DesignerStatus controller={props.controller} issues={issues} />
     </div>

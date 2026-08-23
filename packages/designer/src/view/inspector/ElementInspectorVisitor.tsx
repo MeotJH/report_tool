@@ -1,6 +1,7 @@
 import {
   Binding,
   BoundTableSource,
+  KoreanParticle,
   StaticTableSource,
   TableColumn,
   type BoxElement,
@@ -19,6 +20,7 @@ import type { ReactNode } from "react";
 import {
   AddTableColumnCommand,
   AddTableRowCommand,
+  BindTableColumnCommand,
   ChangeTableSourceCommand,
   RemoveTableColumnCommand,
   RemoveTableRowCommand,
@@ -27,6 +29,8 @@ import {
 } from "../../command/TableCommands.js";
 import type { EditorActions } from "../../controller/EditorActions.js";
 import type { EditorController } from "../../controller/EditorController.js";
+import type { PaletteEntry } from "../../controller/PaletteEntry.js";
+import { TableEditor } from "../../controller/TableEditor.js";
 import {
   ChoiceField,
   ColorField,
@@ -49,10 +53,19 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
   /** 새 열이 항상 그릴 수 있는 크기로 추가되게 기본 너비를 고정한다. */
   private static readonly NEW_COLUMN_WIDTH_MM = 20;
 
+  /** 직접 입력한 행을 쓰겠다는 선택을 드롭다운에서 표현하는 값이다. */
+  private static readonly STATIC_SOURCE_VALUE = "";
+
+  /** 아직 데이터에 연결하지 않은 열을 드롭다운에서 표현하는 값이다. */
+  private static readonly UNBOUND_COLUMN_VALUE = "";
+
+  private readonly tableEditor = new TableEditor();
+
   /** 모든 속성 변경이 같은 행동 정의와 상태 경계를 사용하게 한다. */
   constructor(
     private readonly actions: EditorActions,
     private readonly controller: EditorController,
+    private readonly entries: readonly PaletteEntry[] = [],
   ) {}
 
   /** 화면이 요소 종류를 모른 채 속성 편집 영역을 얻게 한다. */
@@ -291,31 +304,24 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
   private tableStructureSection(element: TableElement): ReactNode {
     const bound = element.source instanceof BoundTableSource ? element.source : null;
     const staticRowCount = element.source instanceof StaticTableSource
-      ? element.source.resolveRows({}).length
+      ? element.source.rows.length
       : 0;
     return (
       <InspectorSection title="표 구조" hint={bound === null ? "직접 입력한 행" : "데이터 배열"}>
+        <SelectField
+          label="행 출처"
+          value={bound?.binding.path.toString() ?? ElementInspectorVisitor.STATIC_SOURCE_VALUE}
+          options={this.sourceOptions()}
+          onCommit={(path) => this.changeSource(element, path)}
+        />
         {bound === null
           ? (
             <p className="rt-inspector-note">
-              직접 입력한 행을 쓰는 표입니다. 왼쪽 데이터 패널의 배열을 이 표에 끌어다
-              놓으면 데이터 표로 바뀝니다.
+              셀을 직접 입력하는 표입니다. 캔버스에서 칸을 더블클릭해 고치고,
+              값이 사람마다 달라야 하면 <code>{"{{경로}}"}</code>를 적으세요.
             </p>
           )
-          : (
-            <>
-              <div className="rt-token-chip">{bound.binding.path.toString()}</div>
-              <button
-                type="button"
-                className="rt-panel-button"
-                onClick={() => this.controller.execute(
-                  new ChangeTableSourceCommand(element.id, new StaticTableSource([])),
-                )}
-              >
-                직접 입력한 행으로 바꾸기
-              </button>
-            </>
-          )}
+          : null}
         <InspectorRow>
           <NumberField
             label="행 높이"
@@ -369,6 +375,66 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
     );
   }
 
+  /** 직접 입력과 선언된 배열을 한 목록으로 고르게 한다. */
+  private sourceOptions(): readonly Readonly<{ value: string; label: string }>[] {
+    return [
+      { value: ElementInspectorVisitor.STATIC_SOURCE_VALUE, label: "직접 입력한 행" },
+      ...this.arrayEntries().map((entry) => ({
+        value: entry.path,
+        label: `${entry.label} (${entry.path})`,
+      })),
+    ];
+  }
+
+  /**
+   * 표로 만들 수 있는 배열 선언만 고른다.
+   *
+   * 자식이 없는 배열은 열을 만들 수 없어 고르는 순간 예외가 되므로 목록에 넣지 않는다.
+   */
+  private arrayEntries(): readonly PaletteEntry[] {
+    return this.entries.filter((entry) => (
+      entry.type === "array" && entry.children.some((child) => child.type !== "array")
+    ));
+  }
+
+  /**
+   * 행 출처를 바꾸고, 사라지는 것이 있으면 반드시 알린다.
+   *
+   * 배열을 바꾸면 열 구성이 그 배열의 자식으로 통째로 교체된다. 직접 만든 열이
+   * 말없이 사라지면 사용자는 자기가 무엇을 잃었는지 모른다.
+   */
+  private changeSource(element: TableElement, path: string): void {
+    if (path === ElementInspectorVisitor.STATIC_SOURCE_VALUE) {
+      this.controller.execute(
+        new ChangeTableSourceCommand(element.id, new StaticTableSource([])),
+      );
+      return;
+    }
+    const entry = this.arrayEntries().find((candidate) => candidate.path === path);
+    if (entry === undefined) return;
+    const discardedRows = this.tableEditor.discardedRowCount(element);
+    const previousColumns = element.columns.length;
+    const bound = this.tableEditor.bindArray(element, entry.path, entry.children);
+    this.actions.changeElement(element, bound);
+    this.noticeSourceChange(discardedRows, previousColumns, bound.columns.length);
+  }
+
+  /** 전환으로 사라진 행과 열을 한 문장으로 알린다. */
+  private noticeSourceChange(
+    discardedRows: number,
+    previousColumns: number,
+    nextColumns: number,
+  ): void {
+    const losses: string[] = [];
+    if (discardedRows > 0) losses.push(`직접 입력한 ${discardedRows}행`);
+    if (previousColumns !== nextColumns) losses.push(`열 구성 ${previousColumns}개`);
+    if (losses.length === 0) return;
+    this.controller.setNotice(
+      `${KoreanParticle.subjectOf(losses.join("과 "))} 배열 구조로 바뀌었습니다.`
+      + " ⌘Z로 되돌릴 수 있습니다.",
+    );
+  }
+
   /** 열별 헤더·너비·정렬과 열 추가·삭제를 한 섹션에 모은다. */
   private tableColumnsSection(element: TableElement): ReactNode {
     return (
@@ -404,6 +470,7 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
                 onCommit={(align) => this.changeColumnAlign(element, index, align)}
               />
             </InspectorRow>
+            {this.columnDataField(element, column, index)}
             <div className="rt-column-card-foot">
               <span className="rt-token-chip rt-token-chip--muted">{column.cellTemplate}</span>
               <button
@@ -429,6 +496,80 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
         </button>
       </InspectorSection>
     );
+  }
+
+  /**
+   * 데이터 표의 열이 배열의 어떤 자식을 쓸지 고르게 한다.
+   *
+   * 지금까지 이 연결을 바꾸는 방법은 팔레트에서 그 열 위로 끌어다 놓는 것뿐이었다.
+   * 화면 어디에도 안내가 없었고, 열이 표 밖으로 밀려나 있으면 드롭 자체가 되지
+   * 않았다. 좌표에 의존하지 않는 길을 열어 둔다.
+   *
+   * 정적 표는 열이 아니라 셀 하나하나가 값을 정하므로 이 목록을 두지 않는다.
+   */
+  private columnDataField(
+    element: TableElement,
+    column: TableColumn,
+    index: number,
+  ): ReactNode {
+    if (!(element.source instanceof BoundTableSource)) return null;
+    const children = this.boundChildren(element);
+    if (children.length === 0) return null;
+    return (
+      <SelectField
+        label="데이터"
+        value={children.some((child) => this.childKey(child) === column.key)
+          ? column.key
+          : ElementInspectorVisitor.UNBOUND_COLUMN_VALUE}
+        options={[
+          { value: ElementInspectorVisitor.UNBOUND_COLUMN_VALUE, label: "연결 안 함" },
+          ...children.map((child) => ({
+            value: this.childKey(child),
+            label: child.label,
+          })),
+        ]}
+        onCommit={(key) => this.bindColumn(element, index, column, key)}
+      />
+    );
+  }
+
+  /** 이 표가 반복하는 배열의 자식 중 열이 될 수 있는 것만 고른다. */
+  private boundChildren(element: TableElement): readonly PaletteEntry[] {
+    if (!(element.source instanceof BoundTableSource)) return [];
+    const path = element.source.binding.path.toString();
+    const array = this.entries.find((entry) => entry.path === path);
+    return array?.children.filter((child) => child.type !== "array") ?? [];
+  }
+
+  /** 열 표현식은 배열 경로가 아니라 행 안의 키를 참조해야 한다. */
+  private childKey(child: PaletteEntry): string {
+    const separator = child.path.lastIndexOf(".");
+    return separator === -1 ? child.path : child.path.slice(separator + 1);
+  }
+
+  /**
+   * 고른 자식으로 열을 다시 연결한다.
+   *
+   * 헤더는 사용자가 이미 고쳤을 수 있으므로 함부로 덮지 않는다. 아직 손대지 않은
+   * 자동 이름(`열 3`)이거나 비어 있을 때만 자식의 표시 이름으로 바꾼다.
+   */
+  private bindColumn(
+    element: TableElement,
+    index: number,
+    column: TableColumn,
+    key: string,
+  ): void {
+    if (key === ElementInspectorVisitor.UNBOUND_COLUMN_VALUE) return;
+    const child = this.boundChildren(element).find((one) => this.childKey(one) === key);
+    if (child === undefined) return;
+    this.controller.execute(new BindTableColumnCommand(
+      element.id, index, key, child.label, this.isAutomaticHeader(column.header),
+    ));
+  }
+
+  /** 사용자가 직접 정한 헤더인지 판단한다. */
+  private isAutomaticHeader(header: string): boolean {
+    return header.trim() === "" || /^열 \d+$/.test(header.trim());
   }
 
   /** 새 열의 key가 기존 열과 충돌하지 않게 만들어 추가한다. */

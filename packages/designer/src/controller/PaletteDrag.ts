@@ -3,7 +3,6 @@ import {
   BoundTableSource,
   FieldElement,
   Frame,
-  StaticTableSource,
   TableElement,
   TextStyle,
 } from "@report-tool/core";
@@ -132,13 +131,15 @@ class FieldDrag extends PaletteDrag {
  * 빈 표가 아니라 자식 스키마로 열까지 구성된 표가 즉시 만들어져야 한다.
  */
 class ArrayDrag extends PaletteDrag {
+  private readonly columnPlanner = new TableColumnPlanner();
+
   /** 새 표가 페이지 폭을 넘지 않으면서 읽을 만한 기본 크기를 갖게 한다. */
   private static readonly DEFAULT_ROW_HEIGHT_MM = 7;
   private static readonly DEFAULT_BODY_ROWS = 3;
 
   /** 기존 내용과 붙어 보이지 않게 둘 최소 간격이다. */
   private static readonly GAP_MM = 4;
-  private readonly columnPlanner = new TableColumnPlanner();
+  private readonly tableEditor = new TableEditor();
 
   /** 배열 경로와 자식 스키마를 드래그 수명 동안 보존한다. */
   constructor(
@@ -182,14 +183,8 @@ class ArrayDrag extends PaletteDrag {
    * Undo 두 번으로 되돌리게 만들지 않기 위해서다.
    */
   private convertTable(table: TableElement, controller: EditorController): void {
-    const discardedRows = this.staticRowCount(table);
-    const columns = this.columnPlanner.fromArrayChildrenKeepingWidth(
-      this.children,
-      table.columns.map((column) => column.width),
-    );
-    const converted = table
-      .withSource(new BoundTableSource(new Binding(this.arrayPath)))
-      .withColumns(columns);
+    const discardedRows = this.tableEditor.discardedRowCount(table);
+    const converted = this.tableEditor.bindArray(table, this.arrayPath, this.children);
     controller.execute(new ChangeElementCommand(table, converted));
     controller.selectElement(table.id);
     if (discardedRows === 0) return;
@@ -225,9 +220,4 @@ class ArrayDrag extends PaletteDrag {
     return ArrayDrag.DEFAULT_ROW_HEIGHT_MM * (ArrayDrag.DEFAULT_BODY_ROWS + 1);
   }
 
-  /** 전환으로 사라질 사용자 입력 행이 몇 개인지 센다. */
-  private staticRowCount(table: TableElement): number {
-    if (!(table.source instanceof StaticTableSource)) return 0;
-    return table.source.resolveRows({}).length;
-  }
 }
