@@ -6,12 +6,18 @@
     <title>Report Tool Designer Playground</title>
     <style>
       html, body { height: 100%; }
-      body { background: #e9edf5; display: flex; margin: 0; padding: 16px; }
+      body { background: #e9edf5; display: flex; gap: 16px; margin: 0; padding: 16px; }
       #designer { flex: 1; min-height: 0; }
+      #saved-json {
+        background: #0f172a; border-radius: 12px; color: #cbd5e1; flex: none;
+        font-size: 10px; line-height: 1.5; margin: 0; overflow: auto; padding: 12px;
+        width: 240px;
+      }
     </style>
   </head>
   <body>
     <div id="designer"></div>
+    <pre id="saved-json">편집하면 저장될 JSON이 여기에 나타납니다.</pre>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

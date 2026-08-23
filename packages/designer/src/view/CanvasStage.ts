@@ -1,7 +1,14 @@
 import Konva from "konva";
-import { BindingResolver, type Element, type Frame } from "@report-tool/core";
+import {
+  BindingResolver,
+  TableElement,
+  TextElement,
+  type Element,
+  type Frame,
+} from "@report-tool/core";
 import type { EditorController } from "../controller/EditorController.js";
 import { FrameBounds } from "../controller/FrameBounds.js";
+import { TableCellLocator } from "../controller/TableCellLocator.js";
 import { TemplateIssueFinder } from "../controller/TemplateIssueFinder.js";
 import { CanvasMetrics } from "./CanvasMetrics.js";
 import { CanvasOverlay } from "./CanvasOverlay.js";
@@ -10,7 +17,6 @@ import { KonvaElementVisitor } from "./KonvaElementVisitor.js";
 /** 캔버스가 호스트 동작을 호출할 지점을 최소한으로 제한한다. */
 export interface CanvasStageCallbacks {
   readonly onFieldDrop?: (xMm: number, yMm: number) => void;
-  readonly onRequestTextEdit?: (element: Element) => void;
 }
 
 /**
@@ -24,6 +30,7 @@ export class CanvasStage {
   private readonly layer = new Konva.Layer();
   private readonly bindingResolver = new BindingResolver();
   private readonly issueFinder = new TemplateIssueFinder();
+  private readonly cellLocator = new TableCellLocator();
   private readonly unsubscribe: () => void;
   private hoveredElementId: string | null = null;
   private spacePanning = false;
@@ -50,6 +57,7 @@ export class CanvasStage {
     this.bindDomEvents();
     this.unsubscribe = this.controller.subscribe(() => this.onControllerChange());
     this.resizeStage();
+    this.fitIfLargerThanViewport();
     this.render();
   }
 
@@ -66,6 +74,22 @@ export class CanvasStage {
     this.addSelection(overlay);
     this.addGuides(overlay, page);
     this.layer.batchDraw();
+  }
+
+  /**
+   * 처음 열었을 때 문서가 화면보다 크면 전체가 보이는 배율로 시작한다.
+   *
+   * 100%로 시작하면 A4가 대부분의 화면에 들어가지 않아 사용자는 문서의 일부만
+   * 보게 되고, 스크롤해야 한다는 사실조차 알기 어렵다.
+   */
+  private fitIfLargerThanViewport(): void {
+    if (this.stage.width() <= this.viewportElement.clientWidth
+      && this.stage.height() <= this.viewportElement.clientHeight) {
+      return;
+    }
+    this.fitToViewport();
+    this.lastZoom = this.controller.getViewport().getZoom();
+    this.resizeStage();
   }
 
   /** 화면 맞춤이 현재 보이는 영역 크기를 근거로 계산되게 한다. */
@@ -133,7 +157,7 @@ export class CanvasStage {
       if (!(node instanceof Konva.Shape) && !(node instanceof Konva.Group)) {
         throw new Error("편집 요소는 Konva Shape 또는 Group이어야 한다");
       }
-      if (element.id === this.controller.getEditingElementId()) node.visible(false);
+      if (element.id === this.controller.getElementHiddenWhileEditing()) node.visible(false);
       this.layer.add(node);
     }
   }
@@ -203,7 +227,7 @@ export class CanvasStage {
     this.stage.on("pointerdown", (event) => this.handlePointerDown(event));
     this.stage.on("pointermove", (event) => this.handlePointerMove(event));
     this.stage.on("pointerup pointercancel", (event) => this.forwardPointer("up", event));
-    this.stage.on("dblclick dbltap", () => this.requestTextEdit());
+    this.stage.on("dblclick dbltap", () => this.requestEdit());
   }
 
   /** 브라우저 전용 입력을 Konva 밖의 DOM 요소에 연결한다. */
@@ -276,13 +300,24 @@ export class CanvasStage {
     this.render();
   }
 
-  /** 더블클릭한 요소를 직접 편집 대상으로 호스트 동작에 넘긴다. */
-  private requestTextEdit(): void {
+  /**
+   * 더블클릭한 지점이 어떤 편집 대상인지 해석해 입력기를 띄운다.
+   *
+   * 표는 요소 전체가 아니라 눌린 셀 하나가 대상이므로, 요소를 찾은 뒤
+   * 표 안의 위치까지 한 번 더 판정한다.
+   */
+  private requestEdit(): void {
     const point = this.pointerMillimeters();
     if (point === null) return;
     const element = this.controller.findElementAt(point.x, point.y);
-    if (element === undefined) return;
-    this.callbacks.onRequestTextEdit?.(element);
+    if (element instanceof TextElement) {
+      this.controller.beginEdit({ kind: "text", elementId: element.id });
+      return;
+    }
+    if (!(element instanceof TableElement)) return;
+    const target = this.cellLocator.targetAt(element, point.x, point.y);
+    if (target === undefined) return;
+    this.controller.beginEdit(target);
   }
 
   /** 보조키를 누른 휠은 확대로, 그 외에는 브라우저 스크롤로 남긴다. */

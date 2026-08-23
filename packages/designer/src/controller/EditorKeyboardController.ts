@@ -79,7 +79,7 @@ class EscapeShortcut extends EditorShortcut {
 
   /** 직접 편집·선택·생성 도구를 함께 해제해 다음 입력의 의미를 예측 가능하게 한다. */
   run({ controller }: ShortcutContext): boolean {
-    controller.endTextEdit();
+    controller.endEdit();
     controller.selectElement(null);
     controller.setTool(new SelectTool());
     return true;

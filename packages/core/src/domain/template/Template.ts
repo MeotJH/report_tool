@@ -1,4 +1,5 @@
 import { Element } from "../element/Element.js";
+import { ElementFactory } from "../element/ElementFactory.js";
 import { PageSpec } from "../value/PageSpec.js";
 
 /** 템플릿이 편집·발행·보관 중 어느 상태인지 명확하게 제한한다. */
@@ -102,6 +103,28 @@ export class Template {
       status: "draft",
       elements: [...this.elements],
     });
+  }
+
+  /**
+   * 편집 결과 전체를 호스트가 저장할 수 있는 순수 데이터로 변환한다.
+   *
+   * 캔버스 라이브러리의 직렬화 결과를 저장하지 않는다는 결정에 따라, 저장 형식은
+   * 이 메서드가 만드는 구조가 유일한 근거다. schemaVersion을 함께 담아
+   * 나중에 형식이 바뀌었을 때 마이그레이션 판단 근거를 남긴다.
+   */
+  toJSON(): Record<string, unknown> {
+    return {
+      schemaVersion: this.schemaVersion,
+      id: this.id,
+      name: this.name,
+      version: this.version,
+      status: this.status,
+      page: this.page.toJSON(),
+      fonts: [...this.fonts],
+      elements: this.elements.map((element) => ElementFactory.toJSON(element)),
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 
   /** 여러 변경 연산이 같은 복사 규칙을 사용하도록 새 인스턴스 생성을 모은다. */

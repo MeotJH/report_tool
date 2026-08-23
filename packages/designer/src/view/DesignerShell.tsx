@@ -1,7 +1,8 @@
-import { TextElement, type FieldSchema } from "@report-tool/core";
+import type { FieldSchema } from "@report-tool/core";
 import { useSyncExternalStore } from "react";
 import type { EditorActions } from "../controller/EditorActions.js";
 import type { EditorController, EditorMode } from "../controller/EditorController.js";
+import type { PaletteItem } from "../controller/PaletteDrag.js";
 import { TemplateIssueFinder, type TemplateIssue } from "../controller/TemplateIssueFinder.js";
 import type { ToolKind } from "../tool/EditorTool.js";
 import { ImageTool } from "../tool/ImageTool.js";
@@ -14,17 +15,16 @@ import { CanvasMetrics } from "./CanvasMetrics.js";
 import { FieldPalette } from "./FieldPalette.js";
 import { InspectorPanel } from "./InspectorPanel.js";
 import { LayersPanel } from "./LayersPanel.js";
-import { TextEditOverlay } from "./TextEditOverlay.js";
+import { CanvasEditOverlay } from "./CanvasEditOverlay.js";
 
 /** React 셸이 파사드 동작을 호출할 때 필요한 최소 경계를 정의한다. */
 export interface DesignerShellProps {
   readonly controller: EditorController;
   readonly actions: EditorActions;
   readonly fields: FieldSchema;
-  readonly onFieldPick: (path: string, specification: FieldSchema[string]) => void;
-  readonly onFieldDragStart: (path: string, specification: FieldSchema[string]) => void;
+  readonly onFieldPick: (item: PaletteItem) => void;
+  readonly onFieldDragStart: (item: PaletteItem) => void;
   readonly onFieldDragEnd: () => void;
-  readonly onCommitText: (element: TextElement, value: string) => void;
   readonly onFitToViewport: () => void;
 }
 
@@ -46,7 +46,7 @@ export function DesignerShell(props: DesignerShellProps) {
           <FieldPalette
             fields={props.fields}
             mode={isFieldSelected(props.controller) ? "rebind" : "add"}
-            placementActive={props.controller.getCurrentToolKind() === "field"}
+            placementActive={props.controller.getPaletteDropHint() !== null}
             onPick={props.onFieldPick}
             onDragStart={props.onFieldDragStart}
             onDragEnd={props.onFieldDragEnd}
@@ -128,7 +128,7 @@ function CanvasWorkspace(props: DesignerShellProps) {
   const page = controller.getTemplate().page;
   const zoom = controller.getViewport().getZoom();
   const metrics = new CanvasMetrics(zoom);
-  const editing = editingTextElement(controller);
+  const dropHint = controller.getPaletteDropHint();
   return (
     <section className="rt-canvas-panel" aria-label="문서 캔버스">
       <div className="rt-canvas-topbar">
@@ -145,20 +145,9 @@ function CanvasWorkspace(props: DesignerShellProps) {
           }}
         >
           <div data-designer-canvas />
-          {editing === undefined
-            ? null
-            : (
-              <TextEditOverlay
-                element={editing}
-                zoom={zoom}
-                onCommit={(value) => props.onCommitText(editing, value)}
-                onCancel={() => controller.endTextEdit()}
-              />
-            )}
+          <CanvasEditOverlay controller={controller} actions={props.actions} />
         </div>
-        {controller.getCurrentToolKind() === "field"
-          ? <div className="rt-drop-overlay">여기에 놓아 데이터 필드를 추가하세요</div>
-          : null}
+        {dropHint === null ? null : <div className="rt-drop-overlay">{dropHint}</div>}
       </div>
     </section>
   );
@@ -185,11 +174,27 @@ function DesignerStatus(props: {
 }) {
   const errors = props.issues.filter((issue) => issue.severity === "error").length;
   const warnings = props.issues.length - errors;
+  const notice = props.controller.getNotice();
   return (
     <footer className="rt-statusbar">
       <span className="rt-status-group">
-        <span className="rt-status-dot" />
-        Space+드래그로 화면 이동, ⌘+휠로 확대
+        {notice === null
+          ? (
+            <>
+              <span className="rt-status-dot" />
+              Space+드래그로 화면 이동, ⌘+휠로 확대
+            </>
+          )
+          : (
+            <button
+              type="button"
+              className="rt-status-notice"
+              title="확인하고 지우기"
+              onClick={() => props.controller.clearNotice()}
+            >
+              {notice}
+            </button>
+          )}
       </span>
       <span className="rt-status-group">
         <span>요소 {props.controller.getTemplate().getElements().length}개</span>
@@ -226,14 +231,6 @@ function ToolButton(props: {
       <span className="rt-tool-label">{props.label}</span>
     </button>
   );
-}
-
-/** 직접 편집 대상이 문구를 가진 요소일 때만 입력창을 띄우게 한다. */
-function editingTextElement(controller: EditorController): TextElement | undefined {
-  const elementId = controller.getEditingElementId();
-  if (elementId === null) return undefined;
-  const element = controller.getElement(elementId);
-  return element instanceof TextElement ? element : undefined;
 }
 
 /** 현재 도구가 캔버스에서 기대하는 다음 행동을 짧게 안내한다. */

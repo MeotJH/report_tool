@@ -17,6 +17,13 @@ const DESIGNER_CSS = `
   :host { color-scheme: light; display: block; }
   * { box-sizing: border-box; }
   button, input, select, textarea { font: inherit; }
+
+  /*
+    호스트가 준 높이를 편집기까지 그대로 전달한다.
+    중간 요소의 높이가 auto면 편집기의 height: 100%가 내용 높이로 풀려서
+    좌측 패널이 길어질 때마다 편집기 전체가 화면 밖으로 자란다.
+  */
+  [data-designer-root] { height: 100%; min-height: 0; }
   [data-designer-keyboard-root]:focus { outline: none; }
 
   .rt-designer {
@@ -168,7 +175,19 @@ const DESIGNER_CSS = `
   .rt-search-input:focus { border-color: var(--rt-primary); outline: none; }
   .rt-field-list { display: flex; flex: 1; flex-direction: column; gap: 3px; overflow-y: auto; }
   .rt-field-group { display: flex; flex-direction: column; gap: 3px; }
-  .rt-field-group-title { color: var(--rt-muted); font-size: 11px; padding: 4px 2px; }
+  .rt-field-group > .rt-field-list {
+    border-left: 1px solid var(--rt-border); margin-left: 8px; padding-left: 8px;
+  }
+  .rt-array-button {
+    align-items: center; background: var(--rt-primary-soft); border: 1px solid #c7d2fe;
+    border-radius: 8px; color: var(--rt-primary); cursor: grab; display: flex; gap: 8px;
+    padding: 6px 8px; text-align: left; width: 100%;
+  }
+  .rt-array-button:hover:not(:disabled) { border-color: var(--rt-primary); }
+  .rt-array-button:disabled { cursor: default; opacity: 0.7; }
+  .rt-array-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+  .rt-array-label { font-size: 12px; font-weight: 600; }
+
   .rt-field-button {
     align-items: center; background: var(--rt-panel); border: 1px solid var(--rt-border);
     border-radius: 8px; cursor: grab; display: flex; gap: 8px; padding: 6px 8px; text-align: left;
@@ -197,10 +216,15 @@ const DESIGNER_CSS = `
   .rt-zoom-controls { align-items: center; display: flex; gap: 4px; }
   .rt-zoom-value { min-width: 40px; text-align: center; }
   .rt-canvas-viewport {
-    align-items: flex-start; display: flex; flex: 1; justify-content: center;
-    min-height: 0; overflow: auto; padding: 32px; position: relative;
+    display: flex; flex: 1; min-height: 0; overflow: auto; padding: 32px;
+    position: relative;
   }
-  .rt-canvas-page { flex: none; position: relative; }
+  /*
+    중앙 정렬을 justify-content가 아니라 margin으로 하는 이유:
+    flex 중앙 정렬은 내용이 넘칠 때 시작 쪽을 잘라내 스크롤로도 닿을 수 없게 만든다.
+    확대했을 때 페이지 왼쪽 끝이 사라지는 문제가 여기서 나온다.
+  */
+  .rt-canvas-page { flex: none; margin: auto; position: relative; }
   .rt-canvas-page[data-panning] { cursor: grab; }
   .rt-canvas-page[data-field-drag-active] { outline: 2px dashed var(--rt-primary); outline-offset: 4px; }
   .rt-drop-overlay {
@@ -305,6 +329,11 @@ const DESIGNER_CSS = `
   }
   .rt-status-group { gap: 12px; }
   .rt-status-dot { background: #22c55e; border-radius: 999px; height: 7px; margin-right: 6px; width: 7px; }
+  .rt-status-notice {
+    background: #fffbeb; border: 1px solid #fcd34d; border-radius: 999px;
+    color: var(--rt-warning); cursor: pointer; padding: 3px 12px;
+  }
+  .rt-status-notice:hover { border-color: var(--rt-warning); }
   .rt-status-error { color: var(--rt-danger); font-weight: 600; }
   .rt-status-warning { color: var(--rt-warning); font-weight: 600; }
 `;

@@ -1,4 +1,5 @@
 import type { Element, Frame, Template } from "@report-tool/core";
+import type { CanvasEditTarget } from "./CanvasEditTarget.js";
 import { CommandStack } from "../command/CommandStack.js";
 import type { EditorCommand } from "../command/EditorCommand.js";
 import type { EditorTool, ToolKind } from "../tool/EditorTool.js";
@@ -27,7 +28,9 @@ export class EditorController {
   private currentTool: EditorTool = new SelectTool();
   private readonly listeners = new Set<() => void>();
   private mode: EditorMode = "design";
-  private editingElementId: string | null = null;
+  private editTarget: CanvasEditTarget | null = null;
+  private notice: string | null = null;
+  private paletteDropHint: string | null = null;
   private revision = 0;
 
   /** 호스트가 제공한 초안과 샘플 데이터로 독립적인 편집 세션을 시작한다. */
@@ -101,22 +104,72 @@ export class EditorController {
     return this.mode;
   }
 
-  /** 캔버스 위 입력기가 어떤 요소를 편집 중인지 한곳에서 관리한다. */
-  beginTextEdit(elementId: string): void {
-    this.editingElementId = elementId;
+  /**
+   * 팔레트 항목을 끌고 있는 동안 문서가 무엇을 받을지 알린다.
+   *
+   * 도구 종류로 이 상태를 대신 표현하면, 배열을 끌 때도 "필드 도구"가 켜져
+   * 화면 안내와 실제로 만들어지는 것이 어긋난다.
+   */
+  setPaletteDropHint(hint: string | null): void {
+    this.paletteDropHint = hint;
+    this.notifyChange();
+  }
+
+  /** 캔버스와 팔레트가 같은 드롭 안내를 보여주게 한다. */
+  getPaletteDropHint(): string | null {
+    return this.paletteDropHint;
+  }
+
+  /**
+   * 방금 일어난 변경 중 사용자가 놓치면 안 되는 것을 알린다.
+   *
+   * 정적 표를 데이터 표로 바꾸면 입력했던 행이 사라지는데, 조용히 처리하면
+   * 사용자는 값을 잃은 것을 모른다. 막지 않고 알리는 쪽을 택한 이유는
+   * 모든 변경이 Undo 한 번으로 복원되기 때문이다.
+   */
+  setNotice(message: string): void {
+    this.notice = message;
+    this.notifyChange();
+  }
+
+  /** 상태바가 현재 알릴 내용이 있는지 확인하게 한다. */
+  getNotice(): string | null {
+    return this.notice;
+  }
+
+  /** 사용자가 확인한 알림을 지운다. */
+  clearNotice(): void {
+    if (this.notice === null) return;
+    this.notice = null;
+    this.notifyChange();
+  }
+
+  /** 캔버스 위 입력기가 무엇을 편집 중인지 한곳에서 관리한다. */
+  beginEdit(target: CanvasEditTarget): void {
+    this.editTarget = target;
     this.notifyChange();
   }
 
   /** 입력 확정과 취소가 같은 종료 경로를 사용하게 한다. */
-  endTextEdit(): void {
-    if (this.editingElementId === null) return;
-    this.editingElementId = null;
+  endEdit(): void {
+    if (this.editTarget === null) return;
+    this.editTarget = null;
     this.notifyChange();
   }
 
-  /** 화면이 현재 직접 편집 중인 요소를 알 수 있게 한다. */
-  getEditingElementId(): string | null {
-    return this.editingElementId;
+  /** 화면이 현재 편집 대상을 읽어 입력기를 그리게 한다. */
+  getEditTarget(): CanvasEditTarget | null {
+    return this.editTarget;
+  }
+
+  /**
+   * 입력기가 요소를 완전히 덮는 경우에만 원래 도형을 감춘다.
+   *
+   * 표의 셀을 고칠 때 표 전체를 감추면 나머지 행이 사라져 위치 감각을 잃는다.
+   */
+  getElementHiddenWhileEditing(): string | null {
+    if (this.editTarget?.kind !== "text") return null;
+    return this.editTarget.elementId;
   }
 
   /** 명령 실행 결과를 현재 상태로 채택하고 모든 구독자에게 알린다. */
@@ -256,6 +309,7 @@ export class EditorController {
       this.template.getElements().map((element) => element.id),
     );
     this.transformPreview.clear();
+    this.notice = null;
     this.notifyChange();
   }
 

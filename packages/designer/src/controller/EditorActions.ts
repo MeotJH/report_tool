@@ -1,7 +1,9 @@
 import {
   Frame,
+  type Content,
   type Element,
   type PageSpec,
+  type TextElement,
 } from "@report-tool/core";
 import { AddElementCommand } from "../command/AddElementCommand.js";
 import { ChangeElementCommand } from "../command/ChangeElementCommand.js";
@@ -9,11 +11,16 @@ import { ChangePageCommand } from "../command/ChangePageCommand.js";
 import { CompositeCommand } from "../command/CompositeCommand.js";
 import type { EditorCommand } from "../command/EditorCommand.js";
 import { RemoveElementCommand } from "../command/RemoveElementCommand.js";
+import {
+  UpdateTableCellCommand,
+  UpdateTableHeaderCommand,
+} from "../command/TableCommands.js";
 import { TransformElementCommand } from "../command/TransformElementCommand.js";
 import type { EditorController } from "./EditorController.js";
 import { ElementAlignment, type AlignKind, type DistributeAxis } from "./ElementAlignment.js";
 import { ElementCloner } from "./ElementCloner.js";
 import { LayerOrder } from "./LayerOrder.js";
+import { TableCellValueParser } from "./TableCellValueParser.js";
 
 /**
  * 사용자 행동 하나를 Undo 한 번으로 되돌릴 수 있는 명령으로 바꾼다.
@@ -25,6 +32,7 @@ export class EditorActions {
   private readonly cloner = new ElementCloner();
   private readonly layerOrder = new LayerOrder();
   private readonly alignment = new ElementAlignment();
+  private readonly cellValueParser = new TableCellValueParser();
 
   /** 모든 행동이 같은 상태 경계를 통해 실행되게 한다. */
   constructor(private readonly controller: EditorController) {}
@@ -71,6 +79,33 @@ export class EditorActions {
   setFrame(element: Element, frame: Frame): void {
     if (element.frame.equals(frame)) return;
     this.controller.execute(new TransformElementCommand(element.id, element.frame, frame));
+  }
+
+  /** 캔버스 입력 확정이 문구 종류를 유지한 하나의 변경으로 기록되게 한다. */
+  commitTextContent(element: TextElement, value: string): void {
+    const content: Content = { kind: element.content.kind, value };
+    this.changeElement(element, element.withContent(content));
+  }
+
+  /** 사용자가 정한 헤더 문구를 열의 데이터 연결과 분리해 기록한다. */
+  commitTableHeader(tableId: string, columnIndex: number, header: string): void {
+    this.controller.execute(new UpdateTableHeaderCommand(tableId, columnIndex, header));
+  }
+
+  /**
+   * 사용자가 입력한 셀 값을 템플릿에 저장한다.
+   *
+   * 문자열을 그대로 넣지 않고 한 번 해석하는 이유는, 금액 열이 숫자를 기대하기 때문이다.
+   */
+  commitTableCell(
+    tableId: string,
+    rowIndex: number,
+    columnKey: string,
+    input: string,
+  ): void {
+    this.controller.execute(new UpdateTableCellCommand(
+      tableId, rowIndex, columnKey, this.cellValueParser.parse(input),
+    ));
   }
 
   /** 속성 하나를 바꾼 요소를 같은 교체 규칙으로 반영한다. */

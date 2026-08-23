@@ -93,6 +93,22 @@ export class TableEditor {
     return table.withColumns(this.replaceColumn(table, index, column.withDataField(fieldKey, header)));
   }
 
+  /**
+   * 표 안의 가로 위치가 몇 번째 열인지 알려준다.
+   *
+   * 열 경계 드래그와 데이터 Token 드롭이 같은 판정을 써야 사용자가 본 열과
+   * 실제로 바뀌는 열이 어긋나지 않는다.
+   */
+  columnIndexAtOffset(table: TableElement, offsetMm: number): number | undefined {
+    if (offsetMm < 0) return undefined;
+    let edge = 0;
+    for (const [index, column] of table.columns.entries()) {
+      edge += column.width;
+      if (offsetMm < edge) return index;
+    }
+    return undefined;
+  }
+
   /** 행 변경 동작이 템플릿에 저장된 정적 데이터만 수정하도록 Source 종류를 좁힌다. */
   private staticSource(table: TableElement, target: "셀" | "행"): StaticTableSource {
     if (!(table.source instanceof StaticTableSource)) {

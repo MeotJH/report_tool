@@ -24,7 +24,20 @@ new Designer({
   template: createTemplate(),
   fields: createFieldSchema(),
   sampleData: createSampleData(),
+  onChange: (template) => showSavedJson(template),
 });
+
+/**
+ * 편집 결과가 저장 가능한 JSON으로 즉시 바뀌는 것을 눈으로 확인하게 한다.
+ *
+ * 호스트가 실제로 하는 일이 이것뿐이라는 점을 드러내기 위해, 라이브러리가 주는
+ * 템플릿을 그대로 문자열로 만들어 화면 아래에 보여준다.
+ */
+function showSavedJson(template: Template): void {
+  const output = document.querySelector<HTMLElement>("#saved-json");
+  if (output === null) return;
+  output.textContent = JSON.stringify(template.toJSON(), null, 2);
+}
 
 /** 현대화된 편집 화면을 바로 조작해 볼 수 있는 임금명세서 초안을 만든다. */
 function createTemplate(): Template {
@@ -101,6 +114,12 @@ function createSampleData(): unknown {
       { item: "식대", amount: 200000 },
       { item: "야근수당", amount: 315000 },
     ],
+    deductionItems: [
+      { item: "국민연금", amount: 189000 },
+      { item: "건강보험", amount: 148900 },
+      { item: "고용보험", amount: 37800 },
+      { item: "소득세", amount: 132000 },
+    ],
   };
 }
 
@@ -116,6 +135,22 @@ function createFieldSchema() {
         residentNumber: {
           label: "주민등록번호", type: "string" as const, sensitive: true,
         },
+      },
+    },
+    payItems: {
+      label: "지급 항목",
+      type: "array" as const,
+      children: {
+        item: { label: "항목", type: "string" as const },
+        amount: { label: "금액", type: "currency" as const },
+      },
+    },
+    deductionItems: {
+      label: "공제 항목",
+      type: "array" as const,
+      children: {
+        item: { label: "항목", type: "string" as const },
+        amount: { label: "금액", type: "currency" as const },
       },
     },
     baseSalary: { label: "기본급", type: "currency" as const },

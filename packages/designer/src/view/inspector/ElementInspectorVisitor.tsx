@@ -298,8 +298,8 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
         {bound === null
           ? (
             <p className="rt-inspector-note">
-              직접 입력한 행을 쓰는 표입니다. 데이터 배열에 연결하려면 아직 호스트가
-              템플릿에 <code>BoundTableSource</code>로 넣어야 합니다.
+              직접 입력한 행을 쓰는 표입니다. 왼쪽 데이터 패널의 배열을 이 표에 끌어다
+              놓으면 데이터 표로 바뀝니다.
             </p>
           )
           : (

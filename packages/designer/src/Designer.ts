@@ -1,24 +1,18 @@
 import {
   Binding,
   FieldElement,
-  TextElement,
-  TextStyle,
-  type Content,
   type FieldSchema,
   type FormatSpec,
-  type Frame,
   type Template,
 } from "@report-tool/core";
 import { createElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { AddElementCommand } from "./command/AddElementCommand.js";
 import { BindFieldCommand } from "./command/BindFieldCommand.js";
 import { EditorActions } from "./controller/EditorActions.js";
 import { EditorController } from "./controller/EditorController.js";
-import { FieldPlacementPlanner } from "./controller/FieldPlacementPlanner.js";
+import { PaletteDrag, type PaletteItem } from "./controller/PaletteDrag.js";
 import { FieldTool } from "./tool/FieldTool.js";
-import { SelectTool } from "./tool/SelectTool.js";
 import { CanvasStage } from "./view/CanvasStage.js";
 import { DesignerShell } from "./view/DesignerShell.js";
 import { DesignerStyles } from "./view/DesignerStyles.js";
@@ -42,11 +36,7 @@ export class Designer {
   private readonly mountElement: HTMLDivElement;
   private readonly unsubscribeChange: () => void;
   private readonly keyboardShortcutAdapter: KeyboardShortcutAdapter;
-  private readonly fieldPlacementPlanner = new FieldPlacementPlanner();
-  private draggedField: Readonly<{
-    path: string;
-    specification: FieldSchema[string];
-  }> | null = null;
+  private draggedItem: PaletteDrag | null = null;
 
   /** Shadow DOM 안에 편집 UI를 마운트하고 도메인 변경 통지를 연결한다. */
   constructor(private readonly options: DesignerOptions) {
@@ -68,7 +58,12 @@ export class Designer {
     this.unsubscribeChange = this.subscribeTemplateChanges();
   }
 
-  /** 호스트가 저장하거나 미리 볼 최신 불변 템플릿을 즉시 제공한다. */
+  /**
+   * 호스트가 저장하거나 미리 볼 최신 불변 템플릿을 즉시 제공한다.
+   *
+   * 저장할 때는 `getTemplate().toJSON()`을, 다시 열 때는 core의
+   * `TemplateFactory.fromJSON()`을 사용한다. 편집기는 I/O를 하지 않는다.
+   */
   getTemplate(): Template {
     return this.controller.getTemplate();
   }
@@ -82,11 +77,18 @@ export class Designer {
     this.mountElement.remove();
   }
 
-  /** 호스트 스타일이 편집 UI에 침범하지 않는 전용 마운트 지점을 만든다. */
+  /**
+   * 호스트 스타일이 편집 UI에 침범하지 않는 전용 마운트 지점을 만든다.
+   *
+   * 이 중간 요소에 표시를 남기는 이유는 높이 때문이다. 높이가 지정되지 않은
+   * 요소를 사이에 두면 편집기의 `height: 100%`가 auto로 풀려 내부 스크롤이
+   * 동작하지 않고 화면 밖으로 계속 자란다.
+   */
   private createMountElement(container: HTMLElement): HTMLDivElement {
     const shadowRoot = container.shadowRoot ?? container.attachShadow({ mode: "open" });
     DesignerStyles.mount(shadowRoot);
     const mountElement = document.createElement("div");
+    mountElement.setAttribute("data-designer-root", "");
     shadowRoot.append(mountElement);
     return mountElement;
   }
@@ -97,10 +99,9 @@ export class Designer {
       controller: this.controller,
       actions: this.actions,
       fields: this.options.fields,
-      onFieldPick: (path, specification) => this.pickField(path, specification),
-      onFieldDragStart: (path, specification) => this.startFieldDrag(path, specification),
+      onFieldPick: (item) => this.pickField(item),
+      onFieldDragStart: (item) => this.startFieldDrag(item),
       onFieldDragEnd: () => this.endFieldDrag(),
-      onCommitText: (element, value) => this.commitText(element, value),
       onFitToViewport: () => this.canvasStage.fitToViewport(),
     })));
   }
@@ -111,12 +112,7 @@ export class Designer {
       this.requireElement("[data-designer-viewport]"),
       this.requireElement("[data-designer-canvas]"),
       this.controller,
-      {
-        onFieldDrop: (x, y) => this.dropField(x, y),
-        onRequestTextEdit: (element) => {
-          if (element instanceof TextElement) this.controller.beginTextEdit(element.id);
-        },
-      },
+      { onFieldDrop: (x, y) => this.dropPaletteItem(x, y) },
     );
   }
 
@@ -127,68 +123,59 @@ export class Designer {
     return element;
   }
 
-  /** 캔버스 입력 확정이 문구 종류를 유지한 하나의 변경으로 기록되게 한다. */
-  private commitText(element: TextElement, value: string): void {
-    const content: Content = { kind: element.content.kind, value };
-    this.actions.changeElement(element, element.withContent(content));
-    this.controller.endTextEdit();
-  }
-
-  /** 선택된 필드는 재바인딩하고 아니면 빈 자리에 즉시 추가해 클릭 결과를 분명히 한다. */
-  private pickField(path: string, specification: FieldSchema[string]): void {
+  /**
+   * 클릭 결과를 선택 상태에 따라 나눈다.
+   *
+   * 필드가 선택된 상태에서 단일 필드를 고르는 것은 "이 자리의 연결을 바꿔라"이고,
+   * 그 밖의 경우는 "새로 만들어라"이다. 배열은 연결 대상이 표이므로 늘 새로 만든다.
+   */
+  private pickField(item: PaletteItem): void {
     const selected = this.selectedField();
-    const formatSpec = this.suggestFormat(specification);
-    if (selected === undefined) {
-      const frame = this.fieldPlacementPlanner.next(this.controller.getTemplate());
-      this.addField(path, formatSpec, frame);
+    if (selected === undefined || item.specification.type === "array") {
+      PaletteDrag.create(item).place(this.controller);
       return;
     }
-    const binding = new Binding(path, formatSpec === null ? {} : { formatSpec });
+    const formatSpec = this.suggestFormat(item.specification);
+    const binding = new Binding(item.path, formatSpec === null ? {} : { formatSpec });
     this.controller.execute(new BindFieldCommand(selected.id, selected.binding, binding));
   }
 
-  /** 팔레트 드래그 동안 문서가 놓을 수 있는 대상임을 화면과 컨트롤러에 알린다. */
-  private startFieldDrag(path: string, specification: FieldSchema[string]): void {
-    this.draggedField = { path, specification };
-    this.controller.setTool(new FieldTool(path, this.suggestFormat(specification)));
+  /** 팔레트 드래그 동안 문서가 무엇을 받을지 화면과 컨트롤러에 알린다. */
+  private startFieldDrag(item: PaletteItem): void {
+    this.draggedItem = PaletteDrag.create(item);
+    this.controller.setPaletteDropHint(this.dropHintFor(item));
+    if (item.specification.type !== "array") {
+      this.controller.setTool(new FieldTool(item.path, this.suggestFormat(item.specification)));
+    }
     this.canvasStage.setFieldDragActive(true);
   }
 
-  /** 문서 밖에서 드래그가 끝나도 배치 안내와 임시 필드 정보를 남기지 않는다. */
+  /** 문서 밖에서 드래그가 끝나도 배치 안내와 임시 정보를 남기지 않는다. */
   private endFieldDrag(): void {
-    this.draggedField = null;
+    this.draggedItem = null;
+    this.controller.setPaletteDropHint(null);
     this.canvasStage.setFieldDragActive(false);
     if (this.controller.getCurrentToolKind() === "field") {
-      this.controller.setTool(new SelectTool());
+      this.controller.activateSelectTool();
     }
   }
 
-  /** 팔레트 필드를 놓은 문서 좌표에 추가하고 새 요소를 바로 선택한다. */
-  private dropField(x: number, y: number): void {
-    if (this.draggedField === null) return;
-    const formatSpec = this.suggestFormat(this.draggedField.specification);
-    const frame = this.fieldPlacementPlanner.at(this.controller.getTemplate(), x, y);
-    this.addField(this.draggedField.path, formatSpec, frame);
-    this.draggedField = null;
-    this.canvasStage.setFieldDragActive(false);
+  /** 놓은 좌표를 어떻게 해석할지는 끌어온 항목이 스스로 결정하게 한다. */
+  private dropPaletteItem(xMm: number, yMm: number): void {
+    const dragged = this.draggedItem;
+    this.endFieldDrag();
+    dragged?.dropAt(xMm, yMm, this.controller);
   }
 
-  /** 클릭과 드롭이 동일한 필드 기본값과 실행 취소 이력을 사용하게 한다. */
-  private addField(path: string, formatSpec: FormatSpec | null, frame: Frame): void {
-    const binding = new Binding(path, formatSpec === null ? {} : { formatSpec });
-    const element = new FieldElement(
-      crypto.randomUUID(), frame, this.nextZIndex(), false,
-      binding, new TextStyle("Pretendard", 10),
-    );
-    this.controller.execute(new AddElementCommand(element));
-    this.controller.selectElement(element.id);
-    this.controller.setTool(new SelectTool());
-  }
-
-  /** 새 필드가 기존 요소 위에 보여 선택 결과를 즉시 확인할 수 있게 한다. */
-  private nextZIndex(): number {
-    const zIndexes = this.controller.getTemplate().getElements().map((element) => element.z);
-    return zIndexes.length === 0 ? 0 : Math.max(...zIndexes) + 1;
+  /** 끌고 있는 항목이 만들 결과를 놓기 전에 문장으로 알려준다. */
+  private dropHintFor(item: PaletteItem): string {
+    if (item.specification.type === "array") {
+      return `${item.specification.label} 배열을 놓으면 반복 표가 만들어집니다`;
+    }
+    if (item.arrayPath === null) {
+      return `${item.specification.label} 값을 놓을 위치를 고르세요`;
+    }
+    return `${item.specification.label}을 표의 열에 놓으면 그 열이 다시 연결됩니다`;
   }
 
   /** 현재 단일 선택이 필드일 때만 바인딩 변경 대상으로 반환한다. */

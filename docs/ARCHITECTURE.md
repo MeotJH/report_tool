@@ -72,7 +72,8 @@ packages/
 │   │   │   ├── MaskFormatter.ts      주민번호·계좌번호용
 │   │   │   └── FormatterRegistry.ts  FormatSpec → Formatter 해석
 │   │   ├── template/
-│   │   │   ├── Template.ts           엔티티. 요소 보유, 검증, 버전 규칙
+│   │   │   ├── Template.ts           엔티티. 요소 보유, 검증, 버전 규칙, toJSON
+│   │   │   ├── TemplateFactory.ts    저장 JSON → Template 복원 (schemaVersion 검증)
 │   │   │   ├── TemplateValidator.ts  필수 항목·바인딩 유효성 검사
 │   │   │   └── BindingResolver.ts    데이터 + 바인딩 → 표시 문자열
 │   │   └── document/
@@ -124,6 +125,12 @@ packages/
 │   │   ├── ElementClipboard.ts       편집기 전용 복사 보관소
 │   │   ├── TemplateIssueFinder.ts    core 검증 오류 + 편집 경고 수집
 │   │   ├── FieldPlacementPlanner.ts  팔레트 필드 배치 위치 결정
+│   │   ├── PaletteDrag.ts            끌어온 항목이 놓인 자리를 스스로 해석 (배열/단일)
+│   │   ├── TableColumnPlanner.ts     배열 자식 스키마 → 표 열 구성
+│   │   ├── TableCellLocator.ts       표 안 좌표 ↔ 편집 대상 ↔ 셀 영역
+│   │   ├── TableCellValueParser.ts   입력 문자열 → 저장 셀 값
+│   │   ├── CanvasEditTarget.ts       입력기가 무엇을 편집 중인지 표현
+│   │   ├── CanvasEditSession.ts      대상별 값·영역·확정 전략
 │   │   └── TableEditor.ts            표 편집 규칙
 │   ├── command/
 │   │   ├── EditorCommand.ts          Command 추상 클래스
@@ -154,7 +161,7 @@ packages/
 │       ├── DesignerShell.tsx         3칸 레이아웃 (Layers/Data · Canvas · Inspector)
 │       ├── LayersPanel.tsx           순서·잠금·숨김
 │       ├── InspectorPanel.tsx        선택별 속성 (없음=페이지, 1개, 다중)
-│       ├── TextEditOverlay.tsx       캔버스 위 입력기 (IME)
+│       ├── CanvasEditOverlay.tsx     캔버스 위 입력기 (IME·Tab 이동)
 │       ├── FieldPalette.tsx          바인딩 드롭다운 UI (React)
 │       └── inspector/               속성 입력 컨트롤과 요소별 Visitor
 │
@@ -355,6 +362,41 @@ Layers 패널의 이름은 `LayerNamer`가 내용에서 도출한다. 템플릿�
 뒤에도 옛 이름이 남아 목록과 문서가 어긋난다. 도출하면 항상 현재 내용과 일치하고
 저장 스키마도 늘지 않는다.
 
+### 6.6 저장 형식의 유일한 근거
+
+"캔버스 라이브러리 직렬화 결과를 저장하지 않는다"는 결정을 실제로 지키는 지점은
+`Template.toJSON()`과 `TemplateFactory.fromJSON()`이다. 호스트는 이 둘만 쓰며,
+편집기는 파일도 네트워크도 만지지 않는다.
+
+```
+편집 → getTemplate().toJSON() → 호스트가 저장
+호스트가 읽음 → TemplateFactory.fromJSON() → new Designer({ template })
+```
+
+`fromJSON`은 `schemaVersion`이 없거나 다르면 즉시 거부한다. 버전이 다른 데이터를
+억지로 읽으면 일부 필드만 복원된 문서가 만들어지고, 그 상태로 다시 저장되면
+원본을 잃는다. 페이지는 계산된 mm가 아니라 규격 이름(`A4`)으로 저장한다.
+
+### 6.7 팔레트에서 끌어온 것이 무엇을 만드는가
+
+사용자가 데이터 패널에서 끌어온 항목의 의미는 놓은 자리에 따라 달라진다.
+
+| 끌어온 것 | 빈 곳에 놓기 | 표 위에 놓기 |
+|---|---|---|
+| 배열 필드 | 자식 스키마로 열이 구성된 데이터 표 생성 | 그 표를 데이터 표로 전환 |
+| 배열 자식 필드 | 단일 데이터 필드 생성 | 같은 배열이면 그 열만 재연결 |
+| 최상위 필드 | 단일 데이터 필드 생성 | 단일 데이터 필드 생성 |
+
+네 갈래를 조건문으로 조합하면 한 메서드에 뒤섞이므로 `PaletteDrag`의 하위 전략이
+각자 판단한다. 전환으로 사용자가 입력한 정적 행이 사라질 때는 막지 않고 알린다 —
+모든 변경이 Undo 한 번으로 복원되기 때문이다.
+
+### 6.8 호스트는 편집기에 확정된 높이를 줘야 한다
+
+편집기는 `height: 100%`로 컨테이너를 채우고 내부 패널이 각자 스크롤한다. 호스트
+컨테이너의 높이가 auto면 `100%`가 auto로 풀려 좌측 패널 길이만큼 편집기가 화면
+밖으로 자란다. Shadow DOM 안의 마운트 요소에도 같은 이유로 높이를 지정한다.
+
 ## 7. 프레임워크 선택
 
 ### 두 가지를 분리해서 판단한다
@@ -394,8 +436,9 @@ Preact는 3KB로 매력적이지만, 에디터 UI에 필요한 드롭다운·모
 용량 근거: 에디터는 이미 Konva를 약 130KB 싣고 뷰어는 pdf.js를 그보다 크게 싣는다.
 문서 편집기에서 250KB대는 정상 범위이며, 여기서 45KB는 노이즈다.
 
-**Phase 9 실측(2026-08-22)**: Figma식 편집 경험 보강 후 Vite production build 기준 ESM은
-355.51KB(gzip 89.66KB), React를 포함한 standalone UMD는 872.54KB(gzip 259.52KB)다.
+**Phase 9 실측(2026-08-23)**: 배열 드롭·셀 입력·JSON 왕복까지 포함한 Vite production
+build 기준 ESM은 368.83KB(gzip 93.24KB), React를 포함한 standalone UMD는
+883.73KB(gzip 263.00KB)다.
 ESM은 React·React DOM·`@report-tool/core`를 external로 두며, standalone은 모두 포함한다.
 
 ### 듀얼 빌드로 양쪽을 모두 만족시킨다

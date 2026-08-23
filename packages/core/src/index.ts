@@ -87,6 +87,7 @@ export { TemplateExpression } from "./domain/element/TemplateExpression.js";
 export { TextElement } from "./domain/element/TextElement.js";
 export { BindingResolver } from "./domain/template/BindingResolver.js";
 export { Template } from "./domain/template/Template.js";
+export { TemplateFactory } from "./domain/template/TemplateFactory.js";
 export type {
   TemplateOptions,
   TemplateStatus,

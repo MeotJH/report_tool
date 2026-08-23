@@ -70,6 +70,20 @@ export class PageSpec {
     return [...this.margin];
   }
 
+  /**
+   * 페이지 설정을 클래스 구현과 무관한 저장 데이터로 변환한다.
+   *
+   * 폭과 높이를 저장하지 않는 이유는, 규격 이름이 유일한 근거여야 하기 때문이다.
+   * 계산된 mm 값을 함께 저장하면 나중에 규격 표를 고칠 때 둘이 어긋난다.
+   */
+  toJSON(): Record<string, unknown> {
+    return {
+      size: this.size,
+      orientation: this.orientation,
+      margin: [...this.margin],
+    };
+  }
+
   /** 용지 규격만 바꾼 새 페이지 설정을 만들어 여백과 방향을 유지한다. */
   withSize(size: PageSize): PageSpec {
     return new PageSpec(size, this.orientation, this.margin);
