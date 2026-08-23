@@ -7,28 +7,32 @@ import { VariableEditor } from "./VariableEditor.js";
 /** 필드 목록의 입력과 선택 결과를 호스트 데이터 구조에 맞춰 제한한다. */
 export interface FieldPaletteProps {
   readonly entries: readonly PaletteEntry[];
-  readonly onPick: (entry: PaletteEntry) => void;
+  readonly highlightedPath: string | null;
+  readonly onHighlight: (path: string | null) => void;
+  readonly onInsert: (entry: PaletteEntry) => void;
   readonly onDragStart?: (entry: PaletteEntry) => void;
   readonly onDragEnd?: () => void;
   readonly onAddMode?: () => void;
-  readonly onAddVariable: (variable: TemplateVariable) => void;
-  readonly onRemoveVariable: (name: string) => void;
+  readonly onAddVariables: (variables: readonly TemplateVariable[]) => void;
+  readonly onRemoveVariable: (path: string) => void;
   readonly mode?: "add" | "rebind";
 }
 
 /** 사용자가 문서에 필요한 데이터를 정의하고 문서에 놓게 한다. */
 export function FieldPalette({
   entries,
-  onPick,
+  highlightedPath,
+  onHighlight,
+  onInsert,
   onDragStart,
   onDragEnd,
   onAddMode,
-  onAddVariable,
+  onAddVariables,
   onRemoveVariable,
   mode = "add",
 }: FieldPaletteProps) {
   const [query, setQuery] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<string | null>(null);
   const filter = useMemo(() => new FieldPaletteFilter(), []);
   const filtered = useMemo(() => filter.filter(entries, query), [entries, filter, query]);
   return (
@@ -41,22 +45,24 @@ export function FieldPalette({
         <p className="rt-palette-help">
           {mode === "rebind"
             ? "연결을 바꿀 필드를 선택하세요."
-            : "배열을 놓으면 반복 표가, 단일 값을 놓으면 값 하나가 만들어집니다."}
+            : "누르면 쓰는 곳이 표시됩니다. 문서에 넣을 때는 끌어 놓거나 ＋를 누르세요."}
         </p>
       </div>
       {mode === "rebind"
         ? <button className="rt-mode-switch" type="button" onClick={onAddMode}>＋ 새 필드 추가</button>
         : null}
-      {adding
-        ? <VariableEditor onAdd={onAddVariable} onClose={() => setAdding(false)} />
-        : (
-          <button
-            className="rt-mode-switch"
-            type="button"
-            onClick={() => setAdding(true)}
-          >
+      {adding === null
+        ? (
+          <button className="rt-mode-switch" type="button" onClick={() => setAdding("")}>
             ＋ 변수 추가
           </button>
+        )
+        : (
+          <VariableEditor
+            parentPath={adding === "" ? undefined : adding}
+            onAdd={onAddVariables}
+            onClose={() => setAdding(null)}
+          />
         )}
       <label className="rt-search">
         <span className="rt-search-icon" aria-hidden="true">⌕</span>
@@ -76,7 +82,10 @@ export function FieldPalette({
             <EntryList
               entries={filtered}
               mode={mode}
-              onPick={onPick}
+              highlightedPath={highlightedPath}
+              onHighlight={onHighlight}
+              onInsert={onInsert}
+              onAddChild={(parentPath) => setAdding(parentPath)}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onRemoveVariable={onRemoveVariable}
@@ -91,10 +100,13 @@ export function FieldPalette({
 interface EntryListProps {
   readonly entries: readonly PaletteEntry[];
   readonly mode: "add" | "rebind";
-  readonly onPick: (entry: PaletteEntry) => void;
+  readonly highlightedPath: string | null;
+  readonly onHighlight: (path: string | null) => void;
+  readonly onInsert: (entry: PaletteEntry) => void;
+  readonly onAddChild: (parentPath: string) => void;
   readonly onDragStart?: (entry: PaletteEntry) => void;
   readonly onDragEnd?: () => void;
-  readonly onRemoveVariable: (name: string) => void;
+  readonly onRemoveVariable: (path: string) => void;
 }
 
 /** 배열과 자식 필드를 소속을 드러내며 재귀적으로 표시한다. */
@@ -115,26 +127,33 @@ function EntryList(props: EntryListProps) {
   );
 }
 
-/** 한 항목을 문서에 놓거나, 사용자가 정의한 것이면 지울 수 있게 한다. */
+/**
+ * 한 항목의 확인과 편집을 서로 다른 버튼으로 분리한다.
+ *
+ * 행을 누르는 것만으로 문서에 요소가 생기면, 목록을 살펴보려던 사용자가 표를
+ * 통째로 얻는다. 그래서 누르기는 "어디에 쓰이는지 보기"로 두고 삽입은 ＋로 옮겼다.
+ */
 function EntryRow(props: EntryListProps & { entry: PaletteEntry }) {
   const { entry } = props;
   const isArray = entry.type === "array";
-  const draggable = props.mode === "add";
+  const selected = props.highlightedPath === entry.path;
+  const editable = entry.origin === "declared";
   return (
-    <div className={isArray ? "rt-entry-row rt-entry-row--array" : "rt-entry-row"}>
+    <div className={rowClassName(isArray, selected)}>
       <button
         className={isArray ? "rt-array-button" : "rt-field-button"}
         type="button"
-        draggable={draggable}
+        draggable={props.mode === "add"}
         data-field-path={entry.path}
-        onClick={() => props.onPick(entry)}
+        aria-pressed={selected}
+        onClick={() => props.onHighlight(selected ? null : entry.path)}
         onDragStart={(event) => {
           event.dataTransfer.effectAllowed = "copy";
           event.dataTransfer.setData("text/plain", entry.path);
           props.onDragStart?.(entry);
         }}
         onDragEnd={() => props.onDragEnd?.()}
-        aria-label={describeAction(entry, props.mode)}
+        aria-label={`${entry.label} 쓰는 곳 보기`}
         title={entry.path}
       >
         <span className="rt-field-copy">
@@ -146,21 +165,51 @@ function EntryRow(props: EntryListProps & { entry: PaletteEntry }) {
         </span>
         <OriginBadge entry={entry} />
       </button>
-      {entry.origin === "host" || entry.arrayPath !== null
-        ? null
-        : (
+      <button
+        type="button"
+        className="rt-icon-button"
+        title={isArray ? "문서에 반복 표로 넣기" : "문서에 넣기"}
+        aria-label={describeInsert(entry, props.mode)}
+        onClick={() => props.onInsert(entry)}
+      >
+        ＋
+      </button>
+      {isArray
+        ? (
           <button
             type="button"
             className="rt-icon-button"
-            title="이 변수 삭제"
-            aria-label={`${entry.label} 변수 삭제`}
+            title="이 배열에 필드 추가"
+            aria-label={`${entry.label}에 필드 추가`}
+            onClick={() => props.onAddChild(entry.path)}
+          >
+            ⊕
+          </button>
+        )
+        : null}
+      {editable
+        ? (
+          <button
+            type="button"
+            className="rt-icon-button"
+            title="이 선언 삭제"
+            aria-label={`${entry.label} 선언 삭제`}
             onClick={() => props.onRemoveVariable(entry.path)}
           >
             ✕
           </button>
-        )}
+        )
+        : null}
     </div>
   );
+}
+
+/** 강조된 행과 배열 행을 같은 규칙으로 구분해 보여준다. */
+function rowClassName(isArray: boolean, selected: boolean): string {
+  const names = ["rt-entry-row"];
+  if (isArray) names.push("rt-entry-row--array");
+  if (selected) names.push("rt-entry-row--on");
+  return names.join(" ");
 }
 
 /** 값이 어디서 오는지를 한 배지로 구분해 신뢰도를 알 수 있게 한다. */
@@ -175,8 +224,8 @@ function OriginBadge(props: { entry: PaletteEntry }) {
   return <span className={className}>{labels[props.entry.origin]}</span>;
 }
 
-/** 보조 기술이 항목의 동작을 정확히 읽게 한다. */
-function describeAction(entry: PaletteEntry, mode: "add" | "rebind"): string {
+/** 보조 기술이 삽입 버튼의 동작을 정확히 읽게 한다. */
+function describeInsert(entry: PaletteEntry, mode: "add" | "rebind"): string {
   if (entry.type === "array") return `${entry.label} 배열로 반복 표 만들기`;
-  return `${entry.label} ${mode === "add" ? "추가" : "연결 변경"}`;
+  return `${entry.label} ${mode === "add" ? "문서에 넣기" : "연결 변경"}`;
 }

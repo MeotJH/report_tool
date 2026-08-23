@@ -155,6 +155,9 @@ const DESIGNER_CSS = `
     margin: 10px 2px 2px; text-transform: uppercase;
   }
   .rt-entry-row { align-items: center; display: flex; gap: 2px; }
+  .rt-entry-row--on > .rt-field-button, .rt-entry-row--on > .rt-array-button {
+    border-color: #0ea5e9; box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.16);
+  }
   .rt-entry-row > .rt-field-button, .rt-entry-row > .rt-array-button { flex: 1; min-width: 0; }
   .rt-type-badge--declared {
     background: #ecfdf5; border-color: #a7f3d0; color: #047857;

@@ -143,6 +143,9 @@ class ArrayDrag extends PaletteDrag {
   /** 새 표가 페이지 폭을 넘지 않으면서 읽을 만한 기본 크기를 갖게 한다. */
   private static readonly DEFAULT_ROW_HEIGHT_MM = 7;
   private static readonly DEFAULT_BODY_ROWS = 3;
+
+  /** 기존 내용과 붙어 보이지 않게 둘 최소 간격이다. */
+  private static readonly GAP_MM = 4;
   private readonly columnPlanner = new TableColumnPlanner();
 
   /** 배열 경로와 자식 스키마를 드래그 수명 동안 보존한다. */
@@ -163,10 +166,21 @@ class ArrayDrag extends PaletteDrag {
     this.createTable(xMm, yMm, controller);
   }
 
-  /** 클릭만 했으면 배치 영역 왼쪽 위 아래쪽에 새 표를 만든다. */
+  /**
+   * 좌표를 고르지 않았으면 기존 내용 아래에 새 표를 만든다.
+   *
+   * 배치 영역 왼쪽 위에 두면 제목이나 이미 놓은 요소를 덮어 사용자가 방금 만든
+   * 표를 찾지 못한다. 표는 폭이 넓어서 겹침이 특히 눈에 띈다.
+   */
   place(controller: EditorController): void {
     const content = controller.getTemplate().page.contentFrame();
-    this.createTable(content.x, content.y, controller);
+    const elements = controller.getTemplate().getElements();
+    const lowest = elements.length === 0
+      ? content.y
+      : Math.max(...elements.map((element) => element.frame.y + element.frame.height))
+        + ArrayDrag.GAP_MM;
+    const maximum = content.y + content.height - this.defaultHeight();
+    this.createTable(content.x, Math.min(Math.max(content.y, lowest), maximum), controller);
   }
 
   /**

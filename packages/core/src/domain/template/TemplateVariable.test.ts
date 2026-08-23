@@ -34,31 +34,30 @@ describe("TemplateVariable", () => {
       .toThrow("변수 이름에 중괄호를 쓸 수 없다");
   });
 
-  it("배열 변수는 자식 선언을 가질 수 있다", () => {
-    const variable = new TemplateVariable("payItems", "지급 항목", "array", false, [
-      new TemplateVariable("item", "항목", "string"),
-      new TemplateVariable("amount", "금액", "currency"),
-    ]);
+  it("중첩은 점 경로로 표현하고 부모·자손 관계를 스스로 판단한다", () => {
+    const child = new TemplateVariable("payItems.amount", "금액", "currency");
 
-    expect(variable.children.map((child) => child.label)).toEqual(["항목", "금액"]);
+    expect(child.isChildOf("payItems")).toBe(true);
+    expect(child.isChildOf("pay")).toBe(false);
+    expect(child.isSelfOrDescendantOf("payItems.amount")).toBe(true);
+    expect(child.isSelfOrDescendantOf("payItems")).toBe(true);
   });
 
-  it("배열이 아닌 변수에 자식을 넣지 못한다", () => {
-    expect(() => new TemplateVariable("pay.bonus", "상여금", "currency", false, [
-      new TemplateVariable("item", "항목", "string"),
-    ])).toThrow("배열이 아닌 변수는 자식 변수를 가질 수 없다");
+  it("공백과 빈 구간이 섞인 이름을 거부한다", () => {
+    expect(() => new TemplateVariable("employee. phone", "전화", "string"))
+      .toThrow("변수 이름에 공백을 쓸 수 없다");
+    expect(() => new TemplateVariable("employee..phone", "전화", "string"))
+      .toThrow("변수 이름의 각 구간은 비어 있을 수 없다");
   });
 
-  it("표현 설정만 교체하고 자식 구성을 유지한다", () => {
-    const variable = new TemplateVariable("payItems", "지급 항목", "array", false, [
-      new TemplateVariable("item", "항목", "string"),
-    ]);
+  it("표현 설정만 교체하고 이름을 유지한다", () => {
+    const variable = new TemplateVariable("payItems", "지급 항목", "array");
 
     const changed = variable.withDefinition({ label: "지급 내역", required: true });
 
+    expect(changed.name).toBe("payItems");
     expect(changed.label).toBe("지급 내역");
     expect(changed.required).toBe(true);
-    expect(changed.children).toHaveLength(1);
   });
 });
 
@@ -66,10 +65,9 @@ describe("변수 JSON 왕복", () => {
   it("상수와 배열 선언을 모두 복원한다", () => {
     const template = createTemplate([
       new TemplateVariable("pay.bonus", "상여금", "currency", true),
-      new TemplateVariable("payItems", "지급 항목", "array", true, [
-        new TemplateVariable("item", "항목", "string"),
-        new TemplateVariable("amount", "금액", "currency", true),
-      ]),
+      new TemplateVariable("payItems", "지급 항목", "array", true),
+      new TemplateVariable("payItems.item", "항목", "string"),
+      new TemplateVariable("payItems.amount", "금액", "currency", true),
     ]);
 
     const restored = TemplateFactory.fromJSON(
@@ -77,8 +75,9 @@ describe("변수 JSON 왕복", () => {
     );
 
     expect(restored.toJSON()).toEqual(template.toJSON());
-    expect(restored.variables).toHaveLength(2);
-    expect(restored.variables[1]?.children[1]?.required).toBe(true);
+    expect(restored.variables).toHaveLength(4);
+    expect(restored.variables[3]?.name).toBe("payItems.amount");
+    expect(restored.variables[3]?.required).toBe(true);
   });
 
   it("변수 필드가 없는 기존 저장 데이터는 빈 목록으로 복원한다", () => {

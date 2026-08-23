@@ -32,11 +32,14 @@ const VALUE_TYPES: readonly Readonly<{ value: VariableValueType; label: string }
  * 담당자가 개발자를 기다리지 않고 양식을 완성할 수 있다.
  */
 export function VariableEditor(props: {
-  onAdd: (variable: TemplateVariable) => void;
+  parentPath?: string;
+  onAdd: (variables: readonly TemplateVariable[]) => void;
   onClose: () => void;
 }) {
   const [kind, setKind] = useState<VariableKind>("data");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(
+    props.parentPath === undefined ? "" : `${props.parentPath}.`,
+  );
   const [label, setLabel] = useState("");
   const [type, setType] = useState<VariableValueType>("string");
   const [required, setRequired] = useState(false);
@@ -59,10 +62,7 @@ export function VariableEditor(props: {
   return (
     <div className="rt-variable-editor">
       <div className="rt-variable-kinds" role="group" aria-label="변수 종류">
-        {([
-          { value: "data" as const, label: "데이터 필드" },
-          { value: "array" as const, label: "배열" },
-        ]).map((option) => (
+        {kinds(props.parentPath).map((option) => (
           <button
             key={option.value}
             type="button"
@@ -205,7 +205,12 @@ function ChildListEditor(props: {
   );
 }
 
-/** 입력 상태를 도메인 변수로 바꾸는 규칙을 한곳에 모은다. */
+/**
+ * 입력 상태를 도메인 선언 목록으로 바꾼다.
+ *
+ * 배열은 자신과 자식 선언을 함께 만든다. 자식은 `배열이름.키` 점 경로를 쓰므로
+ * 나중에 배열에 필드를 하나 더 더하는 일과 같은 형태가 된다.
+ */
 function createVariable(draft: Readonly<{
   kind: VariableKind;
   name: string;
@@ -213,19 +218,35 @@ function createVariable(draft: Readonly<{
   type: VariableValueType;
   required: boolean;
   children: readonly ChildDraft[];
-}>): TemplateVariable {
+}>): readonly TemplateVariable[] {
   const name = draft.name.trim();
   const label = draft.label.trim() === "" ? name : draft.label.trim();
   if (draft.kind === "data") {
-    return new TemplateVariable(name, label, draft.type, draft.required);
+    return [new TemplateVariable(name, label, draft.type, draft.required)];
   }
-  return new TemplateVariable(name, label, "array", draft.required, draft.children.map(
-    (child) => new TemplateVariable(
-      child.name.trim(),
+  return [
+    new TemplateVariable(name, label, "array", draft.required),
+    ...draft.children.map((child) => new TemplateVariable(
+      `${name}.${child.name.trim()}`,
       child.label.trim() === "" ? child.name.trim() : child.label.trim(),
       child.type,
-    ),
-  ));
+    )),
+  ];
+}
+
+/**
+ * 고를 수 있는 종류를 문맥에 맞게 제한한다.
+ *
+ * 배열 안의 배열은 표 안의 표가 되어야 하는데 지원하지 않는다. 고를 수 있게 두면
+ * 만들어도 표에서 조용히 무시되는 선언이 생긴다.
+ */
+function kinds(parentPath: string | undefined): readonly Readonly<{
+  value: VariableKind;
+  label: string;
+}>[] {
+  const data = { value: "data" as const, label: "데이터 필드" };
+  if (parentPath !== undefined) return [data];
+  return [data, { value: "array" as const, label: "배열" }];
 }
 
 /** 각 종류가 무엇을 만드는지 고르기 전에 알려준다. */

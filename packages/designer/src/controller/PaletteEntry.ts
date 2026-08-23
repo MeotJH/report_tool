@@ -32,17 +32,83 @@ export interface PaletteEntry {
  * 경로를 우선한다.
  */
 export class PaletteEntryBuilder {
-  /** 호스트 필드 뒤에 템플릿이 선언한 변수를 이어 한 목록을 만든다. */
+  /**
+   * 호스트 필드와 템플릿 선언을 한 목록으로 합친다.
+   *
+   * 선언 이름이 기존 항목의 하위 경로면 그 항목의 자식으로 붙인다. 호스트가 준
+   * `employee` 배열에 전화번호가 없을 때 `employee.phone`을 선언하면, 담당자가
+   * 기대하는 위치인 직원 정보 아래에 나타나야 하기 때문이다.
+   */
   build(
     hostFields: FieldSchema,
     variables: readonly TemplateVariable[],
   ): readonly PaletteEntry[] {
-    const hostEntries = this.fromSchema(hostFields, "", null);
-    const claimed = new Set(this.collectPaths(hostEntries));
-    const declared = variables
-      .filter((variable) => !claimed.has(variable.name))
-      .map((variable) => this.fromVariable(variable, "", null));
-    return [...hostEntries, ...declared];
+    const declared = this.sortByDepth(variables)
+      .map((variable) => this.fromVariable(variable));
+    return declared.reduce(
+      (entries, entry) => this.attach(entries, entry),
+      this.fromSchema(hostFields, "", null),
+    );
+  }
+
+  /** 이미 같은 경로가 있으면 덧붙이지 않아 호스트가 주는 값을 우선한다. */
+  private attach(
+    entries: readonly PaletteEntry[],
+    declared: PaletteEntry,
+  ): readonly PaletteEntry[] {
+    if (this.collectPaths(entries).includes(declared.path)) return entries;
+    const parentPath = this.parentPathOf(declared.path);
+    if (parentPath === null) return [...entries, declared];
+    const attached = this.attachToParent(entries, parentPath, declared);
+    return attached ?? [...entries, declared];
+  }
+
+  /**
+   * 부모 경로를 가진 항목을 찾아 그 자식으로 넣는다.
+   *
+   * 부모를 찾지 못하면 null을 반환해 호출부가 최상위로 두게 한다. 부모가 없다고
+   * 선언을 버리면 사용자가 방금 만든 항목이 화면에서 사라진다.
+   */
+  private attachToParent(
+    entries: readonly PaletteEntry[],
+    parentPath: string,
+    declared: PaletteEntry,
+  ): readonly PaletteEntry[] | null {
+    let changed = false;
+    const next = entries.map((entry) => {
+      if (entry.path === parentPath) {
+        changed = true;
+        return {
+          ...entry,
+          children: [...entry.children, { ...declared, arrayPath: entry.path }],
+        };
+      }
+      const children = this.attachToParent(entry.children, parentPath, declared);
+      if (children === null) return entry;
+      changed = true;
+      return { ...entry, children };
+    });
+    return changed ? next : null;
+  }
+
+  /**
+   * 얕은 선언을 먼저 붙여 부모가 자식보다 늘 먼저 존재하게 한다.
+   *
+   * 순서가 뒤집히면 `a.b`를 붙일 때 `a`가 아직 없어 최상위로 밀려나고,
+   * 사용자가 배열 아래에 만든 필드가 목록 바닥에 따로 나타난다.
+   */
+  private sortByDepth(
+    variables: readonly TemplateVariable[],
+  ): readonly TemplateVariable[] {
+    return [...variables].sort(
+      (first, second) => first.name.split(".").length - second.name.split(".").length,
+    );
+  }
+
+  /** 마지막 점 앞까지를 부모 경로로 본다. 점이 없으면 최상위다. */
+  private parentPathOf(path: string): string | null {
+    const separator = path.lastIndexOf(".");
+    return separator === -1 ? null : path.slice(0, separator);
   }
 
   /** 호스트 스키마를 경로와 소속 배열을 보존하며 재귀적으로 변환한다. */
@@ -68,28 +134,16 @@ export class PaletteEntryBuilder {
     });
   }
 
-  /**
-   * 템플릿이 선언한 데이터 변수를 자식까지 함께 변환한다.
-   *
-   * 자식 변수의 이름은 배열 한 줄 안의 키이므로, 호스트 스키마와 같은 규칙으로
-   * 부모 경로를 앞에 붙여야 팔레트에서 끌어 놓을 때 같은 경로 체계를 쓴다.
-   */
-  private fromVariable(
-    variable: TemplateVariable,
-    parentPath: string,
-    arrayPath: string | null,
-  ): PaletteEntry {
-    const path = this.joinPath(parentPath, variable.name);
+  /** 선언 하나를 자식이 없는 항목으로 바꾼다. 중첩은 attach가 만든다. */
+  private fromVariable(variable: TemplateVariable): PaletteEntry {
     return {
-      path,
+      path: variable.name,
       label: variable.label,
       type: variable.type,
       origin: "declared",
       sensitive: false,
-      children: variable.children.map(
-        (child) => this.fromVariable(child, path, path),
-      ),
-      arrayPath,
+      children: [],
+      arrayPath: null,
     };
   }
 

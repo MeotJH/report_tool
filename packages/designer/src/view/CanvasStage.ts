@@ -2,6 +2,7 @@ import Konva from "konva";
 import {
   BindingResolver,
   TableElement,
+  TemplateReferences,
   TextElement,
   type Element,
   type Frame,
@@ -31,6 +32,7 @@ export class CanvasStage {
   private readonly bindingResolver = new BindingResolver();
   private readonly issueFinder = new TemplateIssueFinder();
   private readonly cellLocator = new TableCellLocator();
+  private readonly references = new TemplateReferences();
   private readonly unsubscribe: () => void;
   private hoveredElementId: string | null = null;
   private spacePanning = false;
@@ -70,6 +72,7 @@ export class CanvasStage {
     this.layer.add(overlay.marginGuide(page));
     this.addElements();
     this.addWarnings(overlay);
+    this.addPathHighlight(overlay);
     this.addHover(overlay);
     this.addSelection(overlay);
     this.addGuides(overlay, page);
@@ -170,6 +173,24 @@ export class CanvasStage {
     for (const element of this.displayedElements()) {
       if (!flagged.has(element.id)) continue;
       this.layer.add(overlay.warningOutline(this.displayFrame(element)));
+    }
+  }
+
+  /**
+   * 팔레트에서 고른 데이터를 참조하는 요소를 강조한다.
+   *
+   * 배열을 골랐을 때 그 자식을 쓰는 열까지 찾아주려면 하위 경로도 함께 본다.
+   */
+  private addPathHighlight(overlay: CanvasOverlay): void {
+    const path = this.controller.getHighlightedPath();
+    if (path === null) return;
+    for (const element of this.displayedElements()) {
+      const referenced = this.references.pathsOf(element);
+      const matches = referenced.some(
+        (candidate) => candidate === path || candidate.startsWith(`${path}.`),
+      );
+      if (!matches) continue;
+      this.layer.add(overlay.highlightOutline(this.displayFrame(element)));
     }
   }
 

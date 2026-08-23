@@ -47,12 +47,14 @@ export function DesignerShell(props: DesignerShellProps) {
           <FieldPalette
             entries={entries}
             mode={isFieldSelected(props.controller) ? "rebind" : "add"}
-            onPick={props.onFieldPick}
+            highlightedPath={props.controller.getHighlightedPath()}
+            onHighlight={(path) => props.controller.setHighlightedPath(path)}
+            onInsert={props.onFieldPick}
             onDragStart={props.onFieldDragStart}
             onDragEnd={props.onFieldDragEnd}
             onAddMode={() => props.controller.selectElement(null)}
-            onAddVariable={(variable) => props.actions.addVariable(variable)}
-            onRemoveVariable={(name) => props.actions.removeVariable(name)}
+            onAddVariables={(variables) => props.actions.addVariables(variables)}
+            onRemoveVariable={(path) => props.actions.removeVariable(path)}
           />
         </aside>
         <CanvasWorkspace {...props} />

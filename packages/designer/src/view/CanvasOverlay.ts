@@ -15,6 +15,7 @@ const COLORS = {
   marquee: "#4f46e5",
   draft: "#f97316",
   warning: "#f59e0b",
+  highlight: "#0ea5e9",
 } as const;
 
 /**
@@ -72,6 +73,13 @@ export class CanvasOverlay {
     const rect = this.outline(frame, COLORS.selection, 1);
     rect.dash([5, 4]);
     rect.opacity(0.7);
+    return rect;
+  }
+
+  /** 팔레트에서 고른 데이터를 쓰는 요소가 문서 어디에 있는지 보여준다. */
+  highlightOutline(frame: Frame): Konva.Rect {
+    const rect = this.outline(frame, COLORS.highlight, 2);
+    rect.fill("rgba(14, 165, 233, 0.1)");
     return rect;
   }
 

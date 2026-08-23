@@ -163,35 +163,61 @@ export class EditorActions {
   }
 
   /**
-   * 새 변수를 목록 끝에 추가한다.
+   * 새 선언을 한 번에 추가한다.
    *
-   * 이름이 이미 있으면 추가하지 않고 알린다. 같은 이름이 둘이면 어느 값이 나갈지
-   * 정할 수 없고, 그 상태는 검증 오류로만 드러나 사용자가 원인을 찾기 어렵다.
+   * 배열과 그 자식들은 사용자가 한 번 만든 것이므로 Undo도 한 번이어야 한다.
+   * 이름이 겹치면 그 선언만 건너뛰고 무엇을 건너뛰었는지 알린다. 같은 이름이
+   * 둘이면 어느 값이 나갈지 정할 수 없다.
    */
-  addVariable(variable: TemplateVariable): void {
+  addVariables(variables: readonly TemplateVariable[]): void {
     const existing = this.controller.getTemplate().variables;
-    if (existing.some((candidate) => candidate.name === variable.name)) {
-      this.controller.setNotice(`이미 있는 변수 이름입니다: ${variable.name}`);
-      return;
-    }
-    this.replaceVariables([...existing, variable]);
+    const taken = new Set(existing.map((candidate) => candidate.name));
+    const added = variables.filter((variable) => !taken.has(variable.name));
+    const skipped = variables.filter((variable) => taken.has(variable.name));
+    if (added.length > 0) this.replaceVariables([...existing, ...added]);
+    if (skipped.length === 0) return;
+    this.controller.setNotice(
+      `이미 있는 이름은 건너뛰었습니다: ${skipped.map((one) => one.name).join(", ")}`,
+    );
   }
 
-  /** 이름을 기준으로 변수 하나만 교체해 나머지 순서를 유지한다. */
-  updateVariable(name: string, variable: TemplateVariable): void {
-    this.replaceVariables(this.controller.getTemplate().variables
-      .map((candidate) => (candidate.name === name ? variable : candidate)));
+  /** 선언 하나만 추가하는 흔한 경우를 짧게 쓰게 한다. */
+  addVariable(variable: TemplateVariable): void {
+    this.addVariables([variable]);
   }
 
   /**
-   * 변수를 목록에서 제거한다.
+   * 선언 하나를 교체한다.
    *
-   * 그 변수를 참조하는 요소는 지우지 않는다. 사용자가 어떤 자리를 무엇으로 바꿀지
+   * 이름이 바뀌면 하위 선언의 경로도 함께 옮겨야 한다. 배열 이름을 고쳤을 때
+   * 자식들이 옛 경로에 남으면 팔레트에서 부모를 잃고 목록 바닥으로 떨어진다.
+   */
+  updateVariable(name: string, variable: TemplateVariable): void {
+    this.replaceVariables(this.controller.getTemplate().variables.map((candidate) => {
+      if (candidate.name === name) return variable;
+      if (!candidate.isChildOf(name)) return candidate;
+      return candidate.withName(
+        `${variable.name}${candidate.name.slice(name.length)}`,
+      );
+    }));
+  }
+
+  /**
+   * 선언과 그 하위 선언을 함께 제거한다.
+   *
+   * 그 선언을 참조하는 요소는 지우지 않는다. 사용자가 어떤 자리를 무엇으로 바꿀지
    * 정해야 하므로, 편집기는 참조가 깨졌다는 사실만 경고로 보여준다.
    */
-  removeVariable(name: string): void {
-    this.replaceVariables(this.controller.getTemplate().variables
-      .filter((candidate) => candidate.name !== name));
+  removeVariable(path: string): void {
+    const existing = this.controller.getTemplate().variables;
+    const remaining = existing.filter(
+      (candidate) => !candidate.isSelfOrDescendantOf(path),
+    );
+    if (remaining.length === existing.length) {
+      this.controller.setNotice(`호스트가 제공하는 항목은 지울 수 없습니다: ${path}`);
+      return;
+    }
+    this.replaceVariables(remaining);
   }
 
   /** 용지 설정 변경도 요소 편집과 같은 이력에 남게 한다. */

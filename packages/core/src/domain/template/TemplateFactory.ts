@@ -78,15 +78,13 @@ export class TemplateFactory {
     return variables.map((variable) => TemplateFactory.readVariable(variable));
   }
 
-  /** 배열 변수의 자식까지 재귀적으로 복원한다. */
+  /** 선언 하나를 복원한다. 중첩은 이름의 점 경로가 표현한다. */
   private static readVariable(json: Record<string, unknown>): TemplateVariable {
-    const children = (json.children ?? []) as readonly Record<string, unknown>[];
     return new TemplateVariable(
       json.name as string,
       json.label as string,
       json.type as VariableValueType,
       json.required === true,
-      children.map((child) => TemplateFactory.readVariable(child)),
     );
   }
 

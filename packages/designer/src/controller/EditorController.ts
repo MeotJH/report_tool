@@ -31,6 +31,7 @@ export class EditorController {
   private editTarget: CanvasEditTarget | null = null;
   private notice: string | null = null;
   private paletteDropHint: string | null = null;
+  private highlightedPath: string | null = null;
   private revision = 0;
 
   /** 호스트가 제공한 초안과 샘플 데이터로 독립적인 편집 세션을 시작한다. */
@@ -102,6 +103,22 @@ export class EditorController {
   /** 캔버스가 Token chip과 실제 값 중 무엇을 그릴지 판단하게 한다. */
   getMode(): EditorMode {
     return this.mode;
+  }
+
+  /**
+   * 팔레트에서 고른 데이터 경로를 캔버스가 강조하게 한다.
+   *
+   * 목록에서 항목을 누르는 행동이 문서를 바꾸지 않으려면 대신 무언가는 보여줘야
+   * 한다. 그 경로를 쓰는 요소가 문서 어디에 있는지가 사용자가 가장 알고 싶은 것이다.
+   */
+  setHighlightedPath(path: string | null): void {
+    this.highlightedPath = path;
+    this.notifyChange();
+  }
+
+  /** 캔버스와 팔레트가 같은 강조 대상을 공유하게 한다. */
+  getHighlightedPath(): string | null {
+    return this.highlightedPath;
   }
 
   /**

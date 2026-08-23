@@ -34,8 +34,78 @@ describe("변수 편집 행동", () => {
     actions.addVariable(new TemplateVariable("pay.bonus", "상여금", "currency", true));
 
     expect(controller.getTemplate().toJSON().variables).toEqual([
-      { name: "pay.bonus", label: "상여금", type: "currency", required: true, children: [] },
+      { name: "pay.bonus", label: "상여금", type: "currency", required: true },
     ]);
+  });
+
+  it("배열과 자식 선언을 한 번의 실행 취소로 되돌린다", () => {
+    const { controller, actions } = createEditor();
+
+    actions.addVariables([
+      new TemplateVariable("deductionItems", "공제 항목", "array"),
+      new TemplateVariable("deductionItems.item", "항목", "string"),
+      new TemplateVariable("deductionItems.amount", "금액", "currency"),
+    ]);
+    expect(controller.getTemplate().variables).toHaveLength(3);
+
+    controller.undo();
+
+    expect(controller.getTemplate().variables).toEqual([]);
+  });
+
+  it("배열에 필드를 나중에 더할 수 있다", () => {
+    const { controller, actions } = createEditor();
+    actions.addVariable(new TemplateVariable("employee.phone", "전화번호", "string"));
+
+    expect(controller.getTemplate().variables[0]?.name).toBe("employee.phone");
+  });
+
+  it("이미 있는 이름만 건너뛰고 나머지는 추가한다", () => {
+    const { controller, actions } = createEditor();
+    actions.addVariable(new TemplateVariable("rows", "행", "array"));
+
+    actions.addVariables([
+      new TemplateVariable("rows", "행", "array"),
+      new TemplateVariable("rows.item", "항목", "string"),
+    ]);
+
+    expect(controller.getTemplate().variables.map((one) => one.name))
+      .toEqual(["rows", "rows.item"]);
+    expect(controller.getNotice()).toContain("rows");
+  });
+
+  it("배열을 지우면 그 자식 선언도 함께 사라진다", () => {
+    const { controller, actions } = createEditor();
+    actions.addVariables([
+      new TemplateVariable("rows", "행", "array"),
+      new TemplateVariable("rows.item", "항목", "string"),
+      new TemplateVariable("other", "다른 값", "string"),
+    ]);
+
+    actions.removeVariable("rows");
+
+    expect(controller.getTemplate().variables.map((one) => one.name)).toEqual(["other"]);
+  });
+
+  it("배열 이름을 바꾸면 자식 경로도 함께 옮긴다", () => {
+    const { controller, actions } = createEditor();
+    actions.addVariables([
+      new TemplateVariable("rows", "행", "array"),
+      new TemplateVariable("rows.item", "항목", "string"),
+    ]);
+
+    actions.updateVariable("rows", new TemplateVariable("deductions", "공제", "array"));
+
+    expect(controller.getTemplate().variables.map((one) => one.name))
+      .toEqual(["deductions", "deductions.item"]);
+  });
+
+  it("호스트가 제공하는 항목을 지우려 하면 이유를 알린다", () => {
+    const { controller, actions } = createEditor();
+
+    actions.removeVariable("employee.name");
+
+    expect(controller.getNotice()).toContain("호스트가 제공하는 항목");
   });
 
   it("변수 추가를 실행 취소로 되돌린다", () => {
@@ -81,15 +151,4 @@ describe("변수 편집 행동", () => {
     expect(controller.getTemplate().getElements()).toHaveLength(1);
   });
 
-  it("배열 변수를 자식 구성까지 저장한다", () => {
-    const { controller, actions } = createEditor();
-
-    actions.addVariable(new TemplateVariable("deductionItems", "공제 항목", "array", false, [
-      new TemplateVariable("item", "항목", "string"),
-      new TemplateVariable("amount", "금액", "currency"),
-    ]));
-
-    const variable = controller.getTemplate().variables[0] as DataVariable;
-    expect(variable.children.map((child) => child.label)).toEqual(["항목", "금액"]);
-  });
 });

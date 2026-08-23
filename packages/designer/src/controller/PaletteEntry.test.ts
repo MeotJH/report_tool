@@ -38,7 +38,7 @@ describe("PaletteEntryBuilder", () => {
     expect(employee?.children[1]?.sensitive).toBe(true);
   });
 
-  it("사용자가 선언한 데이터 변수를 선언 출처로 덧붙인다", () => {
+  it("사용자가 선언한 데이터 변수를 선언 출처로 표시한다", () => {
     const entries = builder.build(hostFields, [
       new TemplateVariable("pay.bonus", "상여금", "currency", true),
     ]);
@@ -49,17 +49,48 @@ describe("PaletteEntryBuilder", () => {
     expect(bonus?.type).toBe("currency");
   });
 
-  it("선언한 배열의 자식도 함께 펼친다", () => {
+  it("점 경로로 선언한 자식을 배열 아래에 붙인다", () => {
     const entries = builder.build({}, [
-      new TemplateVariable("deductionItems", "공제 항목", "array", false, [
-        new TemplateVariable("item", "항목", "string"),
-        new TemplateVariable("amount", "금액", "currency"),
-      ]),
+      new TemplateVariable("deductionItems", "공제 항목", "array"),
+      new TemplateVariable("deductionItems.item", "항목", "string"),
+      new TemplateVariable("deductionItems.amount", "금액", "currency"),
     ]);
 
+    expect(entries).toHaveLength(1);
     expect(entries[0]?.children.map((child) => child.path))
       .toEqual(["deductionItems.item", "deductionItems.amount"]);
     expect(entries[0]?.children[0]?.arrayPath).toBe("deductionItems");
+  });
+
+  it("호스트 배열에 없는 필드를 선언하면 그 배열 아래에 붙인다", () => {
+    const entries = builder.build(hostFields, [
+      new TemplateVariable("employee.phone", "전화번호", "string"),
+    ]);
+
+    const employee = entries.find((entry) => entry.path === "employee");
+    expect(employee?.children.map((child) => child.path)).toEqual([
+      "employee.name", "employee.residentNumber", "employee.phone",
+    ]);
+    expect(employee?.children[2]?.origin).toBe("declared");
+    expect(employee?.children[2]?.arrayPath).toBe("employee");
+  });
+
+  it("선언 순서가 뒤섞여도 부모를 먼저 붙여 자식이 밀려나지 않는다", () => {
+    const entries = builder.build({}, [
+      new TemplateVariable("rows.item", "항목", "string"),
+      new TemplateVariable("rows", "행", "array"),
+    ]);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.children.map((child) => child.path)).toEqual(["rows.item"]);
+  });
+
+  it("부모가 없는 점 경로 선언은 버리지 않고 최상위에 둔다", () => {
+    const entries = builder.build({}, [
+      new TemplateVariable("pay.bonus", "상여금", "currency"),
+    ]);
+
+    expect(entries.map((entry) => entry.path)).toEqual(["pay.bonus"]);
   });
 
   it("호스트가 이미 제공하는 경로는 선언을 중복 표시하지 않는다", () => {
