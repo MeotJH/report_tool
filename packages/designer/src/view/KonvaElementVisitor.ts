@@ -1,7 +1,8 @@
 import Konva from "konva";
 import {
   ContentResolver,
-  TemplateExpression,
+  StaticTableSource,
+  TableCellResolver,
   type Binding,
   type BindingResolver,
   type BoxElement,
@@ -41,6 +42,7 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   private static readonly PLACEHOLDER_LINE = "#94a3b8";
 
   private readonly textLayout = new TextLayout();
+  private readonly cellResolver = new TableCellResolver();
   private readonly measurer = new CanvasTextMeasurer();
 
   /** 화면 배율·샘플 데이터·표시 모드를 주입해 도메인과 브라우저 표현을 분리한다. */
@@ -149,20 +151,39 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
     return this.mark(group, element);
   }
 
-  /** 설계 모드는 열 Token을, 미리보기 모드는 실제 샘플 행을 본문으로 만든다. */
+  /**
+   * 설계 모드는 열 Token을, 미리보기 모드는 실제 샘플 행을 본문으로 만든다.
+   *
+   * 정적 표만은 설계 모드에서도 저장된 행을 그대로 보여 준다. 그 값은 데이터가
+   * 아니라 사용자가 템플릿에 직접 써 넣은 내용이므로, 편집하는 동안 보이지 않으면
+   * 무엇을 고치고 있는지 알 수 없다. 다만 셀에 적은 표현식은 값으로 바꾸지 않는다 —
+   * 캔버스에 보이는 것과 셀 입력기에 뜨는 것이 같아야 한다.
+   */
   private bodyRows(element: TableElement): readonly (readonly string[])[] {
     if (this.mode === "design") {
-      return [element.columns.map((column) => `⟨${column.key}⟩`)];
+      if (!(element.source instanceof StaticTableSource)) {
+        return [element.columns.map((column) => `⟨${column.key}⟩`)];
+      }
+      return this.sampleRows(element).map((row) => (
+        this.cellResolver.resolveRowSource(element.columns, row)
+      ));
     }
-    return this.sampleRows(element).map((row) => element.columns.map((column) => (
-      TemplateExpression.render(column.cellTemplate, { row })
-    )));
+    return this.sampleRows(element).map((row) => (
+      this.cellResolver.resolveRow(element.columns, row, this.data)
+    ));
   }
 
-  /** 실제 행 수 대신 편집 화면에 필요한 최대 세 행의 안전한 샘플을 제공한다. */
+  /**
+   * 화면에 그릴 행을 고른다.
+   *
+   * 정적 표는 저장된 행이 곧 문서 내용이므로 전부 그린다. 데이터 표는 발행 시점에
+   * 행 수가 정해지므로 편집 중에는 세 행이면 형태를 판단하기에 충분하다.
+   */
   private sampleRows(element: TableElement): readonly unknown[] {
     const rows = element.source.resolveRows(this.data);
-    return rows.length === 0 ? [{}] : rows.slice(0, 3);
+    if (rows.length === 0) return [{}];
+    if (element.source instanceof StaticTableSource) return rows;
+    return rows.slice(0, 3);
   }
 
   /** 표 한 행의 각 셀에 배경 경계와 내용을 추가한다. */
