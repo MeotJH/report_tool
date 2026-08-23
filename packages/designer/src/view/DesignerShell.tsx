@@ -11,6 +11,7 @@ import { SignatureTool } from "../tool/SignatureTool.js";
 import { TableTool } from "../tool/TableTool.js";
 import { TextTool } from "../tool/TextTool.js";
 import { CanvasMetrics } from "./CanvasMetrics.js";
+import { CanvasTextMeasurer } from "./CanvasTextMeasurer.js";
 import { FieldPalette } from "./FieldPalette.js";
 import { InspectorPanel } from "./InspectorPanel.js";
 import { LayersPanel } from "./LayersPanel.js";
@@ -34,7 +35,12 @@ export function DesignerShell(props: DesignerShellProps) {
   );
   const template = props.controller.getTemplate();
   const entries = new PaletteEntryBuilder().build(template.variables);
-  const issues = new TemplateIssueFinder(entries).find(template);
+  const measurer = new CanvasTextMeasurer();
+  const issues = new TemplateIssueFinder(
+    entries,
+    (style) => measurer.forStyle(style),
+    props.controller.getSampleData(),
+  ).find(template);
   return (
     <div className="rt-designer">
       <DesignerHeader controller={props.controller} />

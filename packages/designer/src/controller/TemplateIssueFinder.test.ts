@@ -17,6 +17,9 @@ import {
 import { describe, expect, it } from "vitest";
 import { TemplateIssueFinder } from "./TemplateIssueFinder.js";
 
+/** 폰트 없이도 결과가 일정하도록 글자 수에 비례하는 폭을 쓴다. */
+const measureWidth = (text: string, size: number): number => text.length * size * 0.5;
+
 /** 문제 탐색만 검증하도록 요소를 담은 초안을 만든다. */
 function createTemplate(...elements: readonly Element[]): Template {
   return new Template({
@@ -118,6 +121,40 @@ describe("TemplateIssueFinder", () => {
 
     expect(issues.map((issue) => issue.message))
       .toEqual(["열 너비 합 90mm가 표 너비 60mm와 다르다"]);
+  });
+
+  it("문구가 요소 높이보다 길면 경고한다", () => {
+    const wordy = new TextElement(
+      "long", new Frame(20, 20, 20, 6), 0, false,
+      { kind: "literal", value: "가 나 다 라 마 바 사 아 자 차 카 타" },
+      new TextStyle("Pretendard", 10),
+    );
+
+    const issues = new TemplateIssueFinder([], () => measureWidth).find(createTemplate(wordy));
+
+    expect(issues.map((issue) => issue.message))
+      .toEqual([expect.stringContaining("요소 높이보다 길다")]);
+  });
+
+  it("측정기를 주지 않으면 넘침을 판단하지 않는다", () => {
+    const wordy = new TextElement(
+      "long", new Frame(20, 20, 20, 6), 0, false,
+      { kind: "literal", value: "가 나 다 라 마 바 사 아 자 차 카 타" },
+      new TextStyle("Pretendard", 10),
+    );
+
+    expect(new TemplateIssueFinder().find(createTemplate(wordy))).toEqual([]);
+  });
+
+  it("영역 안에 들어가는 문구는 경고하지 않는다", () => {
+    const short = new TextElement(
+      "short", new Frame(20, 20, 60, 10), 0, false,
+      { kind: "literal", value: "이름" }, new TextStyle("Pretendard", 10),
+    );
+
+    const issues = new TemplateIssueFinder([], () => measureWidth).find(createTemplate(short));
+
+    expect(issues).toEqual([]);
   });
 
   it("정상 요소만 있으면 아무 문제도 알리지 않는다", () => {

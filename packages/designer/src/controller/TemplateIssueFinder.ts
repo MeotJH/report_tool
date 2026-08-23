@@ -1,15 +1,24 @@
 import {
+  ContentResolver,
+  FieldElement,
   ImageElement,
   SignatureElement,
   StaticTableSource,
   TableElement,
   TemplateReferences,
   TemplateValidator,
+  TextElement,
+  TextLayout,
   type Element,
   type PageSpec,
   type Template,
+  type TextStyle,
+  type TextWidthMeasurer,
 } from "@report-tool/core";
 import type { PaletteEntry } from "./PaletteEntry.js";
+
+/** 문구가 요소 영역을 넘는지 판단하려면 실제 글자 폭을 알아야 한다. */
+export type StyleMeasurerFactory = (style: TextStyle) => TextWidthMeasurer;
 
 /** 편집 화면이 문제의 무게를 다르게 표시할 수 있게 심각도를 구분한다. */
 export type IssueSeverity = "error" | "warning";
@@ -30,14 +39,19 @@ export interface TemplateIssue {
 export class TemplateIssueFinder {
   private readonly validator = new TemplateValidator();
   private readonly references = new TemplateReferences();
+  private readonly textLayout = new TextLayout();
 
   /**
-   * 편집기가 아는 데이터 목록을 받아 참조가 실제로 존재하는지도 볼 수 있게 한다.
+   * 팔레트가 만든 데이터 목록을 받아 참조가 실제로 존재하는지도 볼 수 있게 한다.
    *
-   * core는 호스트가 어떤 필드를 제공하는지 모른다. 그 지식은 편집기에만 있으므로
-   * "어디에도 없는 경로를 참조한다"는 판단은 이 클래스가 한다.
+   * core는 선언을 트리로 펼치지 않는다. 점 경로가 어떤 자식을 만드는지는 편집기만
+   * 알므로 "어디에도 없는 경로를 참조한다"는 판단은 이 클래스가 한다.
    */
-  constructor(private readonly entries: readonly PaletteEntry[] = []) {}
+  constructor(
+    private readonly entries: readonly PaletteEntry[] = [],
+    private readonly measurerFactory: StyleMeasurerFactory | null = null,
+    private readonly sampleData: unknown = {},
+  ) {}
 
   /** 화면이 요소별 배지와 문제 목록을 같은 결과로 그리게 한다. */
   find(template: Template): readonly TemplateIssue[] {
@@ -54,8 +68,8 @@ export class TemplateIssueFinder {
   /**
    * 어디에도 정의되지 않은 데이터 경로를 참조하는 요소를 찾는다.
    *
-   * 호스트 목록에도 없고 템플릿 선언에도 없는 경로는 오타이거나 지운 변수의
-   * 흔적이다. 발행하면 그 자리는 빈칸으로 나간다.
+   * 템플릿 선언에 없는 경로는 오타이거나 지운 변수의 흔적이다.
+   * 발행하면 그 자리는 빈칸으로 나간다.
    */
   private findUnknownReferences(template: Template): readonly TemplateIssue[] {
     if (this.entries.length === 0) return [];
@@ -90,7 +104,50 @@ export class TemplateIssueFinder {
       warnings.push(this.warning(element, "표에 입력된 행이 없다"));
     }
     warnings.push(...this.overflowingColumnWarning(element));
+    warnings.push(...this.overflowingTextWarning(element));
     return warnings;
+  }
+
+  /**
+   * 문구가 요소 높이를 넘는 요소를 드러낸다.
+   *
+   * 넘친 줄을 캔버스가 조용히 지우고 PDF가 종이 밖에 그리던 시절에는, 담당자가
+   * 본 문서와 서명자가 받은 문서가 달랐다. 이제 양쪽 다 넘쳐 보이게 두는 대신
+   * 여기서 반드시 알린다. 조용히 사라지는 글자가 있어서는 안 된다.
+   */
+  private overflowingTextWarning(element: Element): readonly TemplateIssue[] {
+    if (this.measurerFactory === null) return [];
+    const style = this.styleOf(element);
+    if (style === null) return [];
+    const text = this.textOf(element);
+    if (text.length === 0) return [];
+    const layout = this.textLayout.layout(
+      text, style, element.frame.width, this.measurerFactory(style),
+    );
+    const neededMm = this.textLayout.heightMm(layout, style);
+    if (neededMm <= element.frame.height) return [];
+    return [this.warning(
+      element,
+      `문구 ${layout.lines.length}줄이 요소 높이보다 길다 (${Math.ceil(neededMm)}mm 필요)`,
+    )];
+  }
+
+  /** 글자를 담는 요소만 넘침 검사 대상으로 좁힌다. */
+  private styleOf(element: Element): TextStyle | null {
+    if (element instanceof TextElement) return element.style;
+    if (element instanceof FieldElement) return element.style;
+    return null;
+  }
+
+  /** 검사에 쓸 문구를 요소 종류에 맞게 해석한다. */
+  private textOf(element: Element): string {
+    if (element instanceof TextElement) {
+      return ContentResolver.resolve(element.content, this.sampleData);
+    }
+    if (element instanceof FieldElement) {
+      return element.binding.path.toString();
+    }
+    return "";
   }
 
   /**

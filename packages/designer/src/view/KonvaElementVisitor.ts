@@ -12,10 +12,12 @@ import {
   type LineElement,
   type SignatureElement,
   type TableElement,
+  TextLayout,
   type TextElement,
   type TextStyle,
 } from "@report-tool/core";
 import type { EditorMode } from "../controller/EditorController.js";
+import { CanvasTextMeasurer } from "./CanvasTextMeasurer.js";
 
 /** 화면 안에서 배치되는 사각 영역을 픽셀 단위로 전달한다. */
 interface PixelFrame {
@@ -37,6 +39,9 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   private static readonly TOKEN_STROKE = "#a5b4fc";
   private static readonly TOKEN_TEXT = "#4338ca";
   private static readonly PLACEHOLDER_LINE = "#94a3b8";
+
+  private readonly textLayout = new TextLayout();
+  private readonly measurer = new CanvasTextMeasurer();
 
   /** 화면 배율·샘플 데이터·표시 모드를 주입해 도메인과 브라우저 표현을 분리한다. */
   constructor(
@@ -273,20 +278,32 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
     };
   }
 
-  /** TextStyle의 단위와 정렬을 Konva 텍스트 설정으로 변환한다. */
+  /**
+   * 줄 나누기를 도메인에 맡기고 Konva에는 확정된 줄만 넘긴다.
+   *
+   * Konva의 `wrap`을 쓰면 PDF와 다른 규칙으로 줄이 나뉜다. 실제로 어긋났었다 —
+   * 캔버스는 `\n`을 지키고 PDF는 무시해서, 편집기에서 본 조문과 발행된 조문의
+   * 순서가 달랐다. 같은 계산을 쓰는 것이 이 클래스가 지켜야 할 규칙이다.
+   */
   private createTextNode(text: string, style: TextStyle, frame: PixelFrame): Konva.Text {
+    const widthMm = frame.width / this.mmToPx;
+    const layout = this.textLayout.layout(
+      text, style, widthMm, this.measurer.forStyle(style),
+    );
+    const fits = this.textLayout.heightMm(layout, style) <= frame.height / this.mmToPx;
     return new Konva.Text({
       ...frame,
-      text,
+      // 넘치는 문구는 높이를 비워 Konva가 조용히 잘라내지 않고 PDF처럼 넘쳐 보이게 한다.
+      height: fits ? frame.height : undefined,
+      text: layout.lines.join("\n"),
       fontFamily: style.font,
-      fontSize: style.size * (this.mmToPx / KonvaElementVisitor.POINTS_PER_MM),
+      fontSize: layout.fontSize * (this.mmToPx / KonvaElementVisitor.POINTS_PER_MM),
       fontStyle: this.fontStyle(style),
       fill: style.color,
       align: style.align,
-      verticalAlign: style.valign,
+      verticalAlign: fits ? style.valign : "top",
       lineHeight: style.lineHeight,
-      wrap: style.overflow === "wrap" ? "word" : "none",
-      ellipsis: style.overflow === "truncate",
+      wrap: "none",
       padding: 1,
     });
   }
