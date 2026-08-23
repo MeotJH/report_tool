@@ -72,9 +72,12 @@ packages/
 │   │   │   ├── MaskFormatter.ts      주민번호·계좌번호용
 │   │   │   └── FormatterRegistry.ts  FormatSpec → Formatter 해석
 │   │   ├── template/
-│   │   │   ├── Template.ts           엔티티. 요소 보유, 검증, 버전 규칙, toJSON
+│   │   │   ├── Template.ts           엔티티. 요소·변수 보유, 버전 규칙, toJSON, resolveData
 │   │   │   ├── TemplateFactory.ts    저장 JSON → Template 복원 (schemaVersion 검증)
-│   │   │   ├── TemplateValidator.ts  필수 항목·바인딩 유효성 검사
+│   │   │   ├── TemplateVariable.ts   상수 / 선언 필드 (문서가 소유하는 데이터 계약)
+│   │   │   ├── TemplateReferences.ts 요소가 참조하는 데이터 경로 수집
+│   │   │   ├── TemplateValidator.ts  필수 항목·바인딩·변수 유효성 검사
+│   │   │   ├── KoreanParticle.ts     오류 메시지의 조사 선택
 │   │   │   └── BindingResolver.ts    데이터 + 바인딩 → 표시 문자열
 │   │   └── document/
 │   │       ├── IssuedDocument.ts     엔티티. 동결 규칙과 상태전이를 강제
@@ -125,6 +128,7 @@ packages/
 │   │   ├── ElementClipboard.ts       편집기 전용 복사 보관소
 │   │   ├── TemplateIssueFinder.ts    core 검증 오류 + 편집 경고 수집
 │   │   ├── FieldPlacementPlanner.ts  팔레트 필드 배치 위치 결정
+│   │   ├── PaletteEntry.ts           호스트 필드 + 선언 변수 + 상수를 한 목록으로
 │   │   ├── PaletteDrag.ts            끌어온 항목이 놓인 자리를 스스로 해석 (배열/단일)
 │   │   ├── TableColumnPlanner.ts     배열 자식 스키마 → 표 열 구성
 │   │   ├── TableCellLocator.ts       표 안 좌표 ↔ 편집 대상 ↔ 셀 영역
@@ -162,7 +166,8 @@ packages/
 │       ├── LayersPanel.tsx           순서·잠금·숨김
 │       ├── InspectorPanel.tsx        선택별 속성 (없음=페이지, 1개, 다중)
 │       ├── CanvasEditOverlay.tsx     캔버스 위 입력기 (IME·Tab 이동)
-│       ├── FieldPalette.tsx          바인딩 드롭다운 UI (React)
+│       ├── FieldPalette.tsx          데이터 목록 + 변수 추가·삭제 (React)
+│       ├── VariableEditor.tsx        정적 값 / 데이터 필드 / 배열 정의 폼
 │       └── inspector/               속성 입력 컨트롤과 요소별 Visitor
 │
 ├── viewer/src/
@@ -390,6 +395,29 @@ Layers 패널의 이름은 `LayerNamer`가 내용에서 도출한다. 템플릿�
 네 갈래를 조건문으로 조합하면 한 메서드에 뒤섞이므로 `PaletteDrag`의 하위 전략이
 각자 판단한다. 전환으로 사용자가 입력한 정적 행이 사라질 때는 막지 않고 알린다 —
 모든 변경이 Undo 한 번으로 복원되기 때문이다.
+
+### 6.9 누가 데이터 필드를 정하는가
+
+`DataProvider.fields()`는 "이 시스템이 줄 수 있는 값"이고, 템플릿의 `variables`는
+"이 문서가 필요한 값"이다. 둘은 겹치지만 같지 않다.
+
+문서가 필요한 값을 문서 자신이 말할 수 없으면, 그 자리가 비어 나갔을 때 그것이
+사고인지 정상인지 판단할 근거가 어디에도 남지 않는다. 그래서 선언을 금지하지 않고
+허용한 뒤 검증으로 드러낸다. 선언을 막아도 승인된 필드가 특정 수령인의 데이터에서
+빠지는 것은 똑같이 막지 못한다.
+
+| 종류 | 값의 출처 | 발행 시 |
+|---|---|---|
+| 호스트 필드 | 호스트 시스템 | 호스트가 채운다 |
+| 선언 필드 (`DataVariable`) | 호스트 시스템 | 채우지 못하면 드러나야 한다 |
+| 상수 (`ConstantVariable`) | 템플릿 자신 | 항상 같은 값 |
+
+상수는 `const` 예약 이름공간으로 조회한다(`{{const.회사명}}`). 합치는 지점은
+`Template.resolveData()` 하나이며, PDF 렌더러와 편집기 미리보기가 모두 이것만
+호출한다. 파이프라인 중간에서 각자 합치면 한쪽만 반영되는 순간이 생긴다.
+
+`TemplateExpression`의 경로 패턴이 `\p{L}`을 허용하는 이유도 이것이다. `\w`만
+쓰면 한글 상수 이름이 치환되지 않는다.
 
 ### 6.8 호스트는 편집기에 확정된 높이를 줘야 한다
 

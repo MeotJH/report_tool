@@ -1,6 +1,10 @@
 import { Element } from "../element/Element.js";
 import { ElementFactory } from "../element/ElementFactory.js";
 import { PageSpec } from "../value/PageSpec.js";
+import {
+  ConstantVariable,
+  TemplateVariable,
+} from "./TemplateVariable.js";
 
 /** 템플릿이 편집·발행·보관 중 어느 상태인지 명확하게 제한한다. */
 export type TemplateStatus = "draft" | "published" | "archived";
@@ -14,6 +18,7 @@ export interface TemplateOptions {
   readonly page: PageSpec;
   readonly fonts: readonly string[];
   readonly elements: readonly Element[];
+  readonly variables?: readonly TemplateVariable[];
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -31,6 +36,7 @@ export class Template {
   public readonly fonts: readonly string[];
   public readonly createdAt: string;
   public readonly updatedAt: string;
+  public readonly variables: readonly TemplateVariable[];
   private readonly elements: readonly Element[];
 
   /** 외부 배열 변경이 저장된 템플릿 상태를 훼손하지 않도록 목록을 복사해 보관한다. */
@@ -42,6 +48,7 @@ export class Template {
     this.page = options.page;
     this.fonts = [...options.fonts];
     this.elements = [...options.elements];
+    this.variables = [...options.variables ?? []];
     this.createdAt = options.createdAt;
     this.updatedAt = options.updatedAt;
   }
@@ -84,6 +91,36 @@ export class Template {
     return this.copy({ status: "published" });
   }
 
+  /**
+   * 사용자가 정의한 변수 목록을 교체한 새 편집 상태를 만든다.
+   *
+   * 변수는 문서가 요구하는 데이터의 계약이므로 요소와 같은 초안 규칙을 따른다.
+   */
+  withVariables(variables: readonly TemplateVariable[]): Template {
+    this.assertDraft();
+    return this.copy({ variables });
+  }
+
+  /**
+   * 템플릿이 소유한 상수를 호스트 데이터 위에 얹은 조회 대상을 만든다.
+   *
+   * 편집기 미리보기와 PDF 렌더러가 각자 상수를 합치면 한쪽만 반영되는 순간이
+   * 생긴다. 합치는 규칙을 템플릿 자신에게 두고 두 경로가 이것만 호출하게 한다.
+   * `const`는 예약 이름공간이므로 호스트 데이터의 같은 키는 가려진다.
+   */
+  resolveData(hostData: unknown): unknown {
+    const constants = this.variables
+      .filter((variable): variable is ConstantVariable => variable.kind === "constant");
+    if (constants.length === 0) return hostData;
+    const base = typeof hostData === "object" && hostData !== null ? hostData : {};
+    return {
+      ...base,
+      [ConstantVariable.NAMESPACE]: Object.fromEntries(
+        constants.map((constant) => [constant.name, constant.value]),
+      ),
+    };
+  }
+
   /** 용지·방향·여백 변경도 요소 편집과 같은 초안 규칙을 따르게 한다. */
   withPage(page: PageSpec): Template {
     this.assertDraft();
@@ -121,6 +158,7 @@ export class Template {
       status: this.status,
       page: this.page.toJSON(),
       fonts: [...this.fonts],
+      variables: this.variables.map((variable) => variable.toJSON()),
       elements: this.elements.map((element) => ElementFactory.toJSON(element)),
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
@@ -137,6 +175,7 @@ export class Template {
       page: changes.page ?? this.page,
       fonts: changes.fonts ?? this.fonts,
       elements: changes.elements ?? this.elements,
+      variables: changes.variables ?? this.variables,
       createdAt: changes.createdAt ?? this.createdAt,
       updatedAt: changes.updatedAt ?? this.updatedAt,
     });

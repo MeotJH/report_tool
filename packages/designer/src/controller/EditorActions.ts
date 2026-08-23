@@ -3,11 +3,13 @@ import {
   type Content,
   type Element,
   type PageSpec,
+  type TemplateVariable,
   type TextElement,
 } from "@report-tool/core";
 import { AddElementCommand } from "../command/AddElementCommand.js";
 import { ChangeElementCommand } from "../command/ChangeElementCommand.js";
 import { ChangePageCommand } from "../command/ChangePageCommand.js";
+import { ChangeVariablesCommand } from "../command/ChangeVariablesCommand.js";
 import { CompositeCommand } from "../command/CompositeCommand.js";
 import type { EditorCommand } from "../command/EditorCommand.js";
 import { RemoveElementCommand } from "../command/RemoveElementCommand.js";
@@ -160,6 +162,38 @@ export class EditorActions {
     this.applyFrames(elements, this.alignment.distribute(elements, axis));
   }
 
+  /**
+   * 새 변수를 목록 끝에 추가한다.
+   *
+   * 이름이 이미 있으면 추가하지 않고 알린다. 같은 이름이 둘이면 어느 값이 나갈지
+   * 정할 수 없고, 그 상태는 검증 오류로만 드러나 사용자가 원인을 찾기 어렵다.
+   */
+  addVariable(variable: TemplateVariable): void {
+    const existing = this.controller.getTemplate().variables;
+    if (existing.some((candidate) => candidate.name === variable.name)) {
+      this.controller.setNotice(`이미 있는 변수 이름입니다: ${variable.name}`);
+      return;
+    }
+    this.replaceVariables([...existing, variable]);
+  }
+
+  /** 이름을 기준으로 변수 하나만 교체해 나머지 순서를 유지한다. */
+  updateVariable(name: string, variable: TemplateVariable): void {
+    this.replaceVariables(this.controller.getTemplate().variables
+      .map((candidate) => (candidate.name === name ? variable : candidate)));
+  }
+
+  /**
+   * 변수를 목록에서 제거한다.
+   *
+   * 그 변수를 참조하는 요소는 지우지 않는다. 사용자가 어떤 자리를 무엇으로 바꿀지
+   * 정해야 하므로, 편집기는 참조가 깨졌다는 사실만 경고로 보여준다.
+   */
+  removeVariable(name: string): void {
+    this.replaceVariables(this.controller.getTemplate().variables
+      .filter((candidate) => candidate.name !== name));
+  }
+
   /** 용지 설정 변경도 요소 편집과 같은 이력에 남게 한다. */
   changePage(page: PageSpec): void {
     this.controller.execute(new ChangePageCommand(this.controller.getTemplate().page, page));
@@ -172,6 +206,13 @@ export class EditorActions {
         .filter((element) => !element.locked && !element.hidden)
         .map((element) => element.id),
     );
+  }
+
+  /** 모든 변수 편집이 같은 실행 취소 단위와 검증 경로를 지나게 한다. */
+  private replaceVariables(variables: readonly TemplateVariable[]): void {
+    this.controller.execute(new ChangeVariablesCommand(
+      this.controller.getTemplate().variables, variables,
+    ));
   }
 
   /** 사본 추가와 선택 전환이 항상 같은 순서로 일어나게 한다. */

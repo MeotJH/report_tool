@@ -1,5 +1,6 @@
 import {
   Binding,
+  ConstantVariable,
   BoundTableSource,
   BoxElement,
   FieldElement,
@@ -49,6 +50,7 @@ function createTemplate(): Template {
     page: new PageSpec("A4", "portrait", [12, 12, 12, 12]),
     fonts: ["Pretendard"],
     elements: createElements(),
+    variables: [new ConstantVariable("회사명", "아이에스유 주식회사")],
     createdAt: "2026-08-22T00:00:00.000Z",
     updatedAt: "2026-08-22T00:00:00.000Z",
   });
@@ -139,14 +141,6 @@ function createFieldSchema() {
     },
     payItems: {
       label: "지급 항목",
-      type: "array" as const,
-      children: {
-        item: { label: "항목", type: "string" as const },
-        amount: { label: "금액", type: "currency" as const },
-      },
-    },
-    deductionItems: {
-      label: "공제 항목",
       type: "array" as const,
       children: {
         item: { label: "항목", type: "string" as const },

@@ -6,7 +6,6 @@ import {
   StaticTableSource,
   TableElement,
   TextStyle,
-  type FieldSchema,
   type FormatSpec,
 } from "@report-tool/core";
 import { AddElementCommand } from "../command/AddElementCommand.js";
@@ -14,16 +13,9 @@ import { BindTableColumnCommand } from "../command/TableCommands.js";
 import { ChangeElementCommand } from "../command/ChangeElementCommand.js";
 import type { EditorController } from "./EditorController.js";
 import { FieldPlacementPlanner } from "./FieldPlacementPlanner.js";
+import type { PaletteEntry } from "./PaletteEntry.js";
 import { TableColumnPlanner } from "./TableColumnPlanner.js";
 import { TableEditor } from "./TableEditor.js";
-
-/** 팔레트에서 집어 든 항목의 정체를 한 값으로 전달한다. */
-export interface PaletteItem {
-  readonly path: string;
-  readonly specification: FieldSchema[string];
-  /** 배열 자식이면 소속 배열의 경로. 최상위 필드는 null이다. */
-  readonly arrayPath: string | null;
-}
 
 /**
  * 팔레트에서 끌어온 항목이 놓인 자리에 따라 무엇을 만들지 스스로 결정한다.
@@ -33,12 +25,11 @@ export interface PaletteItem {
  */
 export abstract class PaletteDrag {
   /** 항목 종류를 보고 대응하는 배치 전략을 고른다. */
-  static create(item: PaletteItem): PaletteDrag {
-    const children = item.specification.children;
-    if (item.specification.type === "array" && children !== undefined) {
-      return new ArrayDrag(item.path, children);
+  static create(entry: PaletteEntry): PaletteDrag {
+    if (entry.type === "array" && entry.children.length > 0) {
+      return new ArrayDrag(entry.path, entry.children);
     }
-    return new FieldDrag(item);
+    return new FieldDrag(entry);
   }
 
   /** 사용자가 문서의 특정 위치에 놓았을 때의 배치를 결정한다. */
@@ -70,7 +61,7 @@ class FieldDrag extends PaletteDrag {
   private readonly tableEditor = new TableEditor();
 
   /** 끌어온 필드의 경로와 소속 배열을 드래그 수명 동안 보존한다. */
-  constructor(private readonly item: PaletteItem) {
+  constructor(private readonly entry: PaletteEntry) {
     super();
   }
 
@@ -94,9 +85,9 @@ class FieldDrag extends PaletteDrag {
 
   /** 끌어온 필드가 이 표가 반복하는 배열의 자식인지 확인한다. */
   private belongsToTableArray(table: TableElement): boolean {
-    if (this.item.arrayPath === null) return false;
+    if (this.entry.arrayPath === null) return false;
     if (!(table.source instanceof BoundTableSource)) return false;
-    return table.source.binding.path.toString() === this.item.arrayPath;
+    return table.source.binding.path.toString() === this.entry.arrayPath;
   }
 
   /** 놓은 가로 위치의 열만 이 필드에 다시 연결한다. */
@@ -108,15 +99,15 @@ class FieldDrag extends PaletteDrag {
     const index = this.tableEditor.columnIndexAtOffset(table, xMm - table.frame.x);
     if (index === undefined) return;
     controller.execute(new BindTableColumnCommand(
-      table.id, index, this.childKey(), this.item.specification.label, true,
+      table.id, index, this.childKey(), this.entry.label, true,
     ));
     controller.selectElement(table.id);
   }
 
   /** 열 표현식은 배열 경로가 아니라 행 안의 키를 참조해야 한다. */
   private childKey(): string {
-    const separator = this.item.path.lastIndexOf(".");
-    return separator === -1 ? this.item.path : this.item.path.slice(separator + 1);
+    const separator = this.entry.path.lastIndexOf(".");
+    return separator === -1 ? this.entry.path : this.entry.path.slice(separator + 1);
   }
 
   /** 클릭과 드롭이 동일한 필드 기본값과 실행 취소 이력을 사용하게 한다. */
@@ -127,7 +118,7 @@ class FieldDrag extends PaletteDrag {
       frame,
       this.nextZIndex(controller),
       false,
-      new Binding(this.item.path, formatSpec === null ? {} : { formatSpec }),
+      new Binding(this.entry.path, formatSpec === null ? {} : { formatSpec }),
       new TextStyle("Pretendard", 10),
     );
     controller.execute(new AddElementCommand(element));
@@ -137,7 +128,7 @@ class FieldDrag extends PaletteDrag {
 
   /** 민감 필드가 실수로 평문 노출되지 않도록 기본 마스킹을 제안한다. */
   private suggestFormat(): FormatSpec | null {
-    if (this.item.specification.sensitive !== true) return null;
+    if (!this.entry.sensitive) return null;
     return { kind: "mask", keepHead: 6, keepTail: 1 };
   }
 }
@@ -157,7 +148,7 @@ class ArrayDrag extends PaletteDrag {
   /** 배열 경로와 자식 스키마를 드래그 수명 동안 보존한다. */
   constructor(
     private readonly arrayPath: string,
-    private readonly children: FieldSchema,
+    private readonly children: readonly PaletteEntry[],
   ) {
     super();
   }

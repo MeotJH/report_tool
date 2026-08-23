@@ -1,13 +1,22 @@
 import type { FieldSchema } from "@report-tool/core";
 import { describe, expect, it } from "vitest";
+import { PaletteEntryBuilder, type PaletteEntry } from "./PaletteEntry.js";
 import { TableColumnPlanner } from "./TableColumnPlanner.js";
 
-const children: FieldSchema = {
+/** 스키마를 팔레트 항목으로 바꿔 배열 자식 목록만 꺼낸다. */
+function childrenOf(schema: FieldSchema): readonly PaletteEntry[] {
+  const entries = new PaletteEntryBuilder().build({
+    rows: { label: "행", type: "array", children: schema },
+  }, []);
+  return entries[0]!.children;
+}
+
+const children = childrenOf({
   item: { label: "항목", type: "string" },
   amount: { label: "금액", type: "currency" },
   count: { label: "수량", type: "number" },
   paidAt: { label: "지급일", type: "date" },
-};
+});
 
 describe("TableColumnPlanner", () => {
   const planner = new TableColumnPlanner();
@@ -44,10 +53,10 @@ describe("TableColumnPlanner", () => {
   });
 
   it("표 안의 표는 만들지 않으므로 중첩 배열은 열에서 제외한다", () => {
-    const nested: FieldSchema = {
+    const nested = childrenOf({
       item: { label: "항목", type: "string" },
       details: { label: "내역", type: "array", children: { note: { label: "비고", type: "string" } } },
-    };
+    });
 
     const columns = planner.fromArrayChildren(nested, 100);
 
@@ -56,9 +65,9 @@ describe("TableColumnPlanner", () => {
   });
 
   it("열이 될 자식이 없으면 표를 만들지 않는다", () => {
-    const onlyArrays: FieldSchema = {
-      details: { label: "내역", type: "array", children: {} },
-    };
+    const onlyArrays = childrenOf({
+      details: { label: "내역", type: "array", children: { note: { label: "비고", type: "string" } } },
+    }).filter((child) => child.type === "array");
 
     expect(() => planner.fromArrayChildren(onlyArrays, 100))
       .toThrow("표로 만들 수 있는 자식 필드가 없다");

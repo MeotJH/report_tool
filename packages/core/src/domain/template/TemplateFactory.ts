@@ -7,6 +7,12 @@ import {
   type PageSize,
 } from "../value/PageSpec.js";
 import { Template, type TemplateStatus } from "./Template.js";
+import {
+  ConstantVariable,
+  DataVariable,
+  TemplateVariable,
+  type VariableValueType,
+} from "./TemplateVariable.js";
 
 /**
  * 저장된 템플릿 데이터를 편집 가능한 엔티티로 복원한다.
@@ -28,6 +34,7 @@ export class TemplateFactory {
       status: json.status as TemplateStatus,
       page: TemplateFactory.readPage(json.page),
       fonts: json.fonts as readonly string[],
+      variables: TemplateFactory.readVariables(json.variables),
       elements: TemplateFactory.readElements(json.elements),
       createdAt: json.createdAt as string,
       updatedAt: json.updatedAt as string,
@@ -58,6 +65,41 @@ export class TemplateFactory {
       json.size as PageSize,
       json.orientation as PageOrientation,
       json.margin as PageMargin,
+    );
+  }
+
+  /**
+   * 저장된 변수 목록을 종류별 클래스로 복원한다.
+   *
+   * 필드가 없으면 빈 목록으로 본다. 변수는 나중에 추가된 개념이므로 이렇게 하면
+   * 예전 템플릿이 그대로 동작하고 schemaVersion을 올리지 않아도 된다.
+   */
+  private static readVariables(value: unknown): readonly TemplateVariable[] {
+    if (value === undefined) return [];
+    const variables = value as readonly Record<string, unknown>[];
+    return variables.map((variable) => TemplateFactory.readVariable(variable));
+  }
+
+  /** 상수와 선언 필드를 저장된 종류 태그로 구분해 복원한다. */
+  private static readVariable(json: Record<string, unknown>): TemplateVariable {
+    if (json.kind === "constant") {
+      return new ConstantVariable(json.name as string, json.value as string);
+    }
+    if (json.kind === "data") {
+      return TemplateFactory.readDataVariable(json);
+    }
+    throw new Error("지원하지 않는 템플릿 변수 종류다");
+  }
+
+  /** 배열 변수의 자식까지 재귀적으로 복원한다. */
+  private static readDataVariable(json: Record<string, unknown>): DataVariable {
+    const children = (json.children ?? []) as readonly Record<string, unknown>[];
+    return new DataVariable(
+      json.name as string,
+      json.label as string,
+      json.type as VariableValueType,
+      json.required === true,
+      children.map((child) => TemplateFactory.readDataVariable(child)),
     );
   }
 

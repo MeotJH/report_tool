@@ -1,13 +1,16 @@
 import {
+  ConstantVariable,
   ImageElement,
   SignatureElement,
   StaticTableSource,
   TableElement,
+  TemplateReferences,
   TemplateValidator,
   type Element,
   type PageSpec,
   type Template,
 } from "@report-tool/core";
+import type { PaletteEntry } from "./PaletteEntry.js";
 
 /** 편집 화면이 문제의 무게를 다르게 표시할 수 있게 심각도를 구분한다. */
 export type IssueSeverity = "error" | "warning";
@@ -27,6 +30,15 @@ export interface TemplateIssue {
  */
 export class TemplateIssueFinder {
   private readonly validator = new TemplateValidator();
+  private readonly references = new TemplateReferences();
+
+  /**
+   * 편집기가 아는 데이터 목록을 받아 참조가 실제로 존재하는지도 볼 수 있게 한다.
+   *
+   * core는 호스트가 어떤 필드를 제공하는지 모른다. 그 지식은 편집기에만 있으므로
+   * "어디에도 없는 경로를 참조한다"는 판단은 이 클래스가 한다.
+   */
+  constructor(private readonly entries: readonly PaletteEntry[] = []) {}
 
   /** 화면이 요소별 배지와 문제 목록을 같은 결과로 그리게 한다. */
   find(template: Template): readonly TemplateIssue[] {
@@ -37,7 +49,33 @@ export class TemplateIssueFinder {
     }));
     const warnings = template.getElements()
       .flatMap((element) => this.warningsFor(element, template.page));
-    return [...errors, ...warnings];
+    return [...errors, ...warnings, ...this.findUnknownReferences(template)];
+  }
+
+  /**
+   * 어디에도 정의되지 않은 데이터 경로를 참조하는 요소를 찾는다.
+   *
+   * 상수는 core 검증기가 이미 오류로 잡으므로 여기서는 제외한다. 남은 경우는
+   * 호스트 목록에도 없고 템플릿 선언에도 없는 경로이며, 오타이거나 지운 변수의
+   * 흔적이다. 발행하면 그 자리는 빈칸으로 나간다.
+   */
+  private findUnknownReferences(template: Template): readonly TemplateIssue[] {
+    if (this.entries.length === 0) return [];
+    const known = new Set(this.knownPaths(this.entries));
+    const constantPrefix = `${ConstantVariable.NAMESPACE}.`;
+    return this.references.collect(template)
+      .filter((reference) => !reference.path.startsWith(constantPrefix))
+      .filter((reference) => !known.has(reference.path))
+      .map((reference) => ({
+        elementId: reference.elementId,
+        severity: "warning" as const,
+        message: `정의되지 않은 데이터 경로다: ${reference.path}`,
+      }));
+  }
+
+  /** 중첩 항목까지 모두 참조 가능한 경로로 펼친다. */
+  private knownPaths(entries: readonly PaletteEntry[]): readonly string[] {
+    return entries.flatMap((entry) => [entry.path, ...this.knownPaths(entry.children)]);
   }
 
   /** 요소 하나에서 편집 중 알아야 할 상태를 모두 수집한다. */

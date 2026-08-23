@@ -149,6 +149,49 @@ const DESIGNER_CSS = `
     font-size: 10px; font-weight: 700; padding: 1px 6px;
   }
 
+  .rt-palette-scroll { display: flex; flex: 1; flex-direction: column; gap: 3px; min-height: 0; overflow-y: auto; }
+  .rt-palette-group-title {
+    color: var(--rt-muted); font-size: 10px; font-weight: 650; letter-spacing: 0.04em;
+    margin: 10px 2px 2px; text-transform: uppercase;
+  }
+  .rt-entry-row { align-items: center; display: flex; gap: 2px; }
+  .rt-entry-row > .rt-field-button, .rt-entry-row > .rt-array-button { flex: 1; min-width: 0; }
+  .rt-type-badge--declared {
+    background: #ecfdf5; border-color: #a7f3d0; color: #047857;
+  }
+  .rt-type-badge--constant {
+    background: #fffbeb; border-color: #fcd34d; color: var(--rt-warning);
+  }
+
+  .rt-variable-editor {
+    background: var(--rt-bg); border: 1px solid var(--rt-border-strong); border-radius: 10px;
+    display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; padding: 10px;
+  }
+  .rt-variable-kinds { display: flex; gap: 2px; }
+  .rt-variable-kinds .rt-segment { flex: 1; }
+  .rt-variable-help { color: var(--rt-muted); font-size: 10px; line-height: 1.5; margin: 0; }
+  .rt-variable-field { display: flex; flex-direction: column; gap: 3px; }
+  .rt-variable-field input, .rt-variable-field select {
+    background: #fff; border: 1px solid var(--rt-border); border-radius: 7px;
+    padding: 5px 7px; width: 100%;
+  }
+  .rt-variable-field input:focus, .rt-variable-field select:focus {
+    border-color: var(--rt-primary); outline: none;
+  }
+  .rt-variable-check {
+    align-items: center; color: var(--rt-muted); display: flex; font-size: 11px; gap: 6px;
+  }
+  .rt-child-list { display: flex; flex-direction: column; gap: 5px; }
+  .rt-child-row { align-items: center; display: flex; gap: 3px; }
+  .rt-child-row input, .rt-child-row select {
+    background: #fff; border: 1px solid var(--rt-border); border-radius: 6px;
+    font-size: 11px; min-width: 0; padding: 4px 5px; width: 100%;
+  }
+  .rt-child-row select { flex: none; width: 68px; }
+  .rt-panel-button--primary {
+    background: var(--rt-primary); border-color: var(--rt-primary); color: #fff;
+  }
+
   .rt-field-palette {
     border-top: 1px solid var(--rt-border); display: flex; flex: 1; flex-direction: column;
     min-height: 0; padding: 10px 12px 12px;

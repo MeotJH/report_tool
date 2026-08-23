@@ -1,9 +1,10 @@
 import {
   TableColumn,
-  type FieldSchema,
   type FormatSpec,
   type TableColumnAlign,
+  type VariableValueType,
 } from "@report-tool/core";
+import type { PaletteEntry } from "./PaletteEntry.js";
 
 /** 배열 자식 필드 하나가 표 열이 될 때 필요한 표현 규칙이다. */
 interface ColumnPresentation {
@@ -31,28 +32,37 @@ export class TableColumnPlanner {
    * 중첩 배열을 제외하는 이유는 표 안의 표를 지원하지 않기 때문이다.
    */
   fromArrayChildren(
-    children: FieldSchema,
+    children: readonly PaletteEntry[],
     totalWidthMm: number,
   ): readonly TableColumn[] {
-    const entries = Object.entries(children)
-      .filter(([, specification]) => specification.type !== "array");
-    if (entries.length === 0) {
+    const columns = children.filter((child) => child.type !== "array");
+    if (columns.length === 0) {
       throw new Error("표로 만들 수 있는 자식 필드가 없다");
     }
-    const width = totalWidthMm / entries.length;
-    return entries.map(([key, specification]) => new TableColumn(
-      key,
-      specification.label,
-      `{{row.${key}}}`,
-      width,
-      this.presentationFor(specification.type).align,
-      this.presentationFor(specification.type).formatSpec,
-    ));
+    const width = totalWidthMm / columns.length;
+    return columns.map((child) => {
+      const key = this.rowKeyOf(child);
+      const presentation = this.presentationFor(child.type);
+      return new TableColumn(
+        key,
+        child.label,
+        `{{row.${key}}}`,
+        width,
+        presentation.align,
+        presentation.formatSpec,
+      );
+    });
+  }
+
+  /** 열 표현식은 배열 경로가 아니라 행 안의 키를 참조해야 한다. */
+  private rowKeyOf(child: PaletteEntry): string {
+    const separator = child.path.lastIndexOf(".");
+    return separator === -1 ? child.path : child.path.slice(separator + 1);
   }
 
   /** 기존 열 너비 합계를 유지한 채 열 구성만 새 스키마로 교체하게 한다. */
   fromArrayChildrenKeepingWidth(
-    children: FieldSchema,
+    children: readonly PaletteEntry[],
     existingWidths: readonly number[],
   ): readonly TableColumn[] {
     const total = existingWidths.reduce((sum, width) => sum + width, 0);
@@ -60,8 +70,8 @@ export class TableColumnPlanner {
   }
 
   /** 숫자와 금액은 오른쪽에 붙어야 자릿수를 비교할 수 있다. */
-  private presentationFor(type: FieldSchema[string]["type"]): ColumnPresentation {
-    const presentations: Partial<Record<FieldSchema[string]["type"], ColumnPresentation>> = {
+  private presentationFor(type: VariableValueType): ColumnPresentation {
+    const presentations: Partial<Record<VariableValueType, ColumnPresentation>> = {
       currency: {
         align: "right",
         formatSpec: {

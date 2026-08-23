@@ -2,7 +2,7 @@ import type { FieldSchema } from "@report-tool/core";
 import { useSyncExternalStore } from "react";
 import type { EditorActions } from "../controller/EditorActions.js";
 import type { EditorController, EditorMode } from "../controller/EditorController.js";
-import type { PaletteItem } from "../controller/PaletteDrag.js";
+import { PaletteEntryBuilder, type PaletteEntry } from "../controller/PaletteEntry.js";
 import { TemplateIssueFinder, type TemplateIssue } from "../controller/TemplateIssueFinder.js";
 import type { ToolKind } from "../tool/EditorTool.js";
 import { ImageTool } from "../tool/ImageTool.js";
@@ -22,8 +22,8 @@ export interface DesignerShellProps {
   readonly controller: EditorController;
   readonly actions: EditorActions;
   readonly fields: FieldSchema;
-  readonly onFieldPick: (item: PaletteItem) => void;
-  readonly onFieldDragStart: (item: PaletteItem) => void;
+  readonly onFieldPick: (entry: PaletteEntry) => void;
+  readonly onFieldDragStart: (entry: PaletteEntry) => void;
   readonly onFieldDragEnd: () => void;
   readonly onFitToViewport: () => void;
 }
@@ -35,7 +35,8 @@ export function DesignerShell(props: DesignerShellProps) {
     () => props.controller.getRevision(),
   );
   const template = props.controller.getTemplate();
-  const issues = new TemplateIssueFinder().find(template);
+  const entries = new PaletteEntryBuilder().build(props.fields, template.variables);
+  const issues = new TemplateIssueFinder(entries).find(template);
   return (
     <div className="rt-designer">
       <DesignerHeader controller={props.controller} />
@@ -44,13 +45,14 @@ export function DesignerShell(props: DesignerShellProps) {
         <aside className="rt-panel rt-panel--left">
           <LayersPanel controller={props.controller} actions={props.actions} issues={issues} />
           <FieldPalette
-            fields={props.fields}
+            entries={entries}
             mode={isFieldSelected(props.controller) ? "rebind" : "add"}
-            placementActive={props.controller.getPaletteDropHint() !== null}
             onPick={props.onFieldPick}
             onDragStart={props.onFieldDragStart}
             onDragEnd={props.onFieldDragEnd}
             onAddMode={() => props.controller.selectElement(null)}
+            onAddVariable={(variable) => props.actions.addVariable(variable)}
+            onRemoveVariable={(name) => props.actions.removeVariable(name)}
           />
         </aside>
         <CanvasWorkspace {...props} />

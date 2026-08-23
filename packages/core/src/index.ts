@@ -87,7 +87,16 @@ export { TemplateExpression } from "./domain/element/TemplateExpression.js";
 export { TextElement } from "./domain/element/TextElement.js";
 export { BindingResolver } from "./domain/template/BindingResolver.js";
 export { Template } from "./domain/template/Template.js";
+export { KoreanParticle } from "./domain/template/KoreanParticle.js";
+export { TemplateReferences } from "./domain/template/TemplateReferences.js";
+export type { DataReference } from "./domain/template/TemplateReferences.js";
 export { TemplateFactory } from "./domain/template/TemplateFactory.js";
+export {
+  ConstantVariable,
+  DataVariable,
+  TemplateVariable,
+} from "./domain/template/TemplateVariable.js";
+export type { VariableValueType } from "./domain/template/TemplateVariable.js";
 export type {
   TemplateOptions,
   TemplateStatus,

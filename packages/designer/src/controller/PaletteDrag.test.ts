@@ -15,7 +15,8 @@ import {
 } from "@report-tool/core";
 import { describe, expect, it } from "vitest";
 import { EditorController } from "./EditorController.js";
-import { PaletteDrag, type PaletteItem } from "./PaletteDrag.js";
+import { PaletteDrag } from "./PaletteDrag.js";
+import { PaletteEntryBuilder, type PaletteEntry } from "./PaletteEntry.js";
 
 const style = new TextStyle("Pretendard", 9);
 
@@ -41,18 +42,31 @@ const schema: FieldSchema = {
   residentNumber: { label: "주민등록번호", type: "string", sensitive: true },
 };
 
+const entries = new PaletteEntryBuilder().build(schema, []);
+
+/** 팔레트 목록에서 경로로 항목을 찾는다. */
+function find(path: string): PaletteEntry {
+  const search = (list: readonly PaletteEntry[]): PaletteEntry | undefined => {
+    for (const entry of list) {
+      if (entry.path === path) return entry;
+      const found = search(entry.children);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+  const found = search(entries);
+  if (found === undefined) throw new Error(`팔레트 항목 ${path}를 찾지 못했다`);
+  return found;
+}
+
 /** 팔레트에서 배열 줄을 집어 든 상태를 만든다. */
-function arrayItem(path: "payItems" | "deductionItems"): PaletteItem {
-  return { path, specification: schema[path]!, arrayPath: null };
+function arrayItem(path: "payItems" | "deductionItems"): PaletteEntry {
+  return find(path);
 }
 
 /** 팔레트에서 배열 자식 줄을 집어 든 상태를 만든다. */
-function childItem(arrayPath: string, key: string): PaletteItem {
-  return {
-    path: `${arrayPath}.${key}`,
-    specification: schema[arrayPath]!.children![key]!,
-    arrayPath,
-  };
+function childItem(arrayPath: string, key: string): PaletteEntry {
+  return find(`${arrayPath}.${key}`);
 }
 
 /** 요소가 배치된 편집 세션을 만든다. */
@@ -281,9 +295,7 @@ describe("배열 자식 필드를 놓기", () => {
 describe("단일 필드를 놓기", () => {
   it("빈 곳에 놓으면 그 자리에 데이터 필드를 만든다", () => {
     const controller = createController();
-    const item: PaletteItem = {
-      path: "netPay", specification: schema.netPay!, arrayPath: null,
-    };
+    const item = find("netPay");
 
     PaletteDrag.create(item).dropAt(40, 80, controller);
 
@@ -294,9 +306,7 @@ describe("단일 필드를 놓기", () => {
 
   it("민감 필드는 기본 마스킹을 제안한다", () => {
     const controller = createController();
-    const item: PaletteItem = {
-      path: "residentNumber", specification: schema.residentNumber!, arrayPath: null,
-    };
+    const item = find("residentNumber");
 
     PaletteDrag.create(item).dropAt(40, 80, controller);
 

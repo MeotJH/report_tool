@@ -11,7 +11,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { BindFieldCommand } from "./command/BindFieldCommand.js";
 import { EditorActions } from "./controller/EditorActions.js";
 import { EditorController } from "./controller/EditorController.js";
-import { PaletteDrag, type PaletteItem } from "./controller/PaletteDrag.js";
+import { PaletteDrag } from "./controller/PaletteDrag.js";
+import type { PaletteEntry } from "./controller/PaletteEntry.js";
 import { FieldTool } from "./tool/FieldTool.js";
 import { CanvasStage } from "./view/CanvasStage.js";
 import { DesignerShell } from "./view/DesignerShell.js";
@@ -129,23 +130,23 @@ export class Designer {
    * 필드가 선택된 상태에서 단일 필드를 고르는 것은 "이 자리의 연결을 바꿔라"이고,
    * 그 밖의 경우는 "새로 만들어라"이다. 배열은 연결 대상이 표이므로 늘 새로 만든다.
    */
-  private pickField(item: PaletteItem): void {
+  private pickField(entry: PaletteEntry): void {
     const selected = this.selectedField();
-    if (selected === undefined || item.specification.type === "array") {
-      PaletteDrag.create(item).place(this.controller);
+    if (selected === undefined || entry.type === "array") {
+      PaletteDrag.create(entry).place(this.controller);
       return;
     }
-    const formatSpec = this.suggestFormat(item.specification);
-    const binding = new Binding(item.path, formatSpec === null ? {} : { formatSpec });
+    const formatSpec = this.suggestFormat(entry);
+    const binding = new Binding(entry.path, formatSpec === null ? {} : { formatSpec });
     this.controller.execute(new BindFieldCommand(selected.id, selected.binding, binding));
   }
 
   /** 팔레트 드래그 동안 문서가 무엇을 받을지 화면과 컨트롤러에 알린다. */
-  private startFieldDrag(item: PaletteItem): void {
-    this.draggedItem = PaletteDrag.create(item);
-    this.controller.setPaletteDropHint(this.dropHintFor(item));
-    if (item.specification.type !== "array") {
-      this.controller.setTool(new FieldTool(item.path, this.suggestFormat(item.specification)));
+  private startFieldDrag(entry: PaletteEntry): void {
+    this.draggedItem = PaletteDrag.create(entry);
+    this.controller.setPaletteDropHint(this.dropHintFor(entry));
+    if (entry.type !== "array") {
+      this.controller.setTool(new FieldTool(entry.path, this.suggestFormat(entry)));
     }
     this.canvasStage.setFieldDragActive(true);
   }
@@ -168,14 +169,14 @@ export class Designer {
   }
 
   /** 끌고 있는 항목이 만들 결과를 놓기 전에 문장으로 알려준다. */
-  private dropHintFor(item: PaletteItem): string {
-    if (item.specification.type === "array") {
-      return `${item.specification.label} 배열을 놓으면 반복 표가 만들어집니다`;
+  private dropHintFor(entry: PaletteEntry): string {
+    if (entry.type === "array") {
+      return `${entry.label} 배열을 놓으면 반복 표가 만들어집니다`;
     }
-    if (item.arrayPath === null) {
-      return `${item.specification.label} 값을 놓을 위치를 고르세요`;
+    if (entry.arrayPath === null) {
+      return `${entry.label} 값을 놓을 위치를 고르세요`;
     }
-    return `${item.specification.label}을 표의 열에 놓으면 그 열이 다시 연결됩니다`;
+    return `${entry.label}을 표의 열에 놓으면 그 열이 다시 연결됩니다`;
   }
 
   /** 현재 단일 선택이 필드일 때만 바인딩 변경 대상으로 반환한다. */
@@ -185,8 +186,8 @@ export class Designer {
   }
 
   /** 민감 필드가 실수로 평문 노출되지 않도록 기본 마스킹을 제안한다. */
-  private suggestFormat(specification: FieldSchema[string]): FormatSpec | null {
-    if (specification.sensitive !== true) return null;
+  private suggestFormat(entry: PaletteEntry): FormatSpec | null {
+    if (!entry.sensitive) return null;
     return { kind: "mask", keepHead: 6, keepTail: 1 };
   }
 
