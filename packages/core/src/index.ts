@@ -1,8 +1,5 @@
 export type { AuthAdapter } from "./application/port/AuthAdapter.js";
-export type {
-  DataProvider,
-  FieldSchema,
-} from "./application/port/DataProvider.js";
+export type { DataProvider } from "./application/port/DataProvider.js";
 export type {
   DocumentRenderer,
   RenderMode,
