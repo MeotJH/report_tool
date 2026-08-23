@@ -1,7 +1,7 @@
 import { FieldElement } from "../element/FieldElement.js";
 import { ImageElement } from "../element/ImageElement.js";
 import { TableElement } from "../element/TableElement.js";
-import { BoundTableSource } from "../element/TableSource.js";
+import { BoundTableSource, StaticTableSource } from "../element/TableSource.js";
 import { TextElement } from "../element/TextElement.js";
 import type { Element } from "../element/Element.js";
 import type { Template } from "./Template.js";
@@ -52,16 +52,27 @@ export class TemplateReferences {
    *
    * 셀 문구의 `row.` 접두사는 배열 한 줄 안의 키를 가리키는 것이므로
    * 문서 전체 경로가 아니다. 따라서 참조 목록에 넣지 않는다.
+   *
+   * 정적 행에 사람이 써 넣은 표현식도 함께 모은다. 그 자리도 발행 시 데이터로
+   * 채워지므로, 경로에 오타가 있으면 다른 참조와 똑같이 빈칸으로 나간다.
    */
   private tablePaths(element: TableElement): readonly string[] {
     const paths: string[] = [];
     if (element.source instanceof BoundTableSource) {
       paths.push(element.source.binding.path.toString());
     }
-    paths.push(...element.columns
-      .flatMap((column) => this.expressionPaths(column.cellTemplate))
-      .filter((path) => !path.startsWith("row.")));
-    return paths;
+    paths.push(...element.columns.flatMap((column) => this.expressionPaths(column.cellTemplate)));
+    paths.push(...this.staticCellPaths(element));
+    return paths.filter((path) => !path.startsWith("row."));
+  }
+
+  /** 정적 행의 문자열 셀에 들어 있는 치환 경로를 모두 꺼낸다. */
+  private staticCellPaths(element: TableElement): readonly string[] {
+    if (!(element.source instanceof StaticTableSource)) return [];
+    return element.source.rows.flatMap((row) => Object
+      .values(row)
+      .filter((value): value is string => typeof value === "string")
+      .flatMap((value) => this.expressionPaths(value)));
   }
 
   /** 문구 안의 치환 경로만 추출한다. */

@@ -67,6 +67,7 @@ export { LineElement } from "./domain/element/LineElement.js";
 export type { LineAppearanceChanges } from "./domain/element/LineElement.js";
 export { SignatureElement } from "./domain/element/SignatureElement.js";
 export type { SignatureChanges } from "./domain/element/SignatureElement.js";
+export { TableCellResolver } from "./domain/element/TableCellResolver.js";
 export { TableColumn } from "./domain/element/TableColumn.js";
 export type { TableColumnAlign } from "./domain/element/TableColumn.js";
 export { TableElement } from "./domain/element/TableElement.js";
