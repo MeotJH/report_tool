@@ -108,6 +108,11 @@ export type {
   PageOrientation,
   PageSize,
 } from "./domain/value/PageSpec.js";
+export { TextLayout } from "./domain/text/TextLayout.js";
+export type {
+  TextLayoutResult,
+  TextWidthMeasurer,
+} from "./domain/text/TextLayout.js";
 export { TextStyle } from "./domain/value/TextStyle.js";
 export type {
   FontWeight,
