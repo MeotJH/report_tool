@@ -9,9 +9,9 @@ import {
   TableColumn,
   TableElement,
   Template,
+  TemplateVariable,
   TextStyle,
   type Element,
-  type FieldSchema,
 } from "@report-tool/core";
 import { describe, expect, it } from "vitest";
 import { EditorController } from "./EditorController.js";
@@ -20,29 +20,18 @@ import { PaletteEntryBuilder, type PaletteEntry } from "./PaletteEntry.js";
 
 const style = new TextStyle("Pretendard", 9);
 
-/** 급여 항목 배열과 단일 필드를 가진 스키마를 만든다. */
-const schema: FieldSchema = {
-  payItems: {
-    label: "지급 항목",
-    type: "array",
-    children: {
-      item: { label: "항목", type: "string" },
-      amount: { label: "금액", type: "currency" },
-    },
-  },
-  deductionItems: {
-    label: "공제 항목",
-    type: "array",
-    children: {
-      item: { label: "항목", type: "string" },
-      amount: { label: "금액", type: "currency" },
-    },
-  },
-  netPay: { label: "실지급액", type: "currency" },
-  residentNumber: { label: "주민등록번호", type: "string", sensitive: true },
-};
+/** 급여 항목 배열과 단일 필드를 선언한 템플릿 변수를 만든다. */
+const variables: readonly TemplateVariable[] = [
+  new TemplateVariable("payItems", "지급 항목", "array"),
+  new TemplateVariable("payItems.item", "항목", "string"),
+  new TemplateVariable("payItems.amount", "금액", "currency"),
+  new TemplateVariable("deductionItems", "공제 항목", "array"),
+  new TemplateVariable("deductionItems.item", "항목", "string"),
+  new TemplateVariable("deductionItems.amount", "금액", "currency"),
+  new TemplateVariable("netPay", "실지급액", "currency"),
+];
 
-const entries = new PaletteEntryBuilder().build(schema, []);
+const entries = new PaletteEntryBuilder().build(variables);
 
 /** 팔레트 목록에서 경로로 항목을 찾는다. */
 function find(path: string): PaletteEntry {
@@ -302,15 +291,5 @@ describe("단일 필드를 놓기", () => {
     const created = controller.getTemplate().getElements()[0] as FieldElement;
     expect(created).toBeInstanceOf(FieldElement);
     expect(created.binding.path.toString()).toBe("netPay");
-  });
-
-  it("민감 필드는 기본 마스킹을 제안한다", () => {
-    const controller = createController();
-    const item = find("residentNumber");
-
-    PaletteDrag.create(item).dropAt(40, 80, controller);
-
-    const created = controller.getTemplate().getElements()[0] as FieldElement;
-    expect(created.binding.formatSpec).toEqual({ kind: "mask", keepHead: 6, keepTail: 1 });
   });
 });

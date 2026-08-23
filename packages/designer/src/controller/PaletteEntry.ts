@@ -1,57 +1,39 @@
-import type {
-  FieldSchema,
-  TemplateVariable,
-  VariableValueType,
-} from "@report-tool/core";
-
-/** 팔레트 한 줄이 어디서 왔는지 구분해 사용자가 신뢰도를 판단하게 한다. */
-export type PaletteOrigin = "host" | "declared";
+import type { TemplateVariable, VariableValueType } from "@report-tool/core";
 
 /**
- * 데이터 패널 한 줄이 필요한 모든 정보를 담은다.
+ * 데이터 패널 한 줄이 필요한 모든 정보를 담는다.
  *
- * 호스트가 준 스키마와 템플릿이 선언한 변수를 같은 모양으로 다뤄야 팔레트·드래그·
- * 표 열 구성이 출처를 신경 쓰지 않고 동작한다. 출처는 표시와 검증에만 쓴다.
+ * 템플릿이 선언한 변수는 평평한 점 경로로 저장되지만, 화면과 드래그·표 열 구성은
+ * 소속 관계를 알아야 한다. 그 관계를 여기서 한 번만 계산해 모든 화면이 공유한다.
  */
 export interface PaletteEntry {
   readonly path: string;
   readonly label: string;
   readonly type: VariableValueType;
-  readonly origin: PaletteOrigin;
-  readonly sensitive: boolean;
   readonly children: readonly PaletteEntry[];
   /** 배열 자식이면 소속 배열의 경로. 최상위 항목은 null이다. */
   readonly arrayPath: string | null;
 }
 
 /**
- * 호스트가 제공한 필드와 템플릿이 선언한 변수를 한 목록으로 합친다.
+ * 템플릿이 선언한 변수 목록을 화면이 그릴 수 있는 트리로 바꾼다.
  *
- * 두 출처를 화면에서 따로 관리하면 같은 경로가 양쪽에 있을 때 어느 쪽이 실제로
- * 쓰이는지 알 수 없다. 합치는 규칙을 한곳에 두고, 호스트가 실제로 값을 주는
- * 경로를 우선한다.
+ * 선언은 `employee.phone` 같은 점 경로 하나로 저장한다. 저장은 평평하게 두고
+ * 트리는 여기서만 만드는 이유는, 같은 소속 관계를 두 곳에 저장하면 둘이 어긋날 때
+ * 어느 쪽이 옳은지 판단할 근거가 없어지기 때문이다.
  */
 export class PaletteEntryBuilder {
-  /**
-   * 호스트 필드와 템플릿 선언을 한 목록으로 합친다.
-   *
-   * 선언 이름이 기존 항목의 하위 경로면 그 항목의 자식으로 붙인다. 호스트가 준
-   * `employee` 배열에 전화번호가 없을 때 `employee.phone`을 선언하면, 담당자가
-   * 기대하는 위치인 직원 정보 아래에 나타나야 하기 때문이다.
-   */
-  build(
-    hostFields: FieldSchema,
-    variables: readonly TemplateVariable[],
-  ): readonly PaletteEntry[] {
-    const declared = this.sortByDepth(variables)
-      .map((variable) => this.fromVariable(variable));
-    return declared.reduce(
-      (entries, entry) => this.attach(entries, entry),
-      this.fromSchema(hostFields, "", null),
-    );
+  /** 선언 목록을 부모가 자식보다 먼저 존재하는 트리로 만든다. */
+  build(variables: readonly TemplateVariable[]): readonly PaletteEntry[] {
+    return this.sortByDepth(variables)
+      .map((variable) => this.fromVariable(variable))
+      .reduce<readonly PaletteEntry[]>(
+        (entries, entry) => this.attach(entries, entry),
+        [],
+      );
   }
 
-  /** 이미 같은 경로가 있으면 덧붙이지 않아 호스트가 주는 값을 우선한다. */
+  /** 같은 경로가 이미 있으면 덧붙이지 않아 목록에 중복이 생기지 않게 한다. */
   private attach(
     entries: readonly PaletteEntry[],
     declared: PaletteEntry,
@@ -111,50 +93,19 @@ export class PaletteEntryBuilder {
     return separator === -1 ? null : path.slice(0, separator);
   }
 
-  /** 호스트 스키마를 경로와 소속 배열을 보존하며 재귀적으로 변환한다. */
-  private fromSchema(
-    fields: FieldSchema,
-    parentPath: string,
-    arrayPath: string | null,
-  ): readonly PaletteEntry[] {
-    return Object.entries(fields).map(([key, specification]) => {
-      const path = this.joinPath(parentPath, key);
-      const children = specification.children === undefined
-        ? []
-        : this.fromSchema(specification.children, path, path);
-      return {
-        path,
-        label: specification.label,
-        type: specification.type,
-        origin: "host" as const,
-        sensitive: specification.sensitive === true,
-        children,
-        arrayPath,
-      };
-    });
-  }
-
   /** 선언 하나를 자식이 없는 항목으로 바꾼다. 중첩은 attach가 만든다. */
   private fromVariable(variable: TemplateVariable): PaletteEntry {
     return {
       path: variable.name,
       label: variable.label,
       type: variable.type,
-      origin: "declared",
-      sensitive: false,
       children: [],
       arrayPath: null,
     };
   }
 
-  /** 호스트가 이미 제공하는 경로를 중복 표시하지 않도록 모두 모은다. */
+  /** 이미 있는 경로를 중복해서 붙이지 않도록 모두 모은다. */
   private collectPaths(entries: readonly PaletteEntry[]): readonly string[] {
     return entries.flatMap((entry) => [entry.path, ...this.collectPaths(entry.children)]);
-  }
-
-  /** 중첩 키를 바인딩이 사용하는 점 표기 경로로 결합한다. */
-  private joinPath(parentPath: string, key: string): string {
-    if (parentPath === "" || key.includes(".")) return key;
-    return `${parentPath}.${key}`;
   }
 }

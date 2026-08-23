@@ -1,4 +1,3 @@
-import type { FieldSchema } from "@report-tool/core";
 import { useSyncExternalStore } from "react";
 import type { EditorActions } from "../controller/EditorActions.js";
 import type { EditorController, EditorMode } from "../controller/EditorController.js";
@@ -21,7 +20,6 @@ import { CanvasEditOverlay } from "./CanvasEditOverlay.js";
 export interface DesignerShellProps {
   readonly controller: EditorController;
   readonly actions: EditorActions;
-  readonly fields: FieldSchema;
   readonly onFieldPick: (entry: PaletteEntry) => void;
   readonly onFieldDragStart: (entry: PaletteEntry) => void;
   readonly onFieldDragEnd: () => void;
@@ -35,7 +33,7 @@ export function DesignerShell(props: DesignerShellProps) {
     () => props.controller.getRevision(),
   );
   const template = props.controller.getTemplate();
-  const entries = new PaletteEntryBuilder().build(props.fields, template.variables);
+  const entries = new PaletteEntryBuilder().build(template.variables);
   const issues = new TemplateIssueFinder(entries).find(template);
   return (
     <div className="rt-designer">

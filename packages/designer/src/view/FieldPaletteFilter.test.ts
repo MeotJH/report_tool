@@ -12,8 +12,6 @@ function entry(
     path,
     label,
     type: "string",
-    origin: "host",
-    sensitive: false,
     children: [],
     arrayPath: null,
     ...overrides,

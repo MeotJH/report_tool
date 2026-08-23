@@ -4,7 +4,7 @@ import type { PaletteEntry } from "../controller/PaletteEntry.js";
 import { FieldPaletteFilter } from "./FieldPaletteFilter.js";
 import { VariableEditor } from "./VariableEditor.js";
 
-/** 필드 목록의 입력과 선택 결과를 호스트 데이터 구조에 맞춰 제한한다. */
+/** 데이터 목록이 필요한 입력과 선택 결과를 한 묶음으로 제한한다. */
 export interface FieldPaletteProps {
   readonly entries: readonly PaletteEntry[];
   readonly highlightedPath: string | null;
@@ -137,7 +137,6 @@ function EntryRow(props: EntryListProps & { entry: PaletteEntry }) {
   const { entry } = props;
   const isArray = entry.type === "array";
   const selected = props.highlightedPath === entry.path;
-  const editable = entry.origin === "declared";
   return (
     <div className={rowClassName(isArray, selected)}>
       <button
@@ -159,11 +158,10 @@ function EntryRow(props: EntryListProps & { entry: PaletteEntry }) {
         <span className="rt-field-copy">
           <span className="rt-field-label">
             {isArray ? "▾ " : ""}{entry.label}
-            {entry.sensitive ? <span title="민감 필드">🔒</span> : null}
           </span>
           <span className="rt-field-path">{entry.path}</span>
         </span>
-        <OriginBadge entry={entry} />
+        <TypeBadge entry={entry} />
       </button>
       <button
         type="button"
@@ -187,19 +185,15 @@ function EntryRow(props: EntryListProps & { entry: PaletteEntry }) {
           </button>
         )
         : null}
-      {editable
-        ? (
-          <button
-            type="button"
-            className="rt-icon-button"
-            title="이 선언 삭제"
-            aria-label={`${entry.label} 선언 삭제`}
-            onClick={() => props.onRemoveVariable(entry.path)}
-          >
-            ✕
-          </button>
-        )
-        : null}
+      <button
+        type="button"
+        className="rt-icon-button"
+        title="이 선언 삭제"
+        aria-label={`${entry.label} 선언 삭제`}
+        onClick={() => props.onRemoveVariable(entry.path)}
+      >
+        ✕
+      </button>
     </div>
   );
 }
@@ -212,16 +206,13 @@ function rowClassName(isArray: boolean, selected: boolean): string {
   return names.join(" ");
 }
 
-/** 값이 어디서 오는지를 한 배지로 구분해 신뢰도를 알 수 있게 한다. */
-function OriginBadge(props: { entry: PaletteEntry }) {
-  const labels: Readonly<Record<PaletteEntry["origin"], string>> = {
-    host: props.entry.type === "array" ? "배열" : props.entry.type,
-    declared: "선언",
-  };
-  const className = props.entry.origin === "host"
-    ? "rt-type-badge"
-    : `rt-type-badge rt-type-badge--${props.entry.origin}`;
-  return <span className={className}>{labels[props.entry.origin]}</span>;
+/** 값의 종류를 한 배지로 보여 어떤 자리에 쓸 수 있는지 알게 한다. */
+function TypeBadge(props: { entry: PaletteEntry }) {
+  return (
+    <span className="rt-type-badge">
+      {props.entry.type === "array" ? "배열" : props.entry.type}
+    </span>
+  );
 }
 
 /** 보조 기술이 삽입 버튼의 동작을 정확히 읽게 한다. */

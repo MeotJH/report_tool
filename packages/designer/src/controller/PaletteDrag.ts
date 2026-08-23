@@ -6,7 +6,6 @@ import {
   StaticTableSource,
   TableElement,
   TextStyle,
-  type FormatSpec,
 } from "@report-tool/core";
 import { AddElementCommand } from "../command/AddElementCommand.js";
 import { BindTableColumnCommand } from "../command/TableCommands.js";
@@ -112,24 +111,17 @@ class FieldDrag extends PaletteDrag {
 
   /** 클릭과 드롭이 동일한 필드 기본값과 실행 취소 이력을 사용하게 한다. */
   private addField(frame: Frame, controller: EditorController): void {
-    const formatSpec = this.suggestFormat();
     const element = new FieldElement(
       this.createId(),
       frame,
       this.nextZIndex(controller),
       false,
-      new Binding(this.entry.path, formatSpec === null ? {} : { formatSpec }),
+      new Binding(this.entry.path),
       new TextStyle("Pretendard", 10),
     );
     controller.execute(new AddElementCommand(element));
     controller.selectElement(element.id);
     controller.activateSelectTool();
-  }
-
-  /** 민감 필드가 실수로 평문 노출되지 않도록 기본 마스킹을 제안한다. */
-  private suggestFormat(): FormatSpec | null {
-    if (!this.entry.sensitive) return null;
-    return { kind: "mask", keepHead: 6, keepTail: 1 };
   }
 }
 

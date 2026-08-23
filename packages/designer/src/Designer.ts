@@ -1,8 +1,6 @@
 import {
   Binding,
   FieldElement,
-  type FieldSchema,
-  type FormatSpec,
   type Template,
 } from "@report-tool/core";
 import { createElement } from "react";
@@ -23,7 +21,6 @@ import { KeyboardShortcutAdapter } from "./view/KeyboardShortcutAdapter.js";
 export interface DesignerOptions {
   readonly container: HTMLElement;
   readonly template: Template;
-  readonly fields: FieldSchema;
   readonly sampleData?: unknown;
   readonly onChange?: (template: Template) => void;
 }
@@ -99,7 +96,6 @@ export class Designer {
     flushSync(() => this.reactRoot.render(createElement(DesignerShell, {
       controller: this.controller,
       actions: this.actions,
-      fields: this.options.fields,
       onFieldPick: (item) => this.pickField(item),
       onFieldDragStart: (item) => this.startFieldDrag(item),
       onFieldDragEnd: () => this.endFieldDrag(),
@@ -136,8 +132,7 @@ export class Designer {
       PaletteDrag.create(entry).place(this.controller);
       return;
     }
-    const formatSpec = this.suggestFormat(entry);
-    const binding = new Binding(entry.path, formatSpec === null ? {} : { formatSpec });
+    const binding = new Binding(entry.path);
     this.controller.execute(new BindFieldCommand(selected.id, selected.binding, binding));
   }
 
@@ -146,7 +141,7 @@ export class Designer {
     this.draggedItem = PaletteDrag.create(entry);
     this.controller.setPaletteDropHint(this.dropHintFor(entry));
     if (entry.type !== "array") {
-      this.controller.setTool(new FieldTool(entry.path, this.suggestFormat(entry)));
+      this.controller.setTool(new FieldTool(entry.path, null));
     }
     this.canvasStage.setFieldDragActive(true);
   }
@@ -183,12 +178,6 @@ export class Designer {
   private selectedField(): FieldElement | undefined {
     const element = this.controller.getSingleSelectedElement();
     return element instanceof FieldElement ? element : undefined;
-  }
-
-  /** 민감 필드가 실수로 평문 노출되지 않도록 기본 마스킹을 제안한다. */
-  private suggestFormat(entry: PaletteEntry): FormatSpec | null {
-    if (!entry.sensitive) return null;
-    return { kind: "mask", keepHead: 6, keepTail: 1 };
   }
 
   /** 템플릿 참조가 실제로 바뀔 때만 호스트의 onChange를 호출한다. */

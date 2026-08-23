@@ -27,9 +27,9 @@ const VALUE_TYPES: readonly Readonly<{ value: VariableValueType; label: string }
 /**
  * 사용자가 문서에 필요한 변수를 직접 정의하게 한다.
  *
- * 호스트가 제공하는 필드 목록은 "이 시스템이 줄 수 있는 값"이고, 계약서를 만드는
- * 사람이 아는 것은 "이 문서가 필요한 값"이다. 후자를 문서 자신이 말할 수 있어야
- * 담당자가 개발자를 기다리지 않고 양식을 완성할 수 있다.
+ * 이 문서가 어떤 값을 필요로 하는지 아는 사람은 그 문서를 만드는 담당자다.
+ * 문서가 필요한 값을 문서 자신이 말할 수 있어야 담당자가 개발자를 기다리지 않고
+ * 양식을 완성할 수 있다.
  */
 export function VariableEditor(props: {
   parentPath?: string;

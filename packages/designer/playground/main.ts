@@ -10,6 +10,7 @@ import {
   TableColumn,
   TableElement,
   Template,
+  TemplateVariable,
   TextElement,
   TextStyle,
   type Element,
@@ -22,7 +23,6 @@ if (container === null) throw new Error("디자이너 컨테이너를 찾을 수
 new Designer({
   container,
   template: createTemplate(),
-  fields: createFieldSchema(),
   sampleData: createSampleData(),
   onChange: (template) => showSavedJson(template),
 });
@@ -48,6 +48,7 @@ function createTemplate(): Template {
     status: "draft",
     page: new PageSpec("A4", "portrait", [12, 12, 12, 12]),
     fonts: ["Pretendard"],
+    variables: createVariables(),
     elements: createElements(),
     createdAt: "2026-08-22T00:00:00.000Z",
     updatedAt: "2026-08-22T00:00:00.000Z",
@@ -123,29 +124,17 @@ function createSampleData(): unknown {
   };
 }
 
-/** 데이터 필드 검색·배치·민감 정보 표시를 확인할 샘플 스키마를 만든다. */
-function createFieldSchema() {
-  return {
-    employee: {
-      label: "직원 정보",
-      type: "array" as const,
-      children: {
-        name: { label: "이름", type: "string" as const },
-        department: { label: "부서", type: "string" as const },
-        residentNumber: {
-          label: "주민등록번호", type: "string" as const, sensitive: true,
-        },
-      },
-    },
-    payItems: {
-      label: "지급 항목",
-      type: "array" as const,
-      children: {
-        item: { label: "항목", type: "string" as const },
-        amount: { label: "금액", type: "currency" as const },
-      },
-    },
-    baseSalary: { label: "기본급", type: "currency" as const },
-    payDate: { label: "지급일", type: "date" as const },
-  };
+/** 이 문서가 발행 시 요구하는 데이터를 템플릿 자신이 선언하게 한다. */
+function createVariables(): readonly TemplateVariable[] {
+  return [
+    new TemplateVariable("employee", "직원 정보", "array"),
+    new TemplateVariable("employee.name", "이름", "string", true),
+    new TemplateVariable("employee.department", "부서", "string"),
+    new TemplateVariable("employee.residentNumber", "주민등록번호", "string"),
+    new TemplateVariable("payItems", "지급 항목", "array"),
+    new TemplateVariable("payItems.item", "항목", "string"),
+    new TemplateVariable("payItems.amount", "금액", "currency"),
+    new TemplateVariable("baseSalary", "기본급", "currency", true),
+    new TemplateVariable("payDate", "지급일", "date", true),
+  ];
 }

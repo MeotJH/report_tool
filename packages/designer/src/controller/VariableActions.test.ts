@@ -100,12 +100,12 @@ describe("변수 편집 행동", () => {
       .toEqual(["deductions", "deductions.item"]);
   });
 
-  it("호스트가 제공하는 항목을 지우려 하면 이유를 알린다", () => {
+  it("없는 선언을 지우려 하면 이유를 알린다", () => {
     const { controller, actions } = createEditor();
 
     actions.removeVariable("employee.name");
 
-    expect(controller.getNotice()).toContain("호스트가 제공하는 항목");
+    expect(controller.getNotice()).toContain("지울 선언을 찾지 못했습니다");
   });
 
   it("변수 추가를 실행 취소로 되돌린다", () => {

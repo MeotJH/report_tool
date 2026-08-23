@@ -214,7 +214,7 @@ export class EditorActions {
       (candidate) => !candidate.isSelfOrDescendantOf(path),
     );
     if (remaining.length === existing.length) {
-      this.controller.setNotice(`호스트가 제공하는 항목은 지울 수 없습니다: ${path}`);
+      this.controller.setNotice(`지울 선언을 찾지 못했습니다: ${path}`);
       return;
     }
     this.replaceVariables(remaining);
