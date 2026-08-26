@@ -1,19 +1,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import {
-  Binding,
-  BoundTableSource,
-  type FontProvider,
-  Frame,
-  PageSpec,
-  TableColumn,
-  TableElement,
-  Template,
-  TextElement,
-  TextStyle,
-} from "@report-tool/core";
+import { type FontProvider, type Template } from "@report-tool/core";
 import { PDFDocument } from "pdf-lib";
 import { PdfDocumentRenderer } from "./PdfDocumentRenderer";
+import {
+  createServiceReportData,
+  createServiceReportTemplate,
+} from "./ServiceReportTestFixture";
 
 const REGULAR_FONT = "node_modules/pretendard/dist/public/static/alternative/Pretendard-Regular.ttf";
 const BOLD_FONT = "node_modules/pretendard/dist/public/static/alternative/Pretendard-Bold.ttf";
@@ -50,65 +43,32 @@ describe("서비스 리포트 PDF 인수 테스트", () => {
     expect(manyPages).toBeGreaterThan(fewPages);
   });
 
-  it("한 건도 없으면 한 쪽으로 끝난다", async () => {
+  it("한 건도 없어도 표지와 본문 두 쪽은 나온다", async () => {
     const renderer = new PdfDocumentRenderer(new TestFontProvider());
 
     const bytes = await renderer.render(createTemplate(), createData(0), "authoritative");
 
-    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(2);
+  });
+
+  it("표지 다음에 본문이 오고 처리내역이 이어진다", async () => {
+    const renderer = new PdfDocumentRenderer(new TestFontProvider());
+
+    const bytes = await renderer.render(createTemplate(), createData(23), "authoritative");
+    const pdf = await PDFDocument.load(bytes);
+
+    expect(pdf.getPageCount()).toBeGreaterThanOrEqual(3);
   });
 });
 
-/** 제목과 처리내역 표만 둔 최소 리포트 템플릿을 만든다. */
+/** 픽스처가 만드는 실제 리포트 모양의 템플릿과 데이터를 그대로 쓴다. */
 function createTemplate(): Template {
-  const cellStyle = new TextStyle("Pretendard", 8);
-  const headerStyle = new TextStyle("Pretendard", 8, { weight: 700 });
-  return new Template({
-    id: "service-report",
-    name: "월간 서비스 리포트",
-    version: 1,
-    status: "draft",
-    page: new PageSpec("A4", "portrait", [20, 15, 20, 15]),
-    fonts: ["Pretendard"],
-    elements: [
-      new TextElement(
-        "title", new Frame(15, 15, 180, 10), 1, false,
-        { kind: "literal", value: "처리내역 (계)" },
-        new TextStyle("Pretendard", 12, { weight: 700 }),
-      ),
-      new TextElement(
-        "footer", new Frame(160, 280, 35, 6), 9, false,
-        { kind: "literal", value: "{{page:00}} / {{pages:00}}" },
-        new TextStyle("Pretendard", 9), false, 0, true,
-      ),
-      new TableElement(
-        "tickets", new Frame(15, 30, 180, 60), 2, false,
-        new BoundTableSource(new Binding("tickets")),
-        [
-          new TableColumn("no", "NO", "{{row.no}}", 15, "center", null),
-          new TableColumn("requester", "요청자", "{{row.requester}}", 30, "center", null),
-          new TableColumn("body", "요청내용", "{{row.body}}", 135, "left", null),
-        ],
-        6, headerStyle, cellStyle, true, "clip",
-      ),
-    ],
-    createdAt: "2026-08-26T00:00:00.000Z",
-    updatedAt: "2026-08-26T00:00:00.000Z",
-  });
+  return createServiceReportTemplate();
 }
 
-/** 실제 리포트와 비슷한 길이의 요청내용을 가진 처리 건을 만든다. */
+/** 처리 건수만 바꿔 가며 같은 문서를 발행한다. */
 function createData(count: number): unknown {
-  return {
-    tickets: Array.from({ length: count }, (_value, index) => ({
-      no: String(index + 1),
-      requester: "김담당",
-      body: `안녕하십니까 인사팀 담당 매니저입니다. ${index + 1}번 건으로 문의드립니다. `
-        + "근태관리 화면에서 반차를 선택하면 시간 입력칸이 활성화되지 않아 신청 자체가 "
-        + "되지 않습니다. 동일 증상이 다른 담당자 계정에서도 재현되는 것을 확인했습니다. "
-        + "확인 후 회신 부탁드립니다. 감사합니다.",
-    })),
-  };
+  return createServiceReportData(count);
 }
 
 /** 테스트 환경의 실제 Pretendard TTF를 렌더러 포트로 공급한다. */
