@@ -13,6 +13,15 @@ export abstract class TableSource {
   /** 템플릿 데이터 또는 발행 데이터를 실제 반복 행 목록으로 해석한다. */
   abstract resolveRows(data: unknown): readonly unknown[];
 
+  /**
+   * 행 수가 발행 시점에야 정해지는 출처인지 알린다.
+   *
+   * 편집 중 행이 하나도 없을 때 무엇을 보여 줄지가 이 답에 달려 있다. 사람마다
+   * 달라지는 표는 아직 비어 있어도 형태를 보여 줘야 하지만, 사용자가 행을 모두
+   * 지운 표에 없는 행을 만들어 주면 지워지지 않는 행처럼 보인다.
+   */
+  abstract deferredRows(): boolean;
+
   /** 구체 클래스 이름과 무관하게 저장 가능한 표 데이터 출처로 변환한다. */
   abstract toJSON(): Record<string, unknown>;
 }
@@ -31,6 +40,11 @@ export class StaticTableSource extends TableSource {
   /** 정적 표는 외부 발행 데이터 대신 저장한 행을 반복 결과로 제공한다. */
   resolveRows(_data: unknown): readonly TableRow[] {
     return this.rows.map((row) => ({ ...row }));
+  }
+
+  /** 정적 표의 행은 템플릿에 저장된 내용 그 자체이므로 지금 이미 정해져 있다. */
+  deferredRows(): boolean {
+    return false;
   }
 
   /** 지정 셀만 바꾼 새 Source를 반환해 셀 편집을 Undo 가능한 값 교체로 만든다. */
@@ -100,6 +114,11 @@ export class BoundTableSource extends TableSource {
   resolveRows(data: unknown): readonly unknown[] {
     const value = this.binding.path.resolve(data);
     return Array.isArray(value) ? value : [];
+  }
+
+  /** 데이터 표의 행 수는 발행할 문서의 데이터가 정한다. */
+  deferredRows(): boolean {
+    return true;
   }
 
   /** 데이터 경로와 포맷 정책을 source 종류 안에 함께 저장한다. */

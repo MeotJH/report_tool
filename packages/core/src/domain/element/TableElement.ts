@@ -3,6 +3,7 @@ import { TextStyle } from "../value/TextStyle.js";
 import { Element, type ElementCommonChanges } from "./Element.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
 import { TableColumn } from "./TableColumn.js";
+import { TableHeaderCells } from "./TableHeaderCells.js";
 import { TableSource } from "./TableSource.js";
 
 /** 표가 영역을 넘을 때 MVP에서 지원하는 처리 방법을 제한한다. */
@@ -12,6 +13,9 @@ export type TableOverflow = "clip";
  * 고정 셀이나 사람마다 행 수가 다른 반복 데이터를 하나의 표 영역으로 표현한다.
  */
 export class TableElement extends Element {
+  /** 머리글 칸이 본문과 구분되어 보이는 최소한의 기본 배경을 정한다. */
+  public static readonly DEFAULT_HEADER_FILL = "#eef2f7";
+
   public readonly type = "table";
   public readonly columns: readonly TableColumn[];
 
@@ -29,6 +33,8 @@ export class TableElement extends Element {
     public readonly showHeader: boolean,
     public readonly overflow: TableOverflow,
     hidden = false,
+    public readonly headerCells: TableHeaderCells = TableHeaderCells.none(),
+    public readonly headerFill: string | null = TableElement.DEFAULT_HEADER_FILL,
   ) {
     super(id, frame, z, locked, hidden);
     this.columns = [...columns];
@@ -44,9 +50,27 @@ export class TableElement extends Element {
     return this.copy({ source });
   }
 
-  /** 열 구조 변경이 위치·행·스타일 설정을 잃지 않도록 새 표를 반환한다. */
+  /**
+   * 열 구조 변경이 위치·행·스타일 설정을 잃지 않도록 새 표를 반환한다.
+   *
+   * 머리글 지정은 열 번호로 저장되므로 열이 줄면 없는 열을 가리키게 된다.
+   * 그대로 두면 화면에는 아무 표시가 없는데 저장 JSON에만 남는다.
+   */
   withColumns(columns: readonly TableColumn[]): TableElement {
-    return this.copy({ columns });
+    return this.copy({
+      columns,
+      headerCells: this.headerCells.clampedToColumns(columns.length),
+    });
+  }
+
+  /** 어떤 열과 행이 머리글인지만 교체한 새 표를 반환한다. */
+  withHeaderCells(headerCells: TableHeaderCells): TableElement {
+    return this.copy({ headerCells });
+  }
+
+  /** 머리글 칸 배경만 교체한다. null이면 칠하지 않는다. */
+  withHeaderFill(headerFill: string | null): TableElement {
+    return this.copy({ headerFill });
   }
 
   /** 모든 행이 공유하는 mm 높이만 교체한 새 표를 반환한다. */
@@ -81,11 +105,18 @@ export class TableElement extends Element {
       headerStyle: this.headerStyle.toJSON(),
       cellStyle: this.cellStyle.toJSON(),
       showHeader: this.showHeader,
+      headerCells: this.headerCells.toJSON(),
+      headerFill: this.headerFill,
       overflow: this.overflow,
     };
   }
 
-  /** 표 변경 메서드들이 같은 생성자 복사 규칙을 공유하게 한다. */
+  /**
+   * 표 변경 메서드들이 같은 생성자 복사 규칙을 공유하게 한다.
+   *
+   * `headerFill`은 "칠하지 않음"을 null로 표현하므로 `??`로 합치면 지우기가
+   * 조용히 무시된다. 키가 왔는지로 판단해 null도 값으로 받는다.
+   */
   private copy(
     changes: Readonly<{
       source?: TableSource;
@@ -94,6 +125,8 @@ export class TableElement extends Element {
       showHeader?: boolean;
       headerStyle?: TextStyle;
       cellStyle?: TextStyle;
+      headerCells?: TableHeaderCells;
+      headerFill?: string | null;
     }>,
     common: ElementCommonChanges = {},
   ): TableElement {
@@ -105,6 +138,8 @@ export class TableElement extends Element {
       changes.headerStyle ?? this.headerStyle,
       changes.cellStyle ?? this.cellStyle,
       changes.showHeader ?? this.showHeader, this.overflow, resolved.hidden,
+      changes.headerCells ?? this.headerCells,
+      "headerFill" in changes ? changes.headerFill ?? null : this.headerFill,
     );
   }
 }

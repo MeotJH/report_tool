@@ -8,9 +8,11 @@ import {
   type ImageElement,
   type LineElement,
   type SignatureElement,
-  TableCellResolver,
+  TableCellRole,
   type TableColumn,
   type TableElement,
+  TableLayout,
+  type TableLayoutRow,
   type TextAlign,
   TextLayout,
   TextStyle,
@@ -29,7 +31,7 @@ export class PdfElementVisitor implements ElementVisitor<void> {
   private static readonly POINTS_PER_MM = 72 / 25.4;
   private static readonly DEFAULT_BORDER_MM = 0.2;
 
-  private readonly cellResolver = new TableCellResolver();
+  private readonly tableLayout = new TableLayout();
 
   /** 요소 해석에 필요한 데이터와 PDF 자원을 한 렌더링 세션 동안 공유한다. */
   constructor(
@@ -54,21 +56,15 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     this.drawTextBox(text, element.frame, element.style);
   }
 
-  /** 반복 데이터의 머리글과 행을 영역을 넘지 않는 표 셀로 그린다. */
+  /**
+   * 도메인이 정한 줄 목록을 그대로 그린다.
+   *
+   * 몇 줄이 나올지, 어느 줄이 영역을 넘어 빠지는지는 `TableLayout`이 정한다.
+   * 여기서 다시 판단하면 편집기와 발행본이 다시 갈라진다.
+   */
   visitTable(element: TableElement): void {
-    let rowIndex = 0;
-    if (element.showHeader) {
-      this.drawTableRow(element, element.columns.map((column) => column.header), rowIndex, true);
-      rowIndex += 1;
-    }
-
-    for (const row of this.resolveRows(element)) {
-      if ((rowIndex + 1) * element.rowHeight > element.frame.height) {
-        break;
-      }
-      const cells = this.cellResolver.resolveRow(element.columns, row, this.data);
-      this.drawTableRow(element, cells, rowIndex, false);
-      rowIndex += 1;
+    for (const row of this.tableLayout.compute(element, this.data).rows) {
+      this.drawTableRow(element, row);
     }
   }
 
@@ -133,17 +129,18 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     return element.source.resolveRows(this.data);
   }
 
-  /** 한 표 행의 열 너비와 정렬을 유지하며 셀 테두리와 문구를 함께 그린다. */
+  /** 한 표 행의 열 너비와 정렬을 유지하며 셀 배경·테두리·문구를 함께 그린다. */
   private drawTableRow(
     element: TableElement,
-    cells: readonly string[],
-    rowIndex: number,
-    header: boolean,
+    row: TableLayoutRow,
   ): void {
+    const cells = row.cells;
+    const rowIndex = row.offset;
     let x = element.frame.x;
     element.columns.forEach((column, columnIndex) => {
-      const frame = this.createCellFrame(element, column, x, rowIndex);
-      this.drawCellBorder(frame);
+      const frame = this.createCellFrame(element, column, x, row);
+      const header = TableCellRole.at(element, rowIndex, columnIndex) === "header";
+      this.drawCell(frame, header ? element.headerFill : null);
       const baseStyle = header ? element.headerStyle : element.cellStyle;
       this.drawTextBox(cells[columnIndex] ?? "", frame, this.withAlign(baseStyle, column.align));
       x += column.width;
@@ -155,20 +152,21 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     element: TableElement,
     column: TableColumn,
     x: number,
-    rowIndex: number,
+    row: TableLayoutRow,
   ): Frame {
-    return new Frame(
-      x,
-      element.frame.y + rowIndex * element.rowHeight,
-      column.width,
-      element.rowHeight,
-    );
+    return new Frame(x, element.frame.y + row.topMm, column.width, row.heightMm);
   }
 
-  /** 표 셀 경계를 일정한 가는 선으로 표시해 행과 열을 구분한다. */
-  private drawCellBorder(frame: Frame): void {
+  /**
+   * 표 셀의 배경과 경계를 한 번에 그린다.
+   *
+   * 배경은 글자보다 먼저 깔려야 한다. 셀 단위로 그리므로 머리글로 지정된 열이
+   * 세로로 이어진 띠처럼 보이고, 그것이 화면에서 본 모습과 같다.
+   */
+  private drawCell(frame: Frame, fill: string | null): void {
     this.page.drawRectangle({
       ...frame.toPdfRect(this.pageHeightMm),
+      color: fill === null ? undefined : this.toColor(fill),
       borderColor: rgb(0.45, 0.45, 0.45),
       borderWidth: this.toPoints(PdfElementVisitor.DEFAULT_BORDER_MM),
     });

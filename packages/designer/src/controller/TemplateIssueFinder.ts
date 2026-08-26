@@ -5,6 +5,7 @@ import {
   SignatureElement,
   StaticTableSource,
   TableElement,
+  TableLayout,
   TemplateReferences,
   TemplateValidator,
   TextElement,
@@ -40,6 +41,7 @@ export class TemplateIssueFinder {
   private readonly validator = new TemplateValidator();
   private readonly references = new TemplateReferences();
   private readonly textLayout = new TextLayout();
+  private readonly tableLayout = new TableLayout();
 
   /**
    * 팔레트가 만든 데이터 목록을 받아 참조가 실제로 존재하는지도 볼 수 있게 한다.
@@ -104,6 +106,7 @@ export class TemplateIssueFinder {
       warnings.push(this.warning(element, "표에 입력된 행이 없다"));
     }
     warnings.push(...this.overflowingColumnWarning(element));
+    warnings.push(...this.droppedTableRowWarning(element));
     warnings.push(...this.overflowingTextWarning(element));
     return warnings;
   }
@@ -163,6 +166,23 @@ export class TemplateIssueFinder {
     return [this.warning(
       element,
       `열 너비 합 ${this.round(total)}mm가 표 너비 ${this.round(element.frame.width)}mm와 다르다`,
+    )];
+  }
+
+  /**
+   * 표 영역에 들어가지 못해 발행에서 빠지는 줄을 드러낸다.
+   *
+   * 이 경고가 없던 동안 표는 담당자에게 아무 말도 하지 않고 행을 버렸다. 수당이
+   * 여섯 줄인 직원의 명세서에서 마지막 두 줄이 사라져도 화면은 정상으로 보였다.
+   * 사라지는 줄이 있으면 반드시 말한다.
+   */
+  private droppedTableRowWarning(element: Element): readonly TemplateIssue[] {
+    if (!(element instanceof TableElement)) return [];
+    const dropped = this.tableLayout.compute(element, this.sampleData).droppedRowCount;
+    if (dropped === 0) return [];
+    return [this.warning(
+      element,
+      `표 영역이 좁아 ${dropped}줄이 발행되지 않는다 (표를 늘리거나 행 높이를 줄이세요)`,
     )];
   }
 

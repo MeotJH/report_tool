@@ -1,9 +1,10 @@
 import Konva from "konva";
 import {
   ContentResolver,
-  StaticTableSource,
-  TableCellResolver,
+  TableCellRole,
+  TableCellText,
   type Binding,
+  type CellRole,
   type BindingResolver,
   type BoxElement,
   type Element,
@@ -13,6 +14,8 @@ import {
   type LineElement,
   type SignatureElement,
   type TableElement,
+  TableLayout,
+  type TableLayoutRow,
   TextLayout,
   type TextElement,
   type TextStyle,
@@ -42,7 +45,6 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   private static readonly PLACEHOLDER_LINE = "#94a3b8";
 
   private readonly textLayout = new TextLayout();
-  private readonly cellResolver = new TableCellResolver();
   private readonly measurer = new CanvasTextMeasurer();
 
   /** 화면 배율·샘플 데이터·표시 모드를 주입해 도메인과 브라우저 표현을 분리한다. */
@@ -77,16 +79,22 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   /** 헤더와 본문을 같은 배치 규칙으로 그리고 모드에 따라 본문 내용만 바꾼다. */
   visitTable(element: TableElement): Konva.Node {
     const group = this.createFrameGroup(element);
-    let rowIndex = 0;
-    if (element.showHeader) {
-      this.addTableRow(group, element, element.columns.map((column) => column.header), rowIndex, false);
-      rowIndex += 1;
-    }
-    for (const values of this.bodyRows(element)) {
-      this.addTableRow(group, element, values, rowIndex, true);
-      rowIndex += 1;
+    for (const row of this.tableLayout().compute(element, this.data).rows) {
+      this.addTableRow(group, element, row);
     }
     return this.mark(group, element);
+  }
+
+  /**
+   * 설계 중에는 사용자가 셀에 써 넣은 것을, 미리보기에서는 찍힐 값을 보여 준다.
+   *
+   * 줄 수와 잘리는 규칙은 두 모드가 발행본과 완전히 같다. 다른 것은 셀 문자열을
+   * 만드는 방식 하나뿐이어야 "화면에서 본 표가 그대로 발행된다"가 성립한다.
+   */
+  private tableLayout(): TableLayout {
+    return new TableLayout(
+      this.mode === "design" ? TableCellText.source() : TableCellText.resolved(),
+    );
   }
 
   /** 실제 자산 로딩 전에도 이미지 자리와 출처 상태를 알아볼 수 있게 한다. */
@@ -152,73 +160,43 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   }
 
   /**
-   * 설계 모드는 열 Token을, 미리보기 모드는 실제 샘플 행을 본문으로 만든다.
+   * 표 한 행의 각 셀에 배경 경계와 내용을 추가한다.
    *
-   * 정적 표만은 설계 모드에서도 저장된 행을 그대로 보여 준다. 그 값은 데이터가
-   * 아니라 사용자가 템플릿에 직접 써 넣은 내용이므로, 편집하는 동안 보이지 않으면
-   * 무엇을 고치고 있는지 알 수 없다. 다만 셀에 적은 표현식은 값으로 바꾸지 않는다 —
-   * 캔버스에 보이는 것과 셀 입력기에 뜨는 것이 같아야 한다.
+   * 어떤 칸이 머리글인지는 `TableCellRole`만 안다. 여기서 다시 판단하면 PDF와
+   * 갈라져서, 편집기에서 회색이던 칸이 발행본에서는 흰색으로 나온다.
    */
-  private bodyRows(element: TableElement): readonly (readonly string[])[] {
-    if (this.mode === "design") {
-      if (!(element.source instanceof StaticTableSource)) {
-        return [element.columns.map((column) => `⟨${column.key}⟩`)];
-      }
-      return this.sampleRows(element).map((row) => (
-        this.cellResolver.resolveRowSource(element.columns, row)
-      ));
-    }
-    return this.sampleRows(element).map((row) => (
-      this.cellResolver.resolveRow(element.columns, row, this.data)
-    ));
-  }
-
-  /**
-   * 화면에 그릴 행을 고른다.
-   *
-   * 정적 표는 저장된 행이 곧 문서 내용이므로 전부 그린다. 데이터 표는 발행 시점에
-   * 행 수가 정해지므로 편집 중에는 세 행이면 형태를 판단하기에 충분하다.
-   */
-  private sampleRows(element: TableElement): readonly unknown[] {
-    const rows = element.source.resolveRows(this.data);
-    if (rows.length === 0) return [{}];
-    if (element.source instanceof StaticTableSource) return rows;
-    return rows.slice(0, 3);
-  }
-
-  /** 표 한 행의 각 셀에 배경 경계와 내용을 추가한다. */
   private addTableRow(
     group: Konva.Group,
     element: TableElement,
-    values: readonly string[],
-    rowIndex: number,
-    body: boolean,
+    row: TableLayoutRow,
   ): void {
     let x = 0;
     element.columns.forEach((column, columnIndex) => {
       const width = this.toPx(column.width);
-      const y = this.toPx(element.rowHeight * rowIndex);
-      const height = this.toPx(element.rowHeight);
+      const y = this.toPx(row.topMm);
+      const height = this.toPx(row.heightMm);
+      const role = TableCellRole.at(element, row.offset, columnIndex);
       group.add(new Konva.Rect({
         x, y, width, height,
-        fill: body ? undefined : "#f8fafc",
+        fill: role === "header" ? element.headerFill ?? undefined : undefined,
         stroke: "#94a3b8",
         strokeWidth: 0.7,
       }));
       group.add(this.createTableText(
-        values[columnIndex] ?? "", element, { x, y, width, height }, body,
+        row.cells[columnIndex] ?? "", element, { x, y, width, height }, role,
       ));
       x += width;
     });
   }
 
-  /** 헤더와 본문이 각자 지정된 스타일과 모드별 표현을 사용하게 한다. */
+  /** 머리글과 본문이 각자 지정된 스타일과 모드별 표현을 사용하게 한다. */
   private createTableText(
     value: string,
     element: TableElement,
     frame: PixelFrame,
-    body: boolean,
+    role: CellRole,
   ): Konva.Text {
+    const body = role === "body";
     const style = body ? element.cellStyle : element.headerStyle;
     const text = this.createTextNode(value, style, frame);
     if (body && this.mode === "design") text.fill(KonvaElementVisitor.TOKEN_TEXT);

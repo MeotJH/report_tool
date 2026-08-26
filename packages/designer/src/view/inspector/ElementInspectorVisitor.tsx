@@ -21,10 +21,13 @@ import {
   AddTableColumnCommand,
   AddTableRowCommand,
   BindTableColumnCommand,
+  ChangeHeaderFillCommand,
   ChangeTableSourceCommand,
   RemoveTableColumnCommand,
   RemoveTableRowCommand,
   ResizeTableColumnCommand,
+  ToggleHeaderColumnCommand,
+  ToggleHeaderRowCommand,
   UpdateTableHeaderCommand,
 } from "../../command/TableCommands.js";
 import type { EditorActions } from "../../controller/EditorActions.js";
@@ -140,8 +143,17 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
     return (
       <>
         {this.tableStructureSection(element)}
+        {this.tableRowsSection(element)}
         {this.tableColumnsSection(element)}
-        <InspectorSection title="헤더 글자">
+        <InspectorSection title="머리글 표현" hint="지정한 줄·열에 함께 적용">
+          <ColorField
+            label="배경"
+            value={element.headerFill ?? undefined}
+            allowEmpty
+            onCommit={(headerFill) => this.controller.execute(
+              new ChangeHeaderFillCommand(element.id, headerFill ?? null),
+            )}
+          />
           <TextStyleEditor
             style={element.headerStyle}
             showOverflow={false}
@@ -303,9 +315,6 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
   /** 행 공급 방식과 표 전체에 적용되는 값을 한 섹션에 모은다. */
   private tableStructureSection(element: TableElement): ReactNode {
     const bound = element.source instanceof BoundTableSource ? element.source : null;
-    const staticRowCount = element.source instanceof StaticTableSource
-      ? element.source.rows.length
-      : 0;
     return (
       <InspectorSection title="표 구조" hint={bound === null ? "직접 입력한 행" : "데이터 배열"}>
         <SelectField
@@ -341,33 +350,81 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
             onCommit={() => undefined}
           />
         </InspectorRow>
-        <ToggleField
-          label="헤더 행 표시"
-          value={element.showHeader}
-          onCommit={(showHeader) => this.actions.changeElement(
-            element, element.withHeaderVisibility(showHeader),
-          )}
-        />
-        {bound !== null ? null : (
+      </InspectorSection>
+    );
+  }
+
+  /**
+   * 어떤 줄이 머리글인지 정하는 스위치를 한 목록에 모은다.
+   *
+   * 맨 윗줄 머리글과 행 머리글이 서로 다른 섹션에 있으면, 같은 짙은색을 만드는
+   * 스위치를 두 곳에서 찾아야 한다. 실제로 열 머리글을 껐는데 맨 윗줄이 그대로
+   * 짙어서 "스위치가 안 듣는다"고 읽혔다. 짙어지는 줄은 모두 여기서 정한다.
+   */
+  private tableRowsSection(element: TableElement): ReactNode {
+    const rows = element.source instanceof StaticTableSource ? element.source.rows : null;
+    return (
+      <InspectorSection title="행" hint={rows === null ? "데이터 배열" : `${rows.length}개`}>
+        <p className="rt-inspector-note">
+          머리글로 지정한 줄은 머리글 글자(굵기·색)와 머리글 배경을 씁니다.
+        </p>
+        <div className="rt-column-card">
+          <ToggleField
+            label="맨 윗줄 머리글 (열 이름)"
+            value={element.showHeader}
+            onCommit={(showHeader) => this.actions.changeElement(
+              element, element.withHeaderVisibility(showHeader),
+            )}
+          />
+        </div>
+        {rows === null
+          ? (
+            <p className="rt-inspector-note">
+              본문 행은 연결된 데이터 배열에서 오므로 줄마다 지정할 수 없습니다.
+            </p>
+          )
+          : null}
+        {(rows ?? []).map((_row, index) => (
+          <div className="rt-column-card" key={`row-${index}`}>
+            <ToggleField
+              label={`${index + 1}행 머리글`}
+              value={element.headerCells.hasRow(index)}
+              onCommit={() => this.controller.execute(
+                new ToggleHeaderRowCommand(element.id, index),
+              )}
+            />
+            <div className="rt-button-row">
+              <button
+                type="button"
+                className="rt-panel-button"
+                onClick={() => this.controller.execute(
+                  new AddTableRowCommand(element.id, index + 1),
+                )}
+              >
+                ＋ 아래에 행
+              </button>
+              <button
+                type="button"
+                className="rt-panel-button"
+                onClick={() => this.controller.execute(
+                  new RemoveTableRowCommand(element.id, index),
+                )}
+              >
+                － 이 행 삭제
+              </button>
+            </div>
+          </div>
+        ))}
+        {rows === null ? null : (
           <div className="rt-button-row">
             <button
               type="button"
               className="rt-panel-button"
               onClick={() => this.controller.execute(
-                new AddTableRowCommand(element.id, staticRowCount),
+                new AddTableRowCommand(element.id, rows.length),
               )}
             >
-              ＋ 행 추가 ({staticRowCount})
-            </button>
-            <button
-              type="button"
-              className="rt-panel-button"
-              disabled={staticRowCount === 0}
-              onClick={() => this.controller.execute(
-                new RemoveTableRowCommand(element.id, staticRowCount - 1),
-              )}
-            >
-              － 행 삭제
+              ＋ 행 추가 ({rows.length})
             </button>
           </div>
         )}
@@ -439,6 +496,10 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
   private tableColumnsSection(element: TableElement): ReactNode {
     return (
       <InspectorSection title="열" hint={`${element.columns.length}개`}>
+        <p className="rt-inspector-note">
+          머리글 열은 모든 줄에서 짙어집니다. 맨 윗줄만 짙은 것은 [행]의
+          맨 윗줄 머리글 때문입니다.
+        </p>
         {element.columns.map((column, index) => (
           <div className="rt-column-card" key={`${column.key}-${index}`}>
             <TextField
@@ -446,6 +507,13 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
               value={column.header}
               onCommit={(header) => this.controller.execute(
                 new UpdateTableHeaderCommand(element.id, index, header),
+              )}
+            />
+            <ToggleField
+              label="머리글 열"
+              value={element.headerCells.hasColumn(index)}
+              onCommit={() => this.controller.execute(
+                new ToggleHeaderColumnCommand(element.id, index),
               )}
             />
             <InspectorRow>

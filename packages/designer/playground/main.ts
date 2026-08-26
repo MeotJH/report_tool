@@ -7,8 +7,10 @@ import {
   LineElement,
   PageSpec,
   SignatureElement,
+  StaticTableSource,
   TableColumn,
   TableElement,
+  TableHeaderCells,
   Template,
   TemplateVariable,
   TextElement,
@@ -88,6 +90,18 @@ function createElements(): readonly Element[] {
       new Binding("employee.department", { fallback: "개발팀" }), fieldStyle,
     ),
     new TableElement(
+      "period-table", new Frame(20, 64, 170, 8), 3, false,
+      new StaticTableSource([
+        { label: "기간", value: "{{period.start}} ~ {{period.end}}" },
+      ]),
+      [
+        new TableColumn("label", "구분", "{{row.label}}", 40, "center", null),
+        new TableColumn("value", "값", "{{row.value}}", 130, "left", null),
+      ],
+      8, headerStyle, cellStyle, false, "clip", false,
+      new TableHeaderCells([0]),
+    ),
+    new TableElement(
       "pay-table", new Frame(20, 76, 170, 35), 3, false,
       new BoundTableSource(new Binding("payItems")),
       [
@@ -110,6 +124,7 @@ function createSampleData(): unknown {
     employee: { name: "김지훈", department: "플랫폼개발팀", residentNumber: "9001011234567" },
     baseSalary: 4200000,
     payDate: "2026-08-25",
+    period: { start: "2026.07.01", end: "2026.07.31" },
     payItems: [
       { item: "기본급", amount: 4200000 },
       { item: "식대", amount: 200000 },
@@ -127,6 +142,9 @@ function createSampleData(): unknown {
 /** 이 문서가 발행 시 요구하는 데이터를 템플릿 자신이 선언하게 한다. */
 function createVariables(): readonly TemplateVariable[] {
   return [
+    new TemplateVariable("period", "기간", "array"),
+    new TemplateVariable("period.start", "시작일", "date", true),
+    new TemplateVariable("period.end", "종료일", "date", true),
     new TemplateVariable("employee", "직원 정보", "array"),
     new TemplateVariable("employee.name", "이름", "string", true),
     new TemplateVariable("employee.department", "부서", "string"),

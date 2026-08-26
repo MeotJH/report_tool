@@ -17,6 +17,7 @@ import { LineElement } from "./LineElement.js";
 import { SignatureElement } from "./SignatureElement.js";
 import { TableColumn, type TableColumnAlign } from "./TableColumn.js";
 import { TableElement, type TableOverflow } from "./TableElement.js";
+import { TableHeaderCells } from "./TableHeaderCells.js";
 import {
   BoundTableSource,
   StaticTableSource,
@@ -122,7 +123,20 @@ export class ElementFactory {
       json.showHeader as boolean,
       json.overflow as TableOverflow,
       common.hidden,
+      TableHeaderCells.fromJSON(json.headerCells),
+      ElementFactory.readHeaderFill(json.headerFill),
     );
+  }
+
+  /**
+   * 머리글 배경을 복원하되 머리글 개념 이전에 저장된 표도 그대로 열리게 한다.
+   *
+   * 필드가 없던 시절의 표는 화면에서 머리글 행에 옅은 배경이 이미 칠해져 있었다.
+   * 그 표를 배경 없음으로 복원하면 저장만 했는데 모양이 바뀐다.
+   */
+  private static readHeaderFill(value: unknown): string | null {
+    if (value === undefined) return TableElement.DEFAULT_HEADER_FILL;
+    return typeof value === "string" ? value : null;
   }
 
   /** 이미지의 단일 출처와 맞춤 정책을 공통 상태에 결합해 복원한다. */

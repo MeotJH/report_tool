@@ -217,3 +217,42 @@ export class BindTableColumnCommand extends TableCommand {
     );
   }
 }
+
+/** 열 하나를 머리글 열로 지정하거나 해제하는 것을 Undo 단위로 기록한다. */
+export class ToggleHeaderColumnCommand extends TableCommand {
+  /** 어떤 열의 머리글 지정을 뒤집을지 보존한다. */
+  constructor(elementId: string, private readonly index: number) {
+    super(elementId);
+  }
+
+  /** 지정 여부만 뒤집고 열의 데이터 연결과 너비는 그대로 둔다. */
+  protected update(table: TableElement): TableElement {
+    return this.editor.toggleHeaderColumn(table, this.index);
+  }
+}
+
+/** 정적 행 하나를 머리글 행으로 지정하거나 해제하는 것을 Undo 단위로 기록한다. */
+export class ToggleHeaderRowCommand extends TableCommand {
+  /** 어떤 행의 머리글 지정을 뒤집을지 보존한다. */
+  constructor(elementId: string, private readonly index: number) {
+    super(elementId);
+  }
+
+  /** 지정 여부만 뒤집고 행에 입력한 값은 그대로 둔다. */
+  protected update(table: TableElement): TableElement {
+    return this.editor.toggleHeaderRow(table, this.index);
+  }
+}
+
+/** 머리글 칸 배경 변경을 Undo 단위로 기록한다. */
+export class ChangeHeaderFillCommand extends TableCommand {
+  /** 적용할 배경색을 보존한다. null은 칠하지 않음을 뜻한다. */
+  constructor(elementId: string, private readonly headerFill: string | null) {
+    super(elementId);
+  }
+
+  /** 배경만 교체하고 어떤 칸이 머리글인지는 그대로 둔다. */
+  protected update(table: TableElement): TableElement {
+    return this.editor.changeHeaderFill(table, this.headerFill);
+  }
+}

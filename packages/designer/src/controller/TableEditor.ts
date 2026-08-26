@@ -28,17 +28,42 @@ export class TableEditor {
     return table.withSource(source.withCell(rowIndex, columnKey, value));
   }
 
-  /** 새 정적 행이 현재 모든 열을 갖도록 열 구조를 기준으로 빈 행을 삽입한다. */
+  /**
+   * 새 정적 행이 현재 모든 열을 갖도록 열 구조를 기준으로 빈 행을 삽입한다.
+   *
+   * 머리글 지정은 행 번호로 저장되므로 앞에 행이 끼어들면 함께 밀어야 한다.
+   * 밀지 않으면 사용자가 지정한 행이 아니라 그 위 행이 머리글이 된다.
+   */
   insertRow(table: TableElement, index: number): TableElement {
     const source = this.staticSource(table, "행");
     const columnKeys = table.columns.map((column) => column.key);
-    return table.withSource(source.insertRow(index, columnKeys));
+    return table
+      .withSource(source.insertRow(index, columnKeys))
+      .withHeaderCells(table.headerCells.withRowInserted(index));
   }
 
   /** 외부 데이터 배열을 편집하지 않도록 정적 표의 행만 제거한다. */
   removeRow(table: TableElement, index: number): TableElement {
     const source = this.staticSource(table, "행");
-    return table.withSource(source.removeRow(index));
+    return table
+      .withSource(source.removeRow(index))
+      .withHeaderCells(table.headerCells.withRowRemoved(index));
+  }
+
+  /** 어떤 열이 값의 이름을 담는 머리글 열인지 켜고 끈다. */
+  toggleHeaderColumn(table: TableElement, index: number): TableElement {
+    this.columnAt(table, index);
+    return table.withHeaderCells(table.headerCells.toggleColumn(index));
+  }
+
+  /** 어떤 정적 행이 머리글 행인지 켜고 끈다. */
+  toggleHeaderRow(table: TableElement, index: number): TableElement {
+    return table.withHeaderCells(table.headerCells.toggleRow(index));
+  }
+
+  /** 머리글 칸 배경만 교체한다. null이면 칠하지 않는다. */
+  changeHeaderFill(table: TableElement, headerFill: string | null): TableElement {
+    return table.withHeaderFill(headerFill);
   }
 
   /**
@@ -53,7 +78,8 @@ export class TableEditor {
     this.assertUniqueColumnKey(table, column.key);
     const columns = [...table.columns];
     columns.splice(index, 0, column);
-    return this.withAddedSourceColumn(this.withFittedColumns(table, columns), column.key);
+    const shifted = table.withHeaderCells(table.headerCells.withColumnInserted(index));
+    return this.withAddedSourceColumn(this.withFittedColumns(shifted, columns), column.key);
   }
 
   /** 열 정의를 삭제할 때 정적 행에 남은 사용하지 않는 셀 값도 함께 제거한다. */
@@ -61,7 +87,8 @@ export class TableEditor {
     if (table.columns.length === 1) throw new Error("표에는 열이 하나 이상 필요하다");
     const removed = this.columnAt(table, index);
     const columns = table.columns.filter((_column, columnIndex) => columnIndex !== index);
-    return this.withRemovedSourceColumn(this.withFittedColumns(table, columns), removed.key);
+    const shifted = table.withHeaderCells(table.headerCells.withColumnRemoved(index));
+    return this.withRemovedSourceColumn(this.withFittedColumns(shifted, columns), removed.key);
   }
 
   /** 헤더 문구 변경이 열의 데이터 연결과 표시 설정을 잃지 않게 한다. */

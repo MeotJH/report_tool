@@ -68,10 +68,13 @@ export type { LineAppearanceChanges } from "./domain/element/LineElement.js";
 export { SignatureElement } from "./domain/element/SignatureElement.js";
 export type { SignatureChanges } from "./domain/element/SignatureElement.js";
 export { TableCellResolver } from "./domain/element/TableCellResolver.js";
+export { TableCellRole } from "./domain/element/TableCellRole.js";
+export type { CellRole } from "./domain/element/TableCellRole.js";
 export { TableColumn } from "./domain/element/TableColumn.js";
 export type { TableColumnAlign } from "./domain/element/TableColumn.js";
 export { TableElement } from "./domain/element/TableElement.js";
 export type { TableOverflow } from "./domain/element/TableElement.js";
+export { TableHeaderCells } from "./domain/element/TableHeaderCells.js";
 export {
   BoundTableSource,
   StaticTableSource,
@@ -109,6 +112,12 @@ export type {
   PageOrientation,
   PageSize,
 } from "./domain/value/PageSpec.js";
+export { TableCellText } from "./domain/layout/TableCellText.js";
+export { TableLayout } from "./domain/layout/TableLayout.js";
+export type {
+  TableLayoutResult,
+  TableLayoutRow,
+} from "./domain/layout/TableLayout.js";
 export { TextLayout } from "./domain/text/TextLayout.js";
 export type {
   TextLayoutResult,

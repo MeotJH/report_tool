@@ -7,15 +7,15 @@ import {
   type ImageElement,
   type LineElement,
   type SignatureElement,
-  TableCellResolver,
   type TableElement,
+  TableLayout,
   Template,
   type TextElement,
 } from "@report-tool/core";
 
 /** 실제 출력 문자열만 모아 한글 폰트 서브셋이 필요한 글리프를 빠짐없이 알게 한다. */
 export class UsedCharCollector implements ElementVisitor<string> {
-  private readonly cellResolver = new TableCellResolver();
+  private readonly tableLayout = new TableLayout();
 
   /** 데이터 해석 규칙을 렌더러와 동일하게 사용해 수집 문자와 출력 문자가 어긋나지 않게 한다. */
   constructor(
@@ -42,13 +42,17 @@ export class UsedCharCollector implements ElementVisitor<string> {
     return this.bindingResolver.resolve(element.binding, this.data);
   }
 
-  /** 표 머리글과 모든 행·열의 최종 셀 문자를 함께 수집한다. */
+  /**
+   * 실제로 그려지는 줄의 문자만 수집한다.
+   *
+   * 렌더러와 다른 규칙으로 세면 서브셋에 없는 글리프가 발행본에 남는다. 한글은
+   * 그 자리가 통째로 빈칸이 되므로, 줄 목록은 렌더러와 같은 `TableLayout`에서 얻는다.
+   */
   visitTable(element: TableElement): string {
-    const headers = element.columns.map((column) => column.header).join("");
-    const cells = element.source
-      .resolveRows(this.data)
-      .flatMap((row) => this.cellResolver.resolveRow(element.columns, row, this.data));
-    return headers + cells.join("");
+    return this.tableLayout
+      .compute(element, this.data)
+      .rows.flatMap((row) => row.cells)
+      .join("");
   }
 
   /** 이미지는 폰트 글리프를 사용하지 않으므로 수집 결과를 비워둔다. */
