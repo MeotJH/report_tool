@@ -229,7 +229,7 @@ export class CanvasStage {
 
   /** 화면에 그릴 요소를 z 순서대로 정렬해 한 번만 계산한다. */
   private displayedElements(): readonly Element[] {
-    return [...this.controller.getTemplate().getElements()]
+    return [...this.controller.elementsOnActivePage()]
       .filter((element) => !element.hidden)
       .sort((first, second) => first.z - second.z)
       .map((element) => {

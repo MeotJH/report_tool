@@ -1,5 +1,6 @@
 import type { Element, Frame, Template } from "@report-tool/core";
 import type { CanvasEditTarget } from "./CanvasEditTarget.js";
+import { AddElementCommand } from "../command/AddElementCommand.js";
 import { CommandStack } from "../command/CommandStack.js";
 import type { EditorCommand } from "../command/EditorCommand.js";
 import type { EditorTool, ToolKind } from "../tool/EditorTool.js";
@@ -32,6 +33,7 @@ export class EditorController {
   private notice: string | null = null;
   private paletteDropHint: string | null = null;
   private highlightedPath: string | null = null;
+  private activePageIndex = 0;
   private revision = 0;
 
   /** 호스트가 제공한 초안과 샘플 데이터로 독립적인 편집 세션을 시작한다. */
@@ -92,6 +94,48 @@ export class EditorController {
    */
   activateSelectTool(): void {
     this.setTool(new SelectTool());
+  }
+
+  /** 지금 편집 중인 쪽을 캔버스·도구·Inspector가 함께 읽게 한다. */
+  getActivePageIndex(): number {
+    return this.activePageIndex;
+  }
+
+  /**
+   * 편집할 쪽을 바꾼다. 다른 쪽 요소가 선택된 채로 남지 않게 한다.
+   *
+   * 보이지 않는 요소가 선택돼 있으면 Delete가 화면에 없는 것을 지운다. 사용자는
+   * 무엇이 사라졌는지 알 수 없다.
+   */
+  setActivePageIndex(pageIndex: number): void {
+    const clamped = Math.max(0, Math.min(pageIndex, this.pageCount()));
+    if (clamped === this.activePageIndex) return;
+    this.activePageIndex = clamped;
+    this.selectionModel.clear();
+    this.notifyChange();
+  }
+
+  /**
+   * 편집기가 오갈 수 있는 쪽 수다. 아직 비어 있는 새 쪽도 한 장으로 센다.
+   *
+   * 쪽 수는 요소가 정하므로(`Template.pageCount`) 빈 쪽은 저장되지 않는다.
+   * 그래도 요소를 놓기 전에 그 쪽으로 갈 수 있어야 쪽을 만들 수 있다.
+   */
+  pageCount(): number {
+    return Math.max(this.template.pageCount(), this.activePageIndex + 1);
+  }
+
+  /**
+   * 새 요소를 지금 보고 있는 쪽에 놓고 바로 손볼 수 있게 선택한다.
+   *
+   * 도구·팔레트 드롭·배열 드롭이 각자 쪽 번호를 붙이면 한 곳만 빠뜨려도 그
+   * 요소는 첫 쪽에 생긴다. 만든 사람 눈에는 요소가 나타나지 않는다.
+   */
+  placeNewElement(element: Element): void {
+    const placed = element.withPageIndex(this.activePageIndex);
+    this.execute(new AddElementCommand(placed));
+    this.selectElement(placed.id);
+    this.activateSelectTool();
   }
 
   /** 설계용 표시와 실제 데이터 표시를 같은 위치에서 전환하게 한다. */
@@ -332,8 +376,14 @@ export class EditorController {
 
   /** 클릭과 영역 선택이 같은 후보 집합을 사용하게 한다. */
   private selectableElements(): Element[] {
-    return this.template.getElements()
+    return this.elementsOnActivePage()
       .filter((element) => !element.hidden && !element.locked);
+  }
+
+  /** 보고 있지 않은 쪽의 요소가 선택·판정에 끼어들지 않게 한다. */
+  elementsOnActivePage(): Element[] {
+    return this.template.getElements()
+      .filter((element) => element.pageIndex === this.activePageIndex);
   }
 
   /** 외부 화면 상태가 최신 컨트롤러 상태를 다시 읽도록 순서대로 호출한다. */

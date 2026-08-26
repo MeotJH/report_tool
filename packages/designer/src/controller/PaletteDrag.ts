@@ -6,7 +6,6 @@ import {
   TableElement,
   TextStyle,
 } from "@report-tool/core";
-import { AddElementCommand } from "../command/AddElementCommand.js";
 import { BindTableColumnCommand } from "../command/TableCommands.js";
 import { ChangeElementCommand } from "../command/ChangeElementCommand.js";
 import type { EditorController } from "./EditorController.js";
@@ -118,9 +117,7 @@ class FieldDrag extends PaletteDrag {
       new Binding(this.entry.path),
       new TextStyle("Pretendard", 10),
     );
-    controller.execute(new AddElementCommand(element));
-    controller.selectElement(element.id);
-    controller.activateSelectTool();
+    controller.placeNewElement(element);
   }
 }
 
@@ -210,9 +207,7 @@ class ArrayDrag extends PaletteDrag {
       true,
       "clip",
     );
-    controller.execute(new AddElementCommand(element));
-    controller.selectElement(element.id);
-    controller.activateSelectTool();
+    controller.placeNewElement(element);
   }
 
   /** 헤더 한 줄과 본문 세 줄이 들어가는 높이를 기본값으로 둔다. */

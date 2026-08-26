@@ -29,6 +29,56 @@ describe("EditorController", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it("새 요소는 지금 보고 있는 쪽에 놓인다", () => {
+    const controller = new EditorController(createTemplate());
+    controller.setActivePageIndex(1);
+
+    controller.placeNewElement(createText("text"));
+
+    expect(controller.getTemplate().getElements()[0]?.pageIndex).toBe(1);
+  });
+
+  it("보고 있는 쪽의 요소만 고를 수 있다", () => {
+    const controller = new EditorController(createTemplate());
+    controller.placeNewElement(createText("first"));
+    controller.setActivePageIndex(1);
+    controller.placeNewElement(createText("second"));
+
+    expect(controller.elementsOnActivePage().map((element) => element.id)).toEqual(["second"]);
+    expect(controller.findElementAt(5, 5)?.id).toBe("second");
+  });
+
+  it("쪽을 옮기면 다른 쪽 요소의 선택이 남지 않는다", () => {
+    const controller = new EditorController(createTemplate());
+    controller.placeNewElement(createText("first"));
+
+    controller.setActivePageIndex(1);
+
+    expect(controller.getSelectionModel().count()).toBe(0);
+  });
+
+  it("마지막 쪽 뒤로 한 장까지 갈 수 있고 그 이상은 가지 않는다", () => {
+    const controller = new EditorController(createTemplate());
+    controller.placeNewElement(createText("first"));
+
+    controller.setActivePageIndex(9);
+
+    expect(controller.getActivePageIndex()).toBe(1);
+    expect(controller.pageCount()).toBe(2);
+  });
+
+  it("빈 쪽은 요소를 놓기 전까지 문서에 남지 않는다", () => {
+    const controller = new EditorController(createTemplate());
+    controller.placeNewElement(createText("first"));
+    controller.setActivePageIndex(1);
+
+    expect(controller.getTemplate().pageCount()).toBe(1);
+
+    controller.placeNewElement(createText("second"));
+
+    expect(controller.getTemplate().pageCount()).toBe(2);
+  });
+
   it("현재 도구 종류를 화면의 활성 상태에 제공한다", () => {
     const controller = new EditorController(createTemplate());
 

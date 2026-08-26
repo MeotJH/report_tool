@@ -260,6 +260,12 @@ const DESIGNER_CSS = `
   }
   .rt-canvas-mode { color: var(--rt-text); flex: 1; text-align: center; }
   .rt-zoom-controls { align-items: center; display: flex; gap: 4px; }
+  .rt-page-controls { align-items: center; display: flex; gap: 4px; }
+  .rt-page-value { align-items: center; color: var(--rt-text); display: flex; gap: 6px; min-width: 52px; justify-content: center; }
+  .rt-page-note {
+    background: var(--rt-primary-soft); border-radius: 999px; color: var(--rt-primary);
+    font-size: 10px; padding: 1px 6px;
+  }
   .rt-zoom-value { min-width: 40px; text-align: center; }
   .rt-canvas-viewport {
     display: flex; flex: 1; min-height: 0; overflow: auto; padding: 32px;

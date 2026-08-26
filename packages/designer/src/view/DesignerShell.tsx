@@ -146,6 +146,7 @@ function CanvasWorkspace(props: DesignerShellProps) {
     <section className="rt-canvas-panel" aria-label="문서 캔버스">
       <div className="rt-canvas-topbar">
         <span>{page.widthMm()} × {page.heightMm()} mm</span>
+        <PageControls controller={controller} />
         <span className="rt-canvas-mode">{toolMessage(controller.getCurrentToolKind())}</span>
         <ZoomControls controller={controller} onFit={props.onFitToViewport} />
       </div>
@@ -163,6 +164,55 @@ function CanvasWorkspace(props: DesignerShellProps) {
         {dropHint === null ? null : <div className="rt-drop-overlay">{dropHint}</div>}
       </div>
     </section>
+  );
+}
+
+/**
+ * 어느 쪽을 편집 중인지 보여 주고 쪽을 오가게 한다.
+ *
+ * 요소는 자기가 놓인 쪽에만 보이므로, 지금이 몇 쪽인지 늘 보이지 않으면 사용자는
+ * 방금 만든 요소가 사라졌다고 읽는다. 쪽 수는 요소가 정하기 때문에 마지막 쪽 뒤로
+ * 한 장 더 갈 수 있게 두고, 그 빈 쪽은 무언가를 놓아야 문서에 남는다.
+ */
+function PageControls(props: { controller: EditorController }) {
+  const { controller } = props;
+  const active = controller.getActivePageIndex();
+  const total = controller.pageCount();
+  const isEmptyNewPage = active >= controller.getTemplate().pageCount();
+  return (
+    <span className="rt-page-controls">
+      <button
+        type="button"
+        className="rt-icon-button"
+        title="이전 쪽"
+        disabled={active === 0}
+        onClick={() => controller.setActivePageIndex(active - 1)}
+      >
+        ‹
+      </button>
+      <span className="rt-page-value">
+        {active + 1} / {total}
+        {isEmptyNewPage ? <span className="rt-page-note">빈 쪽</span> : null}
+      </span>
+      <button
+        type="button"
+        className="rt-icon-button"
+        title="다음 쪽"
+        disabled={active + 1 >= total}
+        onClick={() => controller.setActivePageIndex(active + 1)}
+      >
+        ›
+      </button>
+      <button
+        type="button"
+        className="rt-panel-button"
+        title="마지막 쪽 뒤에 새 쪽을 열고 이동합니다"
+        disabled={isEmptyNewPage}
+        onClick={() => controller.setActivePageIndex(controller.getTemplate().pageCount())}
+      >
+        ＋ 쪽
+      </button>
+    </span>
   );
 }
 

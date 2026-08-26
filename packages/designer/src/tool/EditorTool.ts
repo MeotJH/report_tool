@@ -1,5 +1,4 @@
 import { Frame, type Element } from "@report-tool/core";
-import { AddElementCommand } from "../command/AddElementCommand.js";
 import type { EditorController, PointerModifiers } from "../controller/EditorController.js";
 import { SnapGuide, SnapTargets } from "../controller/SnapGuide.js";
 
@@ -85,10 +84,7 @@ export abstract class DragCreateTool extends EditorTool {
     const planned = this.planFrame(start, xMm, yMm, controller, modifiers).frame;
     const frame = this.isClick(planned) ? this.clickFrame(start) : planned;
     controller.clearPreview();
-    const element = this.createElement(frame);
-    controller.execute(new AddElementCommand(element));
-    controller.selectElement(element.id);
-    controller.activateSelectTool();
+    controller.placeNewElement(this.createElement(frame));
   }
 
   /** 도구마다 다른 도메인 요소 생성만 하위 전략이 결정하게 한다. */

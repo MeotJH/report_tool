@@ -16,10 +16,13 @@ const TYPE_ICONS: Readonly<Record<Element["type"], string>> = {
 };
 
 /**
- * 문서에 있는 모든 요소를 쌓임 순서대로 보여주고 선택·잠금·숨김을 다루게 한다.
+ * 지금 보고 있는 쪽의 요소를 쌓임 순서대로 보여주고 선택·잠금·숨김을 다루게 한다.
  *
  * 캔버스만으로는 겹친 요소나 숨긴 요소에 접근할 방법이 없다. 목록이 있어야
  * 잠긴 배경을 다시 풀 수 있고, 무엇이 무엇 위에 있는지 확인할 수 있다.
+ *
+ * 다른 쪽 요소까지 나열하면 목록에서 고른 것이 화면에 없다. 사용자는 선택이
+ * 되지 않는다고 읽고, 그 상태에서 Delete를 누르면 보이지 않는 것이 지워진다.
  */
 export function LayersPanel(props: {
   controller: EditorController;
@@ -27,7 +30,7 @@ export function LayersPanel(props: {
   issues: readonly TemplateIssue[];
 }) {
   const namer = new LayerNamer();
-  const elements = [...props.controller.getTemplate().getElements()]
+  const elements = [...props.controller.elementsOnActivePage()]
     .sort((first, second) => second.z - first.z);
   const flagged = new Set(props.issues
     .map((issue) => issue.elementId)
@@ -37,10 +40,14 @@ export function LayersPanel(props: {
     <section className="rt-layers" aria-label="레이어">
       <header className="rt-panel-head">
         <strong className="rt-panel-title">레이어</strong>
-        <span className="rt-panel-count">{elements.length}개</span>
+        <span className="rt-panel-count">
+          {props.controller.pageCount() > 1
+            ? `${props.controller.getActivePageIndex() + 1}쪽 · ${elements.length}개`
+            : `${elements.length}개`}
+        </span>
       </header>
       {elements.length === 0
-        ? <p className="rt-empty">위 도구로 첫 요소를 만들어 보세요.</p>
+        ? <p className="rt-empty">이 쪽은 비어 있습니다. 위 도구로 요소를 만들어 보세요.</p>
         : (
           <ul className="rt-layer-list">
             {elements.map((element) => (
