@@ -445,7 +445,7 @@
 ---
 
 ### U8. 고정 문구에 남은 데이터 표현식을 잡는다
-`<이 커밋>` · `TemplateIssueFinder.ts`, `core/element/TemplateExpression.ts`, `PageNumbering.ts`
+`2e81fa3` · `TemplateIssueFinder.ts`, `core/element/TemplateExpression.ts`, `PageNumbering.ts`
 
 **무엇을 푸는가**
 문구 종류가 "고정 문구"면 `{{employee.name}}`을 치환하지 않는 것이 맞다. 문제는
