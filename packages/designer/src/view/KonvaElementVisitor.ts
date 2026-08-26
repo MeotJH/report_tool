@@ -1,6 +1,7 @@
 import Konva from "konva";
 import {
   ContentResolver,
+  PageNumbering,
   TableCellText,
   type Binding,
   type CellRole,
@@ -54,11 +55,17 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
     private readonly data: unknown,
     private readonly bindingResolver: BindingResolver,
     private readonly mode: EditorMode = "design",
+    private readonly numbering: PageNumbering = new PageNumbering(1, 1),
   ) {}
 
   /** 고정·템플릿 문구를 배치 영역과 스타일이 반영된 편집 텍스트로 만든다. */
   visitText(element: TextElement): Konva.Node {
-    const text = ContentResolver.resolve(element.content, this.data);
+    // 쪽 번호를 먼저 채운다. 데이터 치환과 순서가 바뀌면 `{{page}}`가 데이터에 없는
+    // 경로로 읽혀 빈칸이 된다.
+    const text = ContentResolver.resolve(
+      { kind: element.content.kind, value: this.numbering.apply(element.content.value) },
+      this.data,
+    );
     return this.mark(this.createTextNode(text, element.style, this.pixelFrame(element)), element);
   }
 

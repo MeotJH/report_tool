@@ -1,8 +1,10 @@
 import type { Element } from "../element/Element.js";
 import { TableElement } from "../element/TableElement.js";
+import { TextElement } from "../element/TextElement.js";
 import type { Template } from "../template/Template.js";
 import { Frame } from "../value/Frame.js";
 import type { PageSpec } from "../value/PageSpec.js";
+import { PageNumbering } from "./PageNumbering.js";
 import { TableCellText } from "./TableCellText.js";
 import { TableLayout, type TableLayoutResult } from "./TableLayout.js";
 import { TableRowHeights } from "./TableRowHeights.js";
@@ -71,12 +73,56 @@ export class DocumentLayout {
         pending = page.pending;
       }
     }
-    return pages;
+    return this.withRepeatedElements(pages, template, data);
   }
 
-  /** 사용자가 그 쪽에 놓은 요소만 고른다. */
+  /** 사용자가 그 쪽에 놓은 요소만 고른다. 반복 요소는 따로 얹는다. */
   private elementsOn(template: Template, pageIndex: number): readonly Element[] {
-    return template.getElements().filter((element) => element.pageIndex === pageIndex);
+    return template.getElements().filter(
+      (element) => !element.repeated && element.pageIndex === pageIndex,
+    );
+  }
+
+  /**
+   * 머리글·바닥글처럼 모든 쪽에 나오는 것을 얹고, 쪽 번호를 그때 채운다.
+   *
+   * 쪽 번호는 모든 쪽이 정해진 뒤에야 알 수 있다. 표가 몇 줄로 흐르는지가 쪽 수를
+   * 정하기 때문이다. 그래서 배치를 다 끝낸 다음에 한 번 더 훑는다.
+   *
+   * 반복 요소를 맨 뒤에 얹는 이유는 머리글이 본문에 가려지지 않게 하기 위해서다.
+   */
+  private withRepeatedElements(
+    pages: readonly PageLayout[],
+    template: Template,
+    data: unknown,
+  ): readonly PageLayout[] {
+    const repeated = this.byStackOrder(
+      template.getElements().filter((element) => element.repeated),
+    );
+    return pages.map((page) => {
+      const numbering = new PageNumbering(page.index + 1, pages.length);
+      return {
+        index: page.index,
+        placements: [
+          ...page.placements.map((placement) => this.numbered(placement, numbering)),
+          ...repeated.map((element) => this.numbered(
+            this.placeAtOwnFrame(element, data), numbering,
+          )),
+        ],
+      };
+    });
+  }
+
+  /** 문구 안의 쪽 번호 자리를 이 쪽의 번호로 바꾼 요소로 교체한다. */
+  private numbered(placement: PlacedElement, numbering: PageNumbering): PlacedElement {
+    const element = placement.element;
+    if (!(element instanceof TextElement)) return placement;
+    const value = numbering.apply(element.content.value);
+    if (value === element.content.value) return placement;
+    return {
+      element: element.withContent({ kind: element.content.kind, value }),
+      table: placement.table,
+    };
   }
 
   /** 그리는 순서가 저장 순서가 아니라 쌓임 순서를 따르게 한다. */

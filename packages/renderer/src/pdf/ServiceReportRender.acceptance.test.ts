@@ -76,6 +76,11 @@ function createTemplate(): Template {
         { kind: "literal", value: "처리내역 (계)" },
         new TextStyle("Pretendard", 12, { weight: 700 }),
       ),
+      new TextElement(
+        "footer", new Frame(160, 280, 35, 6), 9, false,
+        { kind: "literal", value: "{{page:00}} / {{pages:00}}" },
+        new TextStyle("Pretendard", 9), false, 0, true,
+      ),
       new TableElement(
         "tickets", new Frame(15, 30, 180, 60), 2, false,
         new BoundTableSource(new Binding("tickets")),

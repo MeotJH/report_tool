@@ -112,6 +112,7 @@ export type {
   PageOrientation,
   PageSize,
 } from "./domain/value/PageSpec.js";
+export { PageNumbering } from "./domain/layout/PageNumbering.js";
 export { DocumentLayout } from "./domain/layout/DocumentLayout.js";
 export type { PageLayout, PlacedElement } from "./domain/layout/DocumentLayout.js";
 export { TableCellText } from "./domain/layout/TableCellText.js";

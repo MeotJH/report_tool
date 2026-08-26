@@ -23,6 +23,7 @@ export interface ElementCommonChanges {
   readonly locked?: boolean;
   readonly hidden?: boolean;
   readonly pageIndex?: number;
+  readonly repeated?: boolean;
 }
 
 /** 변경분과 현재 상태를 합친 뒤 하위 클래스 생성자에 넘길 완전한 공통 상태다. */
@@ -32,6 +33,7 @@ export interface ResolvedElementCommon {
   readonly locked: boolean;
   readonly hidden: boolean;
   readonly pageIndex: number;
+  readonly repeated: boolean;
 }
 
 /**
@@ -51,6 +53,7 @@ export abstract class Element {
     public readonly locked: boolean,
     public readonly hidden: boolean = false,
     public readonly pageIndex: number = 0,
+    public readonly repeated: boolean = false,
   ) {}
 
   /** 렌더러가 요소 종류별 처리를 빠짐없이 구현하도록 방문자에게 제어를 넘긴다. */
@@ -89,6 +92,16 @@ export abstract class Element {
     return this.withCommon({ pageIndex });
   }
 
+  /**
+   * 이 요소가 모든 쪽에 반복해서 나올지 정한다.
+   *
+   * 쪽 번호와 머리글은 쪽마다 따로 만들 수 없다. 표가 몇 쪽으로 흐를지는 발행할
+   * 데이터가 정하므로, 만들 때는 몇 장이 될지 알 수 없기 때문이다.
+   */
+  withRepeated(repeated: boolean): Element {
+    return this.withCommon({ repeated });
+  }
+
   /** 하위 클래스가 종류별 속성을 보존하며 공통 상태만 교체하게 한다. */
   protected abstract withCommon(changes: ElementCommonChanges): Element;
 
@@ -100,6 +113,7 @@ export abstract class Element {
       locked: changes.locked ?? this.locked,
       hidden: changes.hidden ?? this.hidden,
       pageIndex: changes.pageIndex ?? this.pageIndex,
+      repeated: changes.repeated ?? this.repeated,
     };
   }
 }

@@ -29,8 +29,9 @@ export class BoxElement extends Element {
     options: BoxElementOptions = {},
     hidden = false,
     pageIndex = 0,
+    repeated = false,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex);
+    super(id, frame, z, locked, hidden, pageIndex, repeated);
     this.fill = options.fill;
     this.stroke = options.stroke;
     this.strokeWidth = options.strokeWidth;
@@ -64,7 +65,7 @@ export class BoxElement extends Element {
       stroke: this.stroke,
       strokeWidth: this.strokeWidth,
       radius: this.radius,
-    }, resolved.hidden, resolved.pageIndex);
+    }, resolved.hidden, resolved.pageIndex, resolved.repeated);
   }
 
   /** 사각 도형의 고유 속성을 렌더러와 무관한 저장 데이터로 변환한다. */

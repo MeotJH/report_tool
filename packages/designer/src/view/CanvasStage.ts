@@ -1,6 +1,7 @@
 import Konva from "konva";
 import {
   BindingResolver,
+  PageNumbering,
   TableElement,
   TemplateReferences,
   TextElement,
@@ -154,6 +155,10 @@ export class CanvasStage {
       this.controller.getSampleData(),
       this.bindingResolver,
       this.controller.getMode(),
+      new PageNumbering(
+        this.controller.getActivePageIndex() + 1,
+        this.controller.pageCount(),
+      ),
     );
     for (const element of this.displayedElements()) {
       const node = element.accept(visitor);

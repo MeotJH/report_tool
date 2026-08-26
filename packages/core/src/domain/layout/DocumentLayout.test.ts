@@ -34,6 +34,15 @@ function title(): TextElement {
   );
 }
 
+/** 모든 쪽 아래에 쪽 번호를 찍는 반복 요소를 만든다. */
+function pageFooter(): TextElement {
+  return new TextElement(
+    "footer", new Frame(150, 275, 40, 8), 9, false,
+    { kind: "literal", value: "{{page:00}} / {{pages:00}}" },
+    new TextStyle("Pretendard", 9), false, 0, true,
+  );
+}
+
 /** 표만 있는 문서를 만든다. */
 function template(...elements: readonly Element[]): Template {
   return new Template({
@@ -151,6 +160,46 @@ describe("DocumentLayout", () => {
     expect(ids[1]).toEqual(["tickets"]);
     expect(ids[ids.length - 1]).toEqual(["closing"]);
     expect(ids.slice(2, -1).every((page) => page[0] === "tickets")).toBe(true);
+  });
+
+  it("반복 요소는 모든 쪽에 나온다", () => {
+    const footer = pageFooter();
+
+    const pages = layout.compute(template(ticketTable(50), footer), tickets(12));
+
+    expect(pages.length).toBeGreaterThan(1);
+    for (const page of pages) {
+      expect(page.placements.some((placement) => placement.element.id === "footer")).toBe(true);
+    }
+  });
+
+  it("쪽 번호가 쪽마다 다르게 채워진다", () => {
+    const pages = layout.compute(template(ticketTable(50), pageFooter()), tickets(12));
+
+    const printed = pages.map((page) => {
+      const footer = page.placements.find((placement) => placement.element.id === "footer");
+      return (footer?.element as TextElement).content.value;
+    });
+
+    expect(printed[0]).toBe(`01 / ${String(pages.length).padStart(2, "0")}`);
+    expect(printed[1]).toBe(`02 / ${String(pages.length).padStart(2, "0")}`);
+    expect(new Set(printed).size).toBe(pages.length);
+  });
+
+  it("반복 요소는 본문 위에 그려지도록 마지막에 놓인다", () => {
+    const pages = layout.compute(template(ticketTable(50), pageFooter()), tickets(3));
+    const last = pages[0]?.placements[pages[0].placements.length - 1];
+
+    expect(last?.element.id).toBe("footer");
+  });
+
+  it("반복 요소는 자기가 놓인 쪽에서도 한 번만 나온다", () => {
+    const pages = layout.compute(template(ticketTable(50), pageFooter()), tickets(3));
+    const footers = pages[0]?.placements.filter(
+      (placement) => placement.element.id === "footer",
+    );
+
+    expect(footers).toHaveLength(1);
   });
 
   it("데이터가 없으면 한 쪽으로 끝난다", () => {

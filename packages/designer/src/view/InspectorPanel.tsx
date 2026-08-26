@@ -103,6 +103,28 @@ function SingleElementInspector(props: InspectorPanelProps & { element: Element 
         </InspectorRow>
         <OrderButtons actions={actions} />
       </InspectorSection>
+      <InspectorSection
+        title="쪽"
+        hint={element.repeated ? "모든 쪽" : `${element.pageIndex + 1}쪽`}
+      >
+        <ToggleField
+          label="모든 쪽에 반복"
+          value={element.repeated}
+          onCommit={(repeated) => actions.changeElement(element, element.withRepeated(repeated))}
+        />
+        <p className="rt-inspector-note">
+          머리글·바닥글·쪽 번호처럼 쪽마다 같은 자리에 나와야 하는 것에 켭니다.
+          표가 몇 쪽으로 흐를지는 발행할 데이터가 정하므로 쪽마다 따로 만들 수 없습니다.
+        </p>
+        {element.type === "text"
+          ? (
+            <p className="rt-inspector-note">
+              문구에 <code>{"{{page}}"}</code>·<code>{"{{pages}}"}</code>를 적으면 쪽 번호가
+              들어갑니다. <code>{"{{page:00}} / {{pages:00}}"}</code>는 <code>01 / 10</code>으로 나옵니다.
+            </p>
+          )
+          : null}
+      </InspectorSection>
       {visitor.build(element)}
     </>
   );

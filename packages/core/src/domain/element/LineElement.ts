@@ -27,8 +27,9 @@ export class LineElement extends Element {
     dash?: readonly number[],
     hidden = false,
     pageIndex = 0,
+    repeated = false,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex);
+    super(id, frame, z, locked, hidden, pageIndex, repeated);
     this.dash = dash === undefined ? undefined : [...dash];
   }
 
@@ -64,6 +65,7 @@ export class LineElement extends Element {
       this.dash,
       resolved.hidden,
       resolved.pageIndex,
+      resolved.repeated,
     );
   }
 

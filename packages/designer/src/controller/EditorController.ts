@@ -380,10 +380,16 @@ export class EditorController {
       .filter((element) => !element.hidden && !element.locked);
   }
 
-  /** 보고 있지 않은 쪽의 요소가 선택·판정에 끼어들지 않게 한다. */
+  /**
+   * 보고 있지 않은 쪽의 요소가 선택·판정에 끼어들지 않게 한다.
+   *
+   * 모든 쪽에 반복되는 요소는 어느 쪽에서도 보이고 고칠 수 있어야 한다. 그렇지
+   * 않으면 쪽 번호를 만든 쪽으로 돌아가야만 고칠 수 있다.
+   */
   elementsOnActivePage(): Element[] {
-    return this.template.getElements()
-      .filter((element) => element.pageIndex === this.activePageIndex);
+    return this.template.getElements().filter(
+      (element) => element.repeated || element.pageIndex === this.activePageIndex,
+    );
   }
 
   /** 외부 화면 상태가 최신 컨트롤러 상태를 다시 읽도록 순서대로 호출한다. */

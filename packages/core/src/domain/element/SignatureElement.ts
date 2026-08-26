@@ -26,8 +26,9 @@ export class SignatureElement extends Element {
     public readonly label?: string,
     hidden = false,
     pageIndex = 0,
+    repeated = false,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex);
+    super(id, frame, z, locked, hidden, pageIndex, repeated);
   }
 
   /** 방문자가 서명 영역 전용 처리 경로를 사용하도록 연결한다. */
@@ -62,6 +63,7 @@ export class SignatureElement extends Element {
       this.label,
       resolved.hidden,
       resolved.pageIndex,
+      resolved.repeated,
     );
   }
 
