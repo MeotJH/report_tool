@@ -12,6 +12,16 @@ export class PageNumbering {
   /** `{{page}}` `{{page:00}}` 처럼 이름과 자릿수 지정을 함께 읽는다. */
   private static readonly TOKEN = /\{\{\s*(page|pages)(?::(0+))?\s*\}\}/g;
 
+  /**
+   * 이 이름이 쪽 번호 자리인지 알려 준다.
+   *
+   * `{{page}}`는 생김새가 데이터 경로와 같지만 데이터가 아니다. 이 판단이 여기
+   * 없으면, 고정 문구에 남은 표현식을 찾는 검사가 쪽 번호까지 잘못 지적한다.
+   */
+  static isPageToken(name: string): boolean {
+    return name === "page" || name === "pages";
+  }
+
   /** 이 쪽이 몇 번째이고 문서가 모두 몇 쪽인지 함께 보관한다. */
   constructor(
     private readonly pageNumber: number,

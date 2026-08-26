@@ -444,6 +444,35 @@
 
 ---
 
+### U8. 고정 문구에 남은 데이터 표현식을 잡는다
+`<이 커밋>` · `TemplateIssueFinder.ts`, `core/element/TemplateExpression.ts`, `PageNumbering.ts`
+
+**무엇을 푸는가**
+문구 종류가 "고정 문구"면 `{{employee.name}}`을 치환하지 않는 것이 맞다. 문제는
+사용자가 그걸 모른 채 적는다는 것이다. 실제로 리포트 표지에
+`-{{customer.shortName}}-`가 코드 그대로 발행됐다. 참조 검사(`TemplateReferences`)는
+**데이터 문구만** 보므로 이 자리를 영영 지나친다.
+
+**왜 이렇게 했는가**
+쪽 번호(`{{page}}`)는 고정 문구에서도 채워지므로 지적하면 안 된다. 그 판단을
+검사기가 갖고 있으면 쪽 번호 규칙이 두 곳에 생긴다. `PageNumbering.isPageToken`이
+갖는다.
+
+경로를 찾는 규칙도 `TemplateExpression.pathsIn` 하나로 모았다. `TemplateReferences`가
+같은 정규식을 복사해 갖고 있었는데, 치환하는 규칙과 찾는 규칙이 갈리면 검증기가 못
+본 경로가 발행 때 치환되거나 반대로 경고만 뜨고 아무것도 바뀌지 않는다.
+
+**만드는 순서**
+1. `TemplateExpression.pathsIn(문구)` — 치환과 같은 규칙으로 경로를 모은다
+2. `TemplateReferences`의 복사된 정규식을 지우고 이것을 쓴다
+3. `PageNumbering.isPageToken(이름)`
+4. `TemplateIssueFinder`에 고정 문구 검사를 더한다 — 쪽 번호는 제외
+
+**완료 확인** 고정 문구에 `{{customer.shortName}}`을 넣으면 Inspector에 경고가 뜨고
+상태바가 `확인 1`이 된다. `{{page:00}} / {{pages:00}}`에는 뜨지 않는다.
+
+---
+
 ---
 
 ## 되짚을 때 쓰는 명령

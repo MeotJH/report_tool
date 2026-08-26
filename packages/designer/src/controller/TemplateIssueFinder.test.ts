@@ -109,6 +109,58 @@ describe("TemplateIssueFinder", () => {
     expect(issues).toEqual([]);
   });
 
+  it("고정 문구에 남은 데이터 표현식을 알린다", () => {
+    // 리포트 표지에서 실제로 코드 그대로 발행된 자리다.
+    const cover = new TextElement(
+      "cover", new Frame(20, 20, 100, 10), 0, false,
+      { kind: "literal", value: "-{{customer.shortName}}-" },
+      new TextStyle("Pretendard", 12),
+    );
+
+    const issues = finder.find(createTemplate(cover));
+
+    expect(issues.map((issue) => issue.message)).toEqual([
+      '고정 문구에 데이터 표현식이 남아 있다: {{customer.shortName}} (종류를 "데이터 문구"로 바꾸세요)',
+    ]);
+  });
+
+  it("쪽 번호는 고정 문구에서도 채워지므로 지적하지 않는다", () => {
+    const pageNumber = new TextElement(
+      "page-number", new Frame(160, 8, 35, 5), 0, false,
+      { kind: "literal", value: "{{page:00}} / {{pages:00}}" },
+      new TextStyle("Pretendard", 8),
+    );
+
+    const issues = finder.find(createTemplate(pageNumber));
+
+    expect(issues).toEqual([]);
+  });
+
+  it("자릿수를 적지 않은 쪽 번호도 지적하지 않는다", () => {
+    const pageNumber = new TextElement(
+      "page-number", new Frame(160, 8, 35, 5), 0, false,
+      { kind: "literal", value: "{{page}} / {{pages}}" },
+      new TextStyle("Pretendard", 8),
+    );
+
+    const issues = finder.find(createTemplate(pageNumber));
+
+    expect(issues).toEqual([]);
+  });
+
+  it("데이터 문구는 지적하지 않는다", () => {
+    const declared = new TextElement(
+      "greeting", new Frame(20, 20, 100, 10), 0, false,
+      { kind: "template", value: "{{employee.name}} 귀하" },
+      new TextStyle("Pretendard", 12),
+    );
+
+    const issues = finder.find(createTemplate(declared))
+      .filter((issue) => issue.message.includes("고정 문구"));
+
+    expect(issues).toEqual([]);
+  });
+
   it("표가 자리를 넘어 다음 쪽으로 이어지는 것을 알린다", () => {
     // 30mm 표에 행 높이 7mm — 머리글까지 네 줄만 들어가고 나머지는 사라진다.
     const rows = new BoundTableSource(new Binding("payItems"));

@@ -4,6 +4,7 @@ import { TableElement } from "../element/TableElement.js";
 import { BoundTableSource, StaticTableSource } from "../element/TableSource.js";
 import { TextElement } from "../element/TextElement.js";
 import type { Element } from "../element/Element.js";
+import { TemplateExpression } from "../element/TemplateExpression.js";
 import type { Template } from "./Template.js";
 
 /** 어떤 요소가 어떤 데이터 경로를 참조하는지 함께 전달한다. */
@@ -19,9 +20,6 @@ export interface DataReference {
  * 검증기와 편집기가 각자 뒤지면 요소를 추가할 때 한쪽이 반드시 빠뜨린다.
  */
 export class TemplateReferences {
-  /** 문구 안의 치환 경로를 찾는 규칙은 TemplateExpression과 같아야 한다. */
-  private static readonly EXPRESSION_PATTERN = /\{\{\s*([\p{L}\p{N}_.]+)\s*\}\}/gu;
-
   /** 템플릿 전체의 참조를 요소 식별자와 함께 모은다. */
   collect(template: Template): readonly DataReference[] {
     return template.getElements().flatMap((element) => this
@@ -75,10 +73,8 @@ export class TemplateReferences {
       .flatMap((value) => this.expressionPaths(value)));
   }
 
-  /** 문구 안의 치환 경로만 추출한다. */
+  /** 치환하는 쪽과 같은 규칙으로 문구 안의 경로를 꺼낸다. */
   private expressionPaths(text: string): readonly string[] {
-    return [...text.matchAll(TemplateReferences.EXPRESSION_PATTERN)]
-      .map((match) => match[1] ?? "")
-      .filter((path) => path.length > 0);
+    return TemplateExpression.pathsIn(text);
   }
 }

@@ -2,11 +2,13 @@ import {
   ContentResolver,
   FieldElement,
   ImageElement,
+  PageNumbering,
   SignatureElement,
   StaticTableSource,
   TableElement,
   TableLayout,
   TableRowHeights,
+  TemplateExpression,
   TemplateReferences,
   TemplateValidator,
   TextElement,
@@ -105,6 +107,7 @@ export class TemplateIssueFinder {
     if (this.isEmptyStaticTable(element)) {
       warnings.push(this.warning(element, "표에 입력된 행이 없다"));
     }
+    warnings.push(...this.unresolvedLiteralWarning(element));
     warnings.push(...this.overflowingColumnWarning(element));
     warnings.push(...this.droppedTableRowWarning(element));
     warnings.push(...this.overflowingTextWarning(element));
@@ -179,6 +182,29 @@ export class TemplateIssueFinder {
     const factory = this.measurerFactory;
     if (factory === null) return new TableLayout();
     return new TableLayout(undefined, TableRowHeights.content((style) => factory(style)));
+  }
+
+  /**
+   * 고정 문구에 남아 있는 데이터 표현식을 드러낸다.
+   *
+   * 문구 종류가 "고정 문구"면 치환하지 않는 것이 맞다. 문제는 사용자가 그걸 모른 채
+   * `{{employee.name}}`을 적는다는 것이다. 실제로 리포트 표지에
+   * `-{{customer.shortName}}-`가 코드 그대로 발행됐다. 참조 검사는 데이터 문구만
+   * 보므로 이 자리를 영영 지나친다.
+   *
+   * 쪽 번호(`{{page}}`)는 고정 문구에서도 채워지므로 지적하지 않는다.
+   */
+  private unresolvedLiteralWarning(element: Element): readonly TemplateIssue[] {
+    if (!(element instanceof TextElement)) return [];
+    if (element.content.kind !== "literal") return [];
+    const paths = TemplateExpression.pathsIn(element.content.value)
+      .filter((path) => !PageNumbering.isPageToken(path));
+    if (paths.length === 0) return [];
+    return [this.warning(
+      element,
+      `고정 문구에 데이터 표현식이 남아 있다: {{${paths[0]}}}`
+      + ` (종류를 "데이터 문구"로 바꾸세요)`,
+    )];
   }
 
   /**

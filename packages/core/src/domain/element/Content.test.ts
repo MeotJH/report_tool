@@ -3,6 +3,22 @@ import { ContentResolver } from "./ContentResolver";
 import { TemplateExpression } from "./TemplateExpression";
 
 describe("TemplateExpression", () => {
+  it("문구가 참조하는 경로를 순서대로 모은다", () => {
+    const paths = TemplateExpression.pathsIn("{{employee.name}} 귀하 ({{employee.department}})");
+
+    expect(paths).toEqual(["employee.name", "employee.department"]);
+  });
+
+  it("표현식이 없으면 빈 목록을 준다", () => {
+    expect(TemplateExpression.pathsIn("급여명세서")).toEqual([]);
+  });
+
+  it("치환하지 않는 형태는 경로로 세지 않는다", () => {
+    // 치환 규칙이 받아들이지 않는 것을 경로로 세면, 경고만 뜨고 실제로는 아무것도
+    // 바뀌지 않는 자리가 생긴다.
+    expect(TemplateExpression.pathsIn("{{page:00}}")).toEqual([]);
+  });
+
   it("템플릿의 데이터 경로를 실제 값으로 치환한다", () => {
     const result = TemplateExpression.render("{{a.b}} 님", {
       a: { b: "김정환" },
