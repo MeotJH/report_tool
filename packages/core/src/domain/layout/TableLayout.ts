@@ -1,3 +1,4 @@
+import { TableCellRole, type CellRole } from "../element/TableCellRole.js";
 import type { TableElement } from "../element/TableElement.js";
 import { TableCellText } from "./TableCellText.js";
 import { TableRowHeights } from "./TableRowHeights.js";
@@ -6,20 +7,41 @@ import { TableRowHeights } from "./TableRowHeights.js";
 export interface TableLayoutRow {
   /** 열 순서대로 그려질 최종 문자열이다. */
   readonly cells: readonly string[];
-  /** 머리글을 포함해 위에서부터 센 줄 번호다. 머리글 판정이 이 값을 쓴다. */
+  /** 칸마다의 역할이다. 렌더러는 이 값으로만 머리글 표현을 정한다. */
+  readonly roles: readonly CellRole[];
+  /** 몇 번째 본문 행인지다. 열 이름을 보여 주는 머리글 줄이면 `null`이다. */
+  readonly bodyIndex: number | null;
+  /** 이 배치 안에서 위에서부터 센 줄 번호다. */
   readonly offset: number;
-  /** 표 프레임 위쪽에서 이 줄까지의 거리(mm)다. */
+  /** 배치 영역 위쪽에서 이 줄까지의 거리(mm)다. */
   readonly topMm: number;
   /** 이 줄의 높이(mm)다. */
   readonly heightMm: number;
 }
 
-/** 표 하나를 그리는 데 필요한 줄 목록과, 영역을 넘어 빠진 줄 수를 함께 담는다. */
+/** 한 자리에 그릴 표 조각과, 다음 쪽으로 넘길 것이 있는지를 함께 담는다. */
 export interface TableLayoutResult {
-  /** 실제로 그릴 줄만 담는다. 영역을 넘는 줄은 여기에 없다. */
+  /** 이 자리에 실제로 그릴 줄이다. */
   readonly rows: readonly TableLayoutRow[];
-  /** 표 영역을 넘어 그리지 못한 줄 수다. 0이 아니면 발행 시 그만큼 사라진다. */
-  readonly droppedRowCount: number;
+  /** 이어서 그려야 할 첫 본문 행 번호다. 남은 것이 없으면 `null`이다. */
+  readonly nextBodyRowIndex: number | null;
+  /** 이 자리에 담지 못한 본문 행 수다. 이어 그리지 않으면 그만큼 사라진다. */
+  readonly remainingRowCount: number;
+}
+
+/** 표 조각을 어느 크기 안에, 몇 번째 행부터 그릴지 정한다. */
+export interface TableChunkOptions {
+  /** 이 조각이 쓸 수 있는 높이(mm)다. 기본은 표 자신의 높이다. */
+  readonly frameHeightMm?: number;
+  /** 이 조각이 시작할 본문 행 번호다. 기본은 처음부터다. */
+  readonly startBodyRowIndex?: number;
+  /**
+   * 한 줄도 들어가지 않아도 본문 한 줄은 반드시 담을지 정한다.
+   *
+   * 새 쪽은 표가 가질 수 있는 가장 넓은 자리다. 거기에도 들어가지 않는 줄을
+   * 계속 다음 쪽으로 미루면 쪽이 무한히 늘어난다. 진행을 보장해야 한다.
+   */
+  readonly forceFirstBodyRow?: boolean;
 }
 
 /**
@@ -30,9 +52,8 @@ export interface TableLayoutResult {
  * 만큼. 담당자는 화면에서 여유가 있어 보이는 표를 만들고, 발행본에서는 행이
  * 말없이 사라졌다. **어느 화면에서 보든 같은 데이터면 같은 표여야 한다.**
  *
- * 넘치는 줄도 마찬가지다. 캔버스는 영역 밖에 계속 그리고 PDF는 조용히 버리는 대신,
- * 여기서 한 번만 잘라 내고 몇 줄이 빠졌는지 함께 돌려준다. 그래야 편집기가 그
- * 사실을 경고로 알릴 수 있다.
+ * 자리에 다 들어가지 않는 줄은 버리지 않고 "다음은 여기부터"라고 알려 준다.
+ * 그 답을 받아 쪽을 넘기는 것은 `DocumentLayout`의 일이다.
  */
 export class TableLayout {
   /**
@@ -46,32 +67,31 @@ export class TableLayout {
     private readonly rowHeights: TableRowHeights = TableRowHeights.fixed(),
   ) {}
 
-  /** 표와 데이터를 실제로 그릴 줄 목록으로 바꾼다. */
-  compute(element: TableElement, data: unknown): TableLayoutResult {
-    const cells = this.allRowCells(element, data);
-    return this.fitToFrame(element, cells);
+  /** 표와 데이터를 한 자리에 그릴 줄 목록으로 바꾼다. */
+  compute(
+    element: TableElement,
+    data: unknown,
+    options: TableChunkOptions = {},
+  ): TableLayoutResult {
+    const bodyCells = this.bodyRowCells(element, data);
+    return this.fill(element, bodyCells, options.startBodyRowIndex ?? 0, options);
   }
 
   /**
-   * 그려질 수 있는 모든 칸의 문자열을 준다. 영역을 넘어 빠지는 줄도 포함한다.
+   * 그려질 수 있는 모든 칸의 문자열을 준다. 자리에 들어가는지는 가리지 않는다.
    *
    * 폰트 서브셋을 만드는 쪽이 쓴다. 그 시점에는 폰트를 아직 임베딩하지 않아
-   * 글자 폭을 잴 수 없고, 따라서 어느 줄이 들어가는지도 알 수 없다. 서브셋은
-   * 넉넉한 편이 안전하다 — 모자라면 그 자리가 통째로 빈칸으로 발행된다.
+   * 글자 폭을 잴 수 없고, 따라서 어느 줄이 어느 쪽에 들어가는지도 알 수 없다.
+   * 서브셋은 넉넉한 편이 안전하다 — 모자라면 그 자리가 통째로 빈칸으로 발행된다.
    */
   cellsOf(element: TableElement, data: unknown): readonly (readonly string[])[] {
-    return this.allRowCells(element, data);
+    const header = element.showHeader ? [this.headerCells(element)] : [];
+    return [...header, ...this.bodyRowCells(element, data)];
   }
 
-  /** 머리글과 본문을 그리는 순서대로 이어 붙인다. */
-  private allRowCells(
-    element: TableElement,
-    data: unknown,
-  ): readonly (readonly string[])[] {
-    const header = element.showHeader
-      ? [element.columns.map((column) => column.header)]
-      : [];
-    return [...header, ...this.bodyRowCells(element, data)];
+  /** 열 이름 줄의 문자열을 만든다. */
+  private headerCells(element: TableElement): readonly string[] {
+    return element.columns.map((column) => column.header);
   }
 
   /**
@@ -94,25 +114,85 @@ export class TableLayout {
   }
 
   /**
-   * 표 영역에 들어가는 줄만 남기고 나머지는 세어 둔다.
+   * 주어진 높이가 허락하는 만큼 머리글과 본문을 채운다.
    *
-   * 자르는 규칙이 한 곳에만 있어야 "화면에서 잘린 줄은 발행본에서도 잘린다"가
-   * 성립한다.
+   * 머리글은 조각마다 다시 그린다. 표가 쪽을 넘었을 때 열 이름이 없으면 두 번째
+   * 쪽부터는 어느 칸이 무엇인지 알 수 없다.
    */
-  private fitToFrame(
+  private fill(
     element: TableElement,
-    allCells: readonly (readonly string[])[],
+    bodyCells: readonly (readonly string[])[],
+    startBodyRowIndex: number,
+    options: TableChunkOptions,
   ): TableLayoutResult {
+    const limitMm = options.frameHeightMm ?? element.frame.height;
     const rows: TableLayoutRow[] = [];
     let topMm = 0;
-    for (const [offset, cells] of allCells.entries()) {
-      const heightMm = this.rowHeights.heightFor(element, cells, offset);
-      if (topMm + heightMm > element.frame.height) {
-        return { rows, droppedRowCount: allCells.length - offset };
+    if (element.showHeader) {
+      const header = this.createRow(element, this.headerCells(element), null, 0, topMm);
+      // 머리글조차 들어가지 않는 자리에서 본문까지 미루면 다음 쪽도 같은 판단을 해
+      // 쪽이 무한히 늘어난다. 진행을 보장해야 할 때는 머리글을 포기하고 본문을 그린다.
+      if (header.heightMm <= limitMm) {
+        rows.push(header);
+        topMm += header.heightMm;
+      } else if (options.forceFirstBodyRow !== true) {
+        return this.result(rows, startBodyRowIndex, bodyCells.length);
       }
-      rows.push({ cells, offset, topMm, heightMm });
-      topMm += heightMm;
     }
-    return { rows, droppedRowCount: 0 };
+    for (let index = startBodyRowIndex; index < bodyCells.length; index += 1) {
+      const row = this.createRow(element, bodyCells[index] ?? [], index, rows.length, topMm);
+      if (this.mustStop(topMm, row, limitMm, index === startBodyRowIndex, options)) {
+        return this.result(rows, index, bodyCells.length);
+      }
+      rows.push(row);
+      topMm += row.heightMm;
+    }
+    return this.result(rows, null, bodyCells.length);
+  }
+
+  /** 이 줄에서 조각을 끊어야 하는지 판단한다. */
+  private mustStop(
+    topMm: number,
+    row: TableLayoutRow,
+    limitMm: number,
+    isFirstBodyRow: boolean,
+    options: TableChunkOptions,
+  ): boolean {
+    if (topMm + row.heightMm <= limitMm) return false;
+    return !(isFirstBodyRow && options.forceFirstBodyRow === true);
+  }
+
+  /** 한 줄의 역할·높이·위치를 함께 정해 렌더러가 다시 판단하지 않게 한다. */
+  private createRow(
+    element: TableElement,
+    cells: readonly string[],
+    bodyIndex: number | null,
+    offset: number,
+    topMm: number,
+  ): TableLayoutRow {
+    const roles = element.columns.map(
+      (_column, columnIndex) => TableCellRole.of(element, bodyIndex, columnIndex),
+    );
+    return {
+      cells,
+      roles,
+      bodyIndex,
+      offset,
+      topMm,
+      heightMm: this.rowHeights.heightFor(element, cells, roles),
+    };
+  }
+
+  /** 남은 행 수 계산이 한 곳에서만 이뤄지게 한다. */
+  private result(
+    rows: readonly TableLayoutRow[],
+    nextBodyRowIndex: number | null,
+    bodyRowCount: number,
+  ): TableLayoutResult {
+    return {
+      rows,
+      nextBodyRowIndex,
+      remainingRowCount: nextBodyRowIndex === null ? 0 : bodyRowCount - nextBodyRowIndex,
+    };
   }
 }

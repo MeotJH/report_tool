@@ -1,7 +1,6 @@
 import Konva from "konva";
 import {
   ContentResolver,
-  TableCellRole,
   TableCellText,
   type Binding,
   type CellRole,
@@ -165,7 +164,7 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   /**
    * 표 한 행의 각 셀에 배경 경계와 내용을 추가한다.
    *
-   * 어떤 칸이 머리글인지는 `TableCellRole`만 안다. 여기서 다시 판단하면 PDF와
+   * 어떤 칸이 머리글인지는 배치가 이미 정해 두었다. 여기서 다시 판단하면 PDF와
    * 갈라져서, 편집기에서 회색이던 칸이 발행본에서는 흰색으로 나온다.
    */
   private addTableRow(
@@ -178,7 +177,7 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
       const width = this.toPx(column.width);
       const y = this.toPx(row.topMm);
       const height = this.toPx(row.heightMm);
-      const role = TableCellRole.at(element, row.offset, columnIndex);
+      const role = row.roles[columnIndex] ?? "body";
       group.add(new Konva.Rect({
         x, y, width, height,
         fill: role === "header" ? element.headerFill ?? undefined : undefined,

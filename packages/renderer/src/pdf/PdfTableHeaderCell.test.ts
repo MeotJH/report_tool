@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   BindingResolver,
   Frame,
+  TableCellText,
+  TableLayout,
   StaticTableSource,
   TableColumn,
   TableElement,
@@ -11,6 +13,7 @@ import {
 } from "@report-tool/core";
 import type { PDFFont, PDFPage } from "pdf-lib";
 import { PdfElementVisitor } from "./PdfElementVisitor";
+import { PdfFontBook } from "./PdfFontBook";
 
 /** 그려진 사각형의 채움 여부만 남겨 배경 규칙을 직접 확인한다. */
 interface DrawnRectangle {
@@ -53,11 +56,14 @@ function renderTable(headerCells: TableHeaderCells): readonly DrawnRectangle[] {
     widthOfTextAtSize: (text: string, size: number) => text.length * size * 0.5,
   } as unknown as PDFFont;
 
+  const table = createTable(headerCells);
+  const layout = new TableLayout(TableCellText.resolved()).compute(table, {});
   const visitor = new PdfElementVisitor(
-    page, 297, new Map([["Pretendard:400", font]]), {},
+    page, 297, new PdfFontBook(new Map([["Pretendard:400", font]])), {},
     new BindingResolver(), new TextLayout(), new Map(),
+    new Map([[table.id, layout]]),
   );
-  visitor.visitTable(createTable(headerCells));
+  visitor.visitTable(table);
   return rectangles;
 }
 

@@ -84,7 +84,7 @@ describe("TableRowHeights", () => {
     // 짧은 줄 기준으로는 세 줄이 다 들어가지만, 긴 줄이 늘어나면 들어가지 않는다.
     const result = content.compute(ticketTable(24), tickets());
 
-    expect(result.droppedRowCount).toBeGreaterThan(0);
+    expect(result.remainingRowCount).toBeGreaterThan(0);
   });
 
   it("빈 칸만 있는 줄은 지정한 행 높이를 그대로 쓴다", () => {

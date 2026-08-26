@@ -88,13 +88,13 @@ describe("TableLayout", () => {
     const result = published.compute(boundTable(25), threeRows());
 
     expect(result.rows.map((row) => row.cells[0])).toEqual(["항목", "기본급"]);
-    expect(result.droppedRowCount).toBe(2);
+    expect(result.remainingRowCount).toBe(2);
   });
 
   it("영역에 다 들어가면 빠진 줄이 없다", () => {
     const result = published.compute(boundTable(), threeRows());
 
-    expect(result.droppedRowCount).toBe(0);
+    expect(result.remainingRowCount).toBe(0);
   });
 
   it("설계와 발행이 같은 데이터에서 같은 줄 수를 만든다", () => {

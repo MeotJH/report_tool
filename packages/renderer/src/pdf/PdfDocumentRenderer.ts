@@ -1,12 +1,17 @@
 import fontkit from "@pdf-lib/fontkit";
 import {
   BindingResolver,
+  DocumentLayout,
   type DocumentRenderer,
   type FontProvider,
   type ImageAsset,
   ImageElement,
   type ImageProvider,
+  type PageLayout,
   type RenderMode,
+  TableCellText,
+  type TableLayoutResult,
+  TableRowHeights,
   Template,
   TextLayout,
 } from "@report-tool/core";
@@ -21,6 +26,7 @@ import {
 import { FontSubsetter } from "../font/FontSubsetter.js";
 import { UsedCharCollector } from "../font/UsedCharCollector.js";
 import { PdfElementVisitor } from "./PdfElementVisitor.js";
+import { PdfFontBook } from "./PdfFontBook.js";
 
 /** 도메인 템플릿을 한글 폰트가 포함된 미리보기 또는 권위 PDF로 변환한다. */
 export class PdfDocumentRenderer implements DocumentRenderer {
@@ -45,11 +51,13 @@ export class PdfDocumentRenderer implements DocumentRenderer {
     const usedChars = this.collectUsedCharacters(template, data, mode, bindingResolver);
     const pdf = await PDFDocument.create();
     pdf.registerFontkit(fontkit);
-    const fonts = await this.embedFonts(pdf, template.fonts, usedChars);
+    const fonts = new PdfFontBook(await this.embedFonts(pdf, template.fonts, usedChars));
     const images = await this.embedImages(pdf, template, data);
-    const page = this.addPage(pdf, template);
-    this.drawElements(page, template, data, fonts, images, bindingResolver);
-    if (mode === "preview") this.drawPreviewWatermark(page, fonts);
+    for (const layout of this.layoutPages(template, data, fonts)) {
+      const page = this.addPage(pdf, template);
+      this.drawPage(page, layout, template, data, fonts, images, bindingResolver);
+      if (mode === "preview") this.drawPreviewWatermark(page, fonts);
+    }
     return pdf.save();
   }
 
@@ -89,7 +97,7 @@ export class PdfDocumentRenderer implements DocumentRenderer {
         const rawBytes = await this.fontProvider.load(family, weight);
         const subsetBytes = await new FontSubsetter().subset(rawBytes, usedChars);
         const font = await pdf.embedFont(subsetBytes, { subset: false });
-        fonts.set(this.fontKey(family, weight), font);
+        fonts.set(PdfFontBook.key(family, weight), font);
       }
     }
     return fonts;
@@ -148,15 +156,37 @@ export class PdfDocumentRenderer implements DocumentRenderer {
     return candidate.bytes instanceof Uint8Array && supportedType;
   }
 
-  /** 요소의 z 순서를 보존하며 같은 Visitor 인스턴스로 한 페이지를 완성한다. */
-  private drawElements(
-    page: PDFPage,
+  /**
+   * 문서가 몇 쪽이 되고 각 쪽에 무엇이 놓이는지를 도메인에 묻는다.
+   *
+   * 쪽 수는 저장된 값이 아니라 데이터가 정한다. 이 계산을 렌더러가 따로 하면
+   * 편집기가 본 쪽 수와 발행본의 쪽 수가 갈린다.
+   */
+  private layoutPages(
     template: Template,
     data: unknown,
-    fonts: ReadonlyMap<string, PDFFont>,
+    fonts: PdfFontBook,
+  ): readonly PageLayout[] {
+    return new DocumentLayout(
+      TableCellText.resolved(),
+      TableRowHeights.content((style) => fonts.measurerFor(style)),
+    ).compute(template, data);
+  }
+
+  /** 한 쪽에 놓인 것들을 배치가 정한 순서 그대로 그린다. */
+  private drawPage(
+    page: PDFPage,
+    layout: PageLayout,
+    template: Template,
+    data: unknown,
+    fonts: PdfFontBook,
     images: ReadonlyMap<string, PDFImage>,
     bindingResolver: BindingResolver,
   ): void {
+    const tables = new Map<string, TableLayoutResult>();
+    for (const placement of layout.placements) {
+      if (placement.table !== null) tables.set(placement.element.id, placement.table);
+    }
     const visitor = new PdfElementVisitor(
       page,
       template.page.heightMm(),
@@ -165,19 +195,14 @@ export class PdfDocumentRenderer implements DocumentRenderer {
       bindingResolver,
       new TextLayout(),
       images,
+      tables,
     );
-    [...template.getElements()]
-      .sort((first, second) => first.z - second.z)
-      .forEach((element) => element.accept(visitor));
+    layout.placements.forEach((placement) => placement.element.accept(visitor));
   }
 
   /** 미리보기와 발행본을 혼동하지 않도록 페이지 중앙에 반투명 표식을 남긴다. */
-  private drawPreviewWatermark(
-    page: PDFPage,
-    fonts: ReadonlyMap<string, PDFFont>,
-  ): void {
-    const font = fonts.values().next().value;
-    if (font === undefined) throw new Error("워터마크에 사용할 폰트가 없다");
+  private drawPreviewWatermark(page: PDFPage, fonts: PdfFontBook): void {
+    const font = fonts.any();
     const { width, height } = page.getSize();
     page.drawText(PdfDocumentRenderer.PREVIEW_TEXT, {
       x: width * 0.2,
@@ -188,11 +213,6 @@ export class PdfDocumentRenderer implements DocumentRenderer {
       opacity: 0.18,
       rotate: degrees(-35),
     });
-  }
-
-  /** 폰트 가족과 굵기를 Visitor와 동일한 Map 키로 결합한다. */
-  private fontKey(family: string, weight: number): string {
-    return `${family}:${weight}`;
   }
 
   /** 문서의 mm 물리 단위를 PDF의 pt 물리 단위로 변환한다. */

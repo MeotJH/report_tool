@@ -109,7 +109,7 @@ describe("TemplateIssueFinder", () => {
     expect(issues).toEqual([]);
   });
 
-  it("표 영역에 들어가지 못해 발행에서 빠지는 줄을 알린다", () => {
+  it("표가 자리를 넘어 다음 쪽으로 이어지는 것을 알린다", () => {
     // 30mm 표에 행 높이 7mm — 머리글까지 네 줄만 들어가고 나머지는 사라진다.
     const rows = new BoundTableSource(new Binding("payItems"));
     const data = {
@@ -123,17 +123,17 @@ describe("TemplateIssueFinder", () => {
       .find(createTemplate(table("pay", rows)));
 
     expect(issues.map((issue) => issue.message))
-      .toContain("표 영역이 좁아 2줄이 발행되지 않는다 (표를 늘리거나 행 높이를 줄이세요)");
+      .toContain("표가 자리를 넘어 2줄이 다음 쪽으로 이어진다 (편집 화면에는 첫 쪽만 보입니다)");
   });
 
-  it("표에 다 들어가면 빠지는 줄을 알리지 않는다", () => {
+  it("표에 다 들어가면 이어짐을 알리지 않는다", () => {
     const rows = new BoundTableSource(new Binding("payItems"));
     const data = { payItems: [{ item: "기본급" }, { item: "식대" }] };
 
     const issues = new TemplateIssueFinder([], null, data)
       .find(createTemplate(table("pay", rows)));
 
-    expect(issues.filter((issue) => issue.message.includes("발행되지 않는다"))).toEqual([]);
+    expect(issues.filter((issue) => issue.message.includes("이어진다"))).toEqual([]);
   });
 
   it("열 너비 합이 표 너비와 다르면 경고한다", () => {

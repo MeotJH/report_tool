@@ -182,21 +182,21 @@ export class TemplateIssueFinder {
   }
 
   /**
-   * 표 영역에 들어가지 못해 발행에서 빠지는 줄을 드러낸다.
+   * 표가 자리를 넘어 다음 쪽으로 이어지는 것을 알린다.
    *
-   * 이 경고가 없던 동안 표는 담당자에게 아무 말도 하지 않고 행을 버렸다. 수당이
-   * 여섯 줄인 직원의 명세서에서 마지막 두 줄이 사라져도 화면은 정상으로 보였다.
-   * 사라지는 줄이 있으면 반드시 말한다.
+   * 넘치는 줄을 버리던 시절에는 이 경고가 "사라진다"는 뜻이었다. 이제 발행본은
+   * 다음 쪽에서 이어 그리므로 사라지지 않는다. 다만 편집 화면은 아직 첫 쪽만
+   * 보여 주므로, 담당자가 화면만 보고 "여기까지가 전부"라고 읽지 않게 말한다.
    */
   private droppedTableRowWarning(element: Element): readonly TemplateIssue[] {
     if (!(element instanceof TableElement)) return [];
-    const dropped = this.createTableLayout()
+    const remaining = this.createTableLayout()
       .compute(element, this.sampleData)
-      .droppedRowCount;
-    if (dropped === 0) return [];
+      .remainingRowCount;
+    if (remaining === 0) return [];
     return [this.warning(
       element,
-      `표 영역이 좁아 ${dropped}줄이 발행되지 않는다 (표를 늘리거나 행 높이를 줄이세요)`,
+      `표가 자리를 넘어 ${remaining}줄이 다음 쪽으로 이어진다 (편집 화면에는 첫 쪽만 보입니다)`,
     )];
   }
 

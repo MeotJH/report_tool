@@ -18,11 +18,29 @@ export class TableCellRole {
    * 순서와 같은 기준이어야 "몇 번째 줄에 무엇을 칠할지"가 어긋나지 않는다.
    */
   static at(table: TableElement, rowOffset: number, columnIndex: number): CellRole {
-    if (table.showHeader && rowOffset === 0) return "header";
+    const isColumnHeaderRow = table.showHeader && rowOffset === 0;
+    return TableCellRole.of(
+      table,
+      isColumnHeaderRow ? null : TableCellRole.bodyRowIndex(table, rowOffset),
+      columnIndex,
+    );
+  }
+
+  /**
+   * 몇 번째 본문 행인지로 칸의 역할을 정한다. 열 이름 줄이면 `bodyIndex`가 null이다.
+   *
+   * 표가 쪽을 넘으면 같은 본문 행이라도 쪽 안에서의 줄 번호는 달라진다. 줄 번호로
+   * 판단하면 두 번째 쪽의 첫 본문 행이 "1행 머리글"로 잘못 칠해진다. 판단 근거는
+   * 쪽과 무관한 본문 행 번호여야 한다.
+   */
+  static of(
+    table: TableElement,
+    bodyIndex: number | null,
+    columnIndex: number,
+  ): CellRole {
+    if (bodyIndex === null) return "header";
     if (table.headerCells.hasColumn(columnIndex)) return "header";
-    return table.headerCells.hasRow(TableCellRole.bodyRowIndex(table, rowOffset))
-      ? "header"
-      : "body";
+    return table.headerCells.hasRow(bodyIndex) ? "header" : "body";
   }
 
   /** 머리글 행 표시 여부와 무관하게 몇 번째 본문 행인지 계산한다. */

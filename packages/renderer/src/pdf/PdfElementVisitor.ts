@@ -8,13 +8,10 @@ import {
   type ImageElement,
   type LineElement,
   type SignatureElement,
-  TableCellRole,
   type TableColumn,
   type TableElement,
-  TableCellText,
-  TableLayout,
+  type TableLayoutResult,
   type TableLayoutRow,
-  TableRowHeights,
   type TextAlign,
   TextLayout,
   TextStyle,
@@ -27,26 +24,23 @@ import {
   rgb,
   type RGB,
 } from "pdf-lib";
+import { PdfFontBook } from "./PdfFontBook.js";
 
 /** 도메인 요소를 좌표와 스타일 규칙에 맞춰 실제 PDF 페이지 명령으로 변환한다. */
 export class PdfElementVisitor implements ElementVisitor<void> {
   private static readonly POINTS_PER_MM = 72 / 25.4;
   private static readonly DEFAULT_BORDER_MM = 0.2;
 
-  private readonly tableLayout = new TableLayout(
-    TableCellText.resolved(),
-    TableRowHeights.content((style) => this.measurerFor(style)),
-  );
-
   /** 요소 해석에 필요한 데이터와 PDF 자원을 한 렌더링 세션 동안 공유한다. */
   constructor(
     private readonly page: PDFPage,
     private readonly pageHeightMm: number,
-    private readonly fonts: ReadonlyMap<string, PDFFont>,
+    private readonly fonts: PdfFontBook,
     private readonly data: unknown,
     private readonly bindingResolver: BindingResolver,
     private readonly textLayout: TextLayout,
     private readonly images: ReadonlyMap<string, PDFImage>,
+    private readonly tables: ReadonlyMap<string, TableLayoutResult>,
   ) {}
 
   /** 저장된 문구를 실제 데이터로 해석한 뒤 공통 텍스트 배치 규칙으로 그린다. */
@@ -68,7 +62,11 @@ export class PdfElementVisitor implements ElementVisitor<void> {
    * 여기서 다시 판단하면 편집기와 발행본이 다시 갈라진다.
    */
   visitTable(element: TableElement): void {
-    for (const row of this.tableLayout.compute(element, this.data).rows) {
+    const table = this.tables.get(element.id);
+    if (table === undefined) {
+      throw new Error(`표 ${element.id}의 배치 결과가 이 쪽에 없다`);
+    }
+    for (const row of table.rows) {
       this.drawTableRow(element, row);
     }
   }
@@ -140,11 +138,10 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     row: TableLayoutRow,
   ): void {
     const cells = row.cells;
-    const rowIndex = row.offset;
     let x = element.frame.x;
     element.columns.forEach((column, columnIndex) => {
       const frame = this.createCellFrame(element, column, x, row);
-      const header = TableCellRole.at(element, rowIndex, columnIndex) === "header";
+      const header = row.roles[columnIndex] === "header";
       this.drawCell(frame, header ? element.headerFill : null);
       const baseStyle = header ? element.headerStyle : element.cellStyle;
       this.drawTextBox(cells[columnIndex] ?? "", frame, this.withAlign(baseStyle, column.align));
@@ -211,21 +208,9 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     });
   }
 
-  /** 임베딩한 폰트가 아는 실제 글자 폭을 도메인 줄 계산에 넘긴다. */
-  private measurerFor(style: TextStyle): (text: string, sizePt: number) => number {
-    const font = this.findFont(style);
-    return (text: string, sizePt: number): number => font.widthOfTextAtSize(text, sizePt);
-  }
-
   /** 텍스트 굵기에 정확히 맞는 폰트를 찾고 500은 Regular로 안전하게 대체한다. */
   private findFont(style: TextStyle): PDFFont {
-    const exact = this.fonts.get(this.fontKey(style.font, style.weight));
-    const fallback = this.fonts.get(this.fontKey(style.font, 400));
-    const font = exact ?? fallback ?? this.fonts.values().next().value;
-    if (font === undefined) {
-      throw new Error(`PDF 폰트 ${style.font}을 찾을 수 없다`);
-    }
-    return font;
+    return this.fonts.find(style);
   }
 
   /** 같은 셀 스타일을 보존하면서 열마다 지정된 가로 정렬만 적용한다. */
@@ -283,17 +268,8 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     return millimeters * PdfElementVisitor.POINTS_PER_MM;
   }
 
-  /** 폰트 Map의 가족명과 굵기를 충돌 없는 동일한 키로 결합한다. */
-  private fontKey(family: string, weight: number): string {
-    return `${family}:${weight}`;
-  }
-
   /** 서명 안내 문구가 사용할 기본 폰트 가족을 등록된 키에서 복원한다. */
   private firstFontFamily(): string {
-    const firstKey = this.fonts.keys().next().value;
-    if (firstKey === undefined) {
-      throw new Error("PDF에 등록된 폰트가 없다");
-    }
-    return firstKey.split(":")[0] ?? firstKey;
+    return this.fonts.firstFamily();
   }
 }

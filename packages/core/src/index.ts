@@ -112,11 +112,14 @@ export type {
   PageOrientation,
   PageSize,
 } from "./domain/value/PageSpec.js";
+export { DocumentLayout } from "./domain/layout/DocumentLayout.js";
+export type { PageLayout, PlacedElement } from "./domain/layout/DocumentLayout.js";
 export { TableCellText } from "./domain/layout/TableCellText.js";
 export { TableLayout } from "./domain/layout/TableLayout.js";
 export { TableRowHeights } from "./domain/layout/TableRowHeights.js";
 export type { StyleMeasurerFactory } from "./domain/layout/TableRowHeights.js";
 export type {
+  TableChunkOptions,
   TableLayoutResult,
   TableLayoutRow,
 } from "./domain/layout/TableLayout.js";

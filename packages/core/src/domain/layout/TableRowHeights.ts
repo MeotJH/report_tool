@@ -1,4 +1,4 @@
-import { TableCellRole } from "../element/TableCellRole.js";
+import type { CellRole } from "../element/TableCellRole.js";
 import type { TableElement } from "../element/TableElement.js";
 import { TextLayout, type TextWidthMeasurer } from "../text/TextLayout.js";
 import type { TextStyle } from "../value/TextStyle.js";
@@ -28,7 +28,7 @@ export abstract class TableRowHeights {
   abstract heightFor(
     element: TableElement,
     cells: readonly string[],
-    rowOffset: number,
+    roles: readonly CellRole[],
   ): number;
 }
 
@@ -38,7 +38,7 @@ class FixedTableRowHeights extends TableRowHeights {
   heightFor(
     element: TableElement,
     _cells: readonly string[],
-    _rowOffset: number,
+    _roles: readonly CellRole[],
   ): number {
     return element.rowHeight;
   }
@@ -63,11 +63,11 @@ class ContentTableRowHeights extends TableRowHeights {
   heightFor(
     element: TableElement,
     cells: readonly string[],
-    rowOffset: number,
+    roles: readonly CellRole[],
   ): number {
     const needed = element.columns.map((column, columnIndex) => this.cellHeight(
       cells[columnIndex] ?? "",
-      this.styleOf(element, rowOffset, columnIndex),
+      this.styleOf(element, roles[columnIndex] ?? "body"),
       column.width,
     ));
     return Math.max(element.rowHeight, ...needed);
@@ -83,13 +83,7 @@ class ContentTableRowHeights extends TableRowHeights {
   }
 
   /** 칸의 역할이 곧 글자 표현이므로 그리는 쪽과 같은 판단을 쓴다. */
-  private styleOf(
-    element: TableElement,
-    rowOffset: number,
-    columnIndex: number,
-  ): TextStyle {
-    return TableCellRole.at(element, rowOffset, columnIndex) === "header"
-      ? element.headerStyle
-      : element.cellStyle;
+  private styleOf(element: TableElement, role: CellRole): TextStyle {
+    return role === "header" ? element.headerStyle : element.cellStyle;
   }
 }
