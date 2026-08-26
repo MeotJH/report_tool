@@ -1,6 +1,7 @@
 import {
   Binding,
   FieldElement,
+  type FontProvider,
   type Template,
 } from "@report-tool/core";
 import { createElement } from "react";
@@ -15,6 +16,7 @@ import { FieldTool } from "./tool/FieldTool.js";
 import { CanvasStage } from "./view/CanvasStage.js";
 import { DesignerShell } from "./view/DesignerShell.js";
 import { DesignerStyles } from "./view/DesignerStyles.js";
+import { FontLibrary } from "./view/FontLibrary.js";
 import { KeyboardShortcutAdapter } from "./view/KeyboardShortcutAdapter.js";
 
 /** 호스트가 디자이너를 마운트할 때 제공해야 하는 경계 값을 정의한다. */
@@ -23,6 +25,14 @@ export interface DesignerOptions {
   readonly template: Template;
   readonly sampleData?: unknown;
   readonly onChange?: (template: Template) => void;
+  /**
+   * 발행본이 임베딩할 글꼴 파일을 편집기에도 공급한다.
+   *
+   * 렌더러와 **같은 포트**를 쓴다. 같은 파일로 재야 화면에서 본 줄바꿈이 발행본과
+   * 같아진다. 주지 않으면 편집기는 글꼴 이름으로 재고, 그 이름은 보는 사람 컴퓨터에
+   * 깔린 글꼴로 해석되어 결과가 사람마다 달라진다. 그 사실은 화면에 표시된다.
+   */
+  readonly fontProvider?: FontProvider;
 }
 
 /** React와 Konva 내부 구조를 숨기고 호스트에 안정적인 편집기 API만 제공한다. */
@@ -34,6 +44,7 @@ export class Designer {
   private readonly mountElement: HTMLDivElement;
   private readonly unsubscribeChange: () => void;
   private readonly keyboardShortcutAdapter: KeyboardShortcutAdapter;
+  private readonly fonts = new FontLibrary();
   private draggedItem: PaletteDrag | null = null;
 
   /** Shadow DOM 안에 편집 UI를 마운트하고 도메인 변경 통지를 연결한다. */
@@ -54,6 +65,24 @@ export class Designer {
       },
     );
     this.unsubscribeChange = this.subscribeTemplateChanges();
+    this.loadFonts();
+  }
+
+  /**
+   * 호스트가 준 글꼴 파일을 등록하고 화면을 다시 그린다.
+   *
+   * 파일을 받는 동안에는 글꼴 이름으로 재고 있으므로 줄이 잠깐 다를 수 있다.
+   * 다 받은 뒤 반드시 다시 그려야 그 차이가 남지 않는다.
+   */
+  private loadFonts(): void {
+    const provider = this.options.fontProvider;
+    if (provider === undefined) return;
+    void this.fonts
+      .load(provider, this.controller.getTemplate().fonts)
+      .then(() => {
+        this.controller.notifyPreviewChange();
+        this.canvasStage.render();
+      });
   }
 
   /**
@@ -100,6 +129,7 @@ export class Designer {
       onFieldDragStart: (item) => this.startFieldDrag(item),
       onFieldDragEnd: () => this.endFieldDrag(),
       onFitToViewport: () => this.canvasStage.fitToViewport(),
+      fonts: this.fonts,
     })));
   }
 
@@ -110,6 +140,7 @@ export class Designer {
       this.requireElement("[data-designer-canvas]"),
       this.controller,
       { onFieldDrop: (x, y) => this.dropPaletteItem(x, y) },
+      this.fonts,
     );
   }
 

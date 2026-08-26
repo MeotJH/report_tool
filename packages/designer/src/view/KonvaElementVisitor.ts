@@ -23,6 +23,7 @@ import {
 } from "@report-tool/core";
 import type { EditorMode } from "../controller/EditorController.js";
 import { CanvasTextMeasurer } from "./CanvasTextMeasurer.js";
+import { FontLibrary } from "./FontLibrary.js";
 
 /** 화면 안에서 배치되는 사각 영역을 픽셀 단위로 전달한다. */
 interface PixelFrame {
@@ -47,7 +48,7 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   private static readonly TEXT_PADDING_PX = 1;
 
   private readonly textLayout = new TextLayout();
-  private readonly measurer = new CanvasTextMeasurer();
+  private readonly measurer: CanvasTextMeasurer;
 
   /** 화면 배율·샘플 데이터·표시 모드를 주입해 도메인과 브라우저 표현을 분리한다. */
   constructor(
@@ -56,7 +57,10 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
     private readonly bindingResolver: BindingResolver,
     private readonly mode: EditorMode = "design",
     private readonly numbering: PageNumbering = new PageNumbering(1, 1),
-  ) {}
+    private readonly fonts: FontLibrary = new FontLibrary(),
+  ) {
+    this.measurer = new CanvasTextMeasurer(fonts);
+  }
 
   /** 고정·템플릿 문구를 배치 영역과 스타일이 반영된 편집 텍스트로 만든다. */
   visitText(element: TextElement): Konva.Node {
@@ -307,7 +311,8 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
       // 넘치는 문구는 높이를 비워 Konva가 조용히 잘라내지 않고 PDF처럼 넘쳐 보이게 한다.
       height: fits ? frame.height : undefined,
       text: layout.lines.join("\n"),
-      fontFamily: style.font,
+      // 재는 글꼴과 그리는 글꼴이 다르면 계산한 줄과 보이는 줄이 어긋난다.
+      fontFamily: this.fonts.familyFor(style.font),
       fontSize: layout.fontSize * (this.mmToPx / KonvaElementVisitor.POINTS_PER_MM),
       fontStyle: this.fontStyle(style),
       fill: style.color,

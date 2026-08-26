@@ -1,3 +1,6 @@
+import type { FontProvider } from "@report-tool/core";
+import regularFontUrl from "pretendard/dist/public/static/alternative/Pretendard-Regular.ttf?url";
+import boldFontUrl from "pretendard/dist/public/static/alternative/Pretendard-Bold.ttf?url";
 import {
   Binding,
   BoundTableSource,
@@ -22,10 +25,26 @@ import { Designer } from "../src/index.js";
 const container = document.querySelector<HTMLElement>("#designer");
 if (container === null) throw new Error("디자이너 컨테이너를 찾을 수 없다");
 
+/**
+ * 발행 렌더러에 넘기는 것과 같은 TTF 파일을 편집기에도 공급한다.
+ *
+ * 호스트가 실제로 해야 하는 일이 이것이다. 이름만 넘기면 편집기는 보는 사람
+ * 컴퓨터에 깔린 글꼴로 재고, 그 폭은 발행본이 임베딩하는 파일과 다르다.
+ */
+class PlaygroundFontProvider implements FontProvider {
+  /** 굵기에 맞는 파일을 받아 바이트로 돌려준다. */
+  async load(_family: string, weight: number): Promise<Uint8Array> {
+    const response = await fetch(weight >= 700 ? boldFontUrl : regularFontUrl);
+    if (!response.ok) throw new Error(`글꼴 파일을 받지 못했다: ${response.status}`);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+}
+
 new Designer({
   container,
   template: createTemplate(),
   sampleData: createSampleData(),
+  fontProvider: new PlaygroundFontProvider(),
   onChange: (template) => showSavedJson(template),
 });
 

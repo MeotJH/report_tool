@@ -13,6 +13,7 @@ import { TextTool } from "../tool/TextTool.js";
 import { CanvasMetrics } from "./CanvasMetrics.js";
 import { CanvasTextMeasurer } from "./CanvasTextMeasurer.js";
 import { FieldPalette } from "./FieldPalette.js";
+import { FontLibrary } from "./FontLibrary.js";
 import { InspectorPanel } from "./InspectorPanel.js";
 import { LayersPanel } from "./LayersPanel.js";
 import { CanvasEditOverlay } from "./CanvasEditOverlay.js";
@@ -25,6 +26,7 @@ export interface DesignerShellProps {
   readonly onFieldDragStart: (entry: PaletteEntry) => void;
   readonly onFieldDragEnd: () => void;
   readonly onFitToViewport: () => void;
+  readonly fonts: FontLibrary;
 }
 
 /** 편집 도구·레이어·캔버스·속성을 Figma와 같은 세 칸 구조로 배치한다. */
@@ -35,12 +37,15 @@ export function DesignerShell(props: DesignerShellProps) {
   );
   const template = props.controller.getTemplate();
   const entries = new PaletteEntryBuilder().build(template.variables);
-  const measurer = new CanvasTextMeasurer();
-  const issues = new TemplateIssueFinder(
-    entries,
-    (style) => measurer.forStyle(style),
-    props.controller.getSampleData(),
-  ).find(template);
+  const measurer = new CanvasTextMeasurer(props.fonts);
+  const issues = [
+    ...fontIssues(props.fonts, template.fonts),
+    ...new TemplateIssueFinder(
+      entries,
+      (style) => measurer.forStyle(style),
+      props.controller.getSampleData(),
+    ).find(template),
+  ];
   return (
     <div className="rt-designer">
       <DesignerHeader controller={props.controller} />
@@ -72,6 +77,23 @@ export function DesignerShell(props: DesignerShellProps) {
       <DesignerStatus controller={props.controller} issues={issues} />
     </div>
   );
+}
+
+/**
+ * 발행본이 쓸 글꼴 파일을 받지 못한 사실을 문서 문제로 드러낸다.
+ *
+ * 이름만 같은 다른 글꼴로 재고 있으면 화면의 줄바꿈이 발행본과 다르다. 조용히
+ * 넘어가면 담당자는 화면에서 본 것이 그대로 나온다고 믿는다.
+ */
+function fontIssues(
+  fonts: FontLibrary,
+  families: readonly string[],
+): readonly TemplateIssue[] {
+  return fonts.missingFamilies(families).map((family) => ({
+    elementId: null,
+    severity: "warning" as const,
+    message: `글꼴 ${family} 파일을 받지 못해 화면 줄바꿈이 발행본과 다를 수 있다`,
+  }));
 }
 
 /** 문서 정체성과 설계·미리보기 전환을 한 줄에 함께 둔다. */

@@ -14,6 +14,7 @@ import { TableCellLocator } from "../controller/TableCellLocator.js";
 import { TemplateIssueFinder } from "../controller/TemplateIssueFinder.js";
 import { CanvasMetrics } from "./CanvasMetrics.js";
 import { CanvasOverlay } from "./CanvasOverlay.js";
+import { FontLibrary } from "./FontLibrary.js";
 import { KonvaElementVisitor } from "./KonvaElementVisitor.js";
 
 /** 캔버스가 호스트 동작을 호출할 지점을 최소한으로 제한한다. */
@@ -52,6 +53,7 @@ export class CanvasStage {
     private readonly stageElement: HTMLDivElement,
     private readonly controller: EditorController,
     private readonly callbacks: CanvasStageCallbacks = {},
+    private readonly fonts: FontLibrary = new FontLibrary(),
   ) {
     this.lastZoom = this.controller.getViewport().getZoom();
     this.stage = new Konva.Stage({ container: stageElement, width: 1, height: 1 });
@@ -159,6 +161,7 @@ export class CanvasStage {
         this.controller.getActivePageIndex() + 1,
         this.controller.pageCount(),
       ),
+      this.fonts,
     );
     for (const element of this.displayedElements()) {
       const node = element.accept(visitor);
