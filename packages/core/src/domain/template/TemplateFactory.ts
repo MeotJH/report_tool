@@ -19,8 +19,13 @@ import {
  * 각자 복원하면 필드를 하나 추가할 때 어딘가는 반드시 빠뜨리게 된다.
  */
 export class TemplateFactory {
-  /** 이 코드가 해석할 수 있는 저장 형식의 버전이다. */
-  private static readonly SUPPORTED_SCHEMA_VERSION = 1;
+  /**
+   * 이 코드가 해석할 수 있는 저장 형식의 버전들이다.
+   *
+   * 1은 문서가 한 장뿐이던 시절의 형식이다. 요소에 쪽 번호가 없으므로 모두 첫 쪽에
+   * 놓인다(`ElementFactory`가 채운다). 그 이상의 변환이 필요 없어 그대로 열 수 있다.
+   */
+  private static readonly SUPPORTED_SCHEMA_VERSIONS: readonly number[] = [1, 2];
 
   /** 저장 데이터를 검증한 뒤 요소와 페이지까지 갖춘 템플릿으로 복원한다. */
   static fromJSON(json: Record<string, unknown>): Template {
@@ -49,7 +54,7 @@ export class TemplateFactory {
     if (value === undefined) {
       throw new Error("템플릿 저장 데이터에 schemaVersion이 없다");
     }
-    if (value !== TemplateFactory.SUPPORTED_SCHEMA_VERSION) {
+    if (!TemplateFactory.SUPPORTED_SCHEMA_VERSIONS.includes(value as number)) {
       throw new Error(
         `지원하지 않는 템플릿 schemaVersion ${String(value)}이다`,
       );

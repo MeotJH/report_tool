@@ -30,8 +30,9 @@ export class ImageElement extends Element {
     locked: boolean,
     options: ImageElementOptions,
     hidden = false,
+    pageIndex = 0,
   ) {
-    super(id, frame, z, locked, hidden);
+    super(id, frame, z, locked, hidden, pageIndex);
     this.validateSource(options);
     this.assetId = options.assetId;
     this.binding = options.binding;
@@ -68,7 +69,7 @@ export class ImageElement extends Element {
       assetId: this.assetId,
       binding: this.binding,
       fit: this.fit,
-    }, resolved.hidden);
+    }, resolved.hidden, resolved.pageIndex);
   }
 
   /** 이미지 고유 속성을 특정 이미지 라이브러리와 무관한 저장 데이터로 변환한다. */

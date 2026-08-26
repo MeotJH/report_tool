@@ -33,6 +33,7 @@ interface CommonElementValues {
   readonly z: number;
   readonly locked: boolean;
   readonly hidden: boolean;
+  readonly pageIndex: number;
 }
 
 /**
@@ -76,6 +77,7 @@ export class ElementFactory {
       z: element.z,
       locked: element.locked,
       hidden: element.hidden,
+      pageIndex: element.pageIndex,
     };
   }
 
@@ -90,6 +92,7 @@ export class ElementFactory {
       json.content as Content,
       ElementFactory.readTextStyle(json.style),
       common.hidden,
+      common.pageIndex,
     );
   }
 
@@ -104,6 +107,7 @@ export class ElementFactory {
       ElementFactory.readBinding(json.binding),
       ElementFactory.readTextStyle(json.style),
       common.hidden,
+      common.pageIndex,
     );
   }
 
@@ -125,6 +129,7 @@ export class ElementFactory {
       common.hidden,
       TableHeaderCells.fromJSON(json.headerCells),
       ElementFactory.readHeaderFill(json.headerFill),
+      common.pageIndex,
     );
   }
 
@@ -150,7 +155,7 @@ export class ElementFactory {
       assetId: json.assetId as string | undefined,
       binding,
       fit: json.fit as ImageFit,
-    }, common.hidden);
+    }, common.hidden, common.pageIndex);
   }
 
   /** 사각 도형의 선택적 표현을 공통 상태에 결합해 복원한다. */
@@ -161,7 +166,7 @@ export class ElementFactory {
       stroke: json.stroke as string | undefined,
       strokeWidth: json.strokeWidth as number | undefined,
       radius: json.radius as number | undefined,
-    }, common.hidden);
+    }, common.hidden, common.pageIndex);
   }
 
   /** 선 도형의 필수 표현과 점선 패턴을 공통 상태에 결합해 복원한다. */
@@ -176,6 +181,7 @@ export class ElementFactory {
       json.strokeWidth as number,
       json.dash as readonly number[] | undefined,
       common.hidden,
+      common.pageIndex,
     );
   }
 
@@ -191,6 +197,7 @@ export class ElementFactory {
       json.required as boolean,
       json.label as string | undefined,
       common.hidden,
+      common.pageIndex,
     );
   }
 
@@ -214,6 +221,8 @@ export class ElementFactory {
       z: json.z as number,
       locked: json.locked as boolean,
       hidden: json.hidden === true,
+      // schemaVersion 1에는 이 값이 없다. 그때는 문서가 한 장뿐이었으므로 첫 쪽이다.
+      pageIndex: typeof json.pageIndex === "number" ? json.pageIndex : 0,
     };
   }
 

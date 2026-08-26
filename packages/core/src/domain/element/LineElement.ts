@@ -26,8 +26,9 @@ export class LineElement extends Element {
     public readonly strokeWidth: number,
     dash?: readonly number[],
     hidden = false,
+    pageIndex = 0,
   ) {
-    super(id, frame, z, locked, hidden);
+    super(id, frame, z, locked, hidden, pageIndex);
     this.dash = dash === undefined ? undefined : [...dash];
   }
 
@@ -62,6 +63,7 @@ export class LineElement extends Element {
       this.strokeWidth,
       this.dash,
       resolved.hidden,
+      resolved.pageIndex,
     );
   }
 

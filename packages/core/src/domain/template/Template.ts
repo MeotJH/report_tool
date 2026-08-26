@@ -24,7 +24,7 @@ export interface TemplateOptions {
  * 문서 요소의 버전별 모음을 관리하고 발행된 내용이 변경되지 않도록 상태 규칙을 강제한다.
  */
 export class Template {
-  public readonly schemaVersion = 1 as const;
+  public readonly schemaVersion = 2 as const;
   public readonly id: string;
   public readonly name: string;
   public readonly version: number;
@@ -53,6 +53,20 @@ export class Template {
   /** 호출자가 내부 요소 배열을 직접 변경하지 못하도록 복사본을 제공한다. */
   getElements(): readonly Element[] {
     return [...this.elements];
+  }
+
+  /**
+   * 사용자가 만든 쪽이 몇 장인지 알려 준다. 요소가 없어도 한 장이다.
+   *
+   * 쪽을 따로 저장하지 않고 요소가 가진 쪽 번호로 센다. 두 곳에 저장하면 요소를
+   * 지웠을 때 빈 쪽이 남을지 사라질지가 두 값 중 무엇을 믿느냐에 따라 갈린다.
+   * 발행본의 쪽 수는 여기에 데이터가 더해져 `DocumentLayout`이 따로 정한다.
+   */
+  pageCount(): number {
+    return this.elements.reduce(
+      (count, element) => Math.max(count, element.pageIndex + 1),
+      1,
+    );
   }
 
   /** 초안 원본을 보존하면서 요소가 추가된 새 편집 상태를 만든다. */

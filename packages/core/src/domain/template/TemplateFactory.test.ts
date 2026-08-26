@@ -221,9 +221,35 @@ describe("템플릿 JSON 왕복", () => {
   });
 
   it("해석할 수 없는 schemaVersion은 거부한다", () => {
-    const json = { ...createFullTemplate().toJSON(), schemaVersion: 2 };
+    const json = { ...createFullTemplate().toJSON(), schemaVersion: 99 };
 
     expect(() => TemplateFactory.fromJSON(json))
-      .toThrow("지원하지 않는 템플릿 schemaVersion 2이다");
+      .toThrow("지원하지 않는 템플릿 schemaVersion 99이다");
+  });
+
+  it("쪽 개념이 없던 schemaVersion 1 문서를 그대로 연다", () => {
+    // 여러 쪽이 생기기 전에 저장된 문서다. 요소에 쪽 번호가 없다.
+    const json = createFullTemplate().toJSON();
+    const elements = (json.elements as Record<string, unknown>[])
+      .map((element) => {
+        const copy = { ...element };
+        delete copy.pageIndex;
+        return copy;
+      });
+
+    const restored = TemplateFactory.fromJSON({
+      ...json, schemaVersion: 1, elements,
+    });
+
+    expect(restored.getElements().every((element) => element.pageIndex === 0)).toBe(true);
+    expect(restored.getElements()).toHaveLength(10);
+  });
+
+  it("다시 저장하면 지금 형식으로 올라간다", () => {
+    const json = createFullTemplate().toJSON();
+
+    const restored = TemplateFactory.fromJSON({ ...json, schemaVersion: 1 });
+
+    expect(restored.toJSON().schemaVersion).toBe(2);
   });
 });

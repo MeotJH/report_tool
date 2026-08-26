@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Element } from "../element/Element.js";
 import { TableElement } from "../element/TableElement.js";
 import { TableColumn } from "../element/TableColumn.js";
 import { BoundTableSource } from "../element/TableSource.js";
@@ -34,7 +35,7 @@ function title(): TextElement {
 }
 
 /** 표만 있는 문서를 만든다. */
-function template(...elements: readonly (TableElement | TextElement)[]): Template {
+function template(...elements: readonly Element[]): Template {
   return new Template({
     id: "report", name: "리포트", version: 1, status: "draft",
     page: new PageSpec("A4", "portrait", [20, 20, 20, 20]),
@@ -120,6 +121,36 @@ describe("DocumentLayout", () => {
     const pages = layout.compute(template(ticketTable(50, 300)), tickets(3));
 
     expect(pages.length).toBeLessThanOrEqual(4);
+  });
+
+  it("사용자가 만든 두 번째 쪽이 뒤에 따라온다", () => {
+    const cover = title();
+    const body = ticketTable(50).withPageIndex(1);
+
+    const pages = layout.compute(template(cover, body), tickets(3));
+
+    expect(pages).toHaveLength(2);
+    expect(pages[0]?.placements.map((placement) => placement.element.id)).toEqual(["title"]);
+    expect(pages[1]?.placements.map((placement) => placement.element.id)).toEqual(["tickets"]);
+  });
+
+  it("표가 이어지는 쪽이 다음 저작 쪽보다 먼저 나온다", () => {
+    // 표지(0쪽) → 처리내역(1쪽) → 이어지는 쪽 → 맺음말(2쪽) 순서여야 읽을 수 있다.
+    const cover = title();
+    const body = ticketTable(50).withPageIndex(1);
+    const closing = new TextElement(
+      "closing", new Frame(20, 20, 170, 12), 1, false,
+      { kind: "literal", value: "기타사항" },
+      new TextStyle("Pretendard", 12), false, 2,
+    );
+
+    const pages = layout.compute(template(cover, body, closing), tickets(12));
+
+    const ids = pages.map((page) => page.placements.map((placement) => placement.element.id));
+    expect(ids[0]).toEqual(["title"]);
+    expect(ids[1]).toEqual(["tickets"]);
+    expect(ids[ids.length - 1]).toEqual(["closing"]);
+    expect(ids.slice(2, -1).every((page) => page[0] === "tickets")).toBe(true);
   });
 
   it("데이터가 없으면 한 쪽으로 끝난다", () => {

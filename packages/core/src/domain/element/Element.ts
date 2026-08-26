@@ -22,6 +22,7 @@ export interface ElementCommonChanges {
   readonly z?: number;
   readonly locked?: boolean;
   readonly hidden?: boolean;
+  readonly pageIndex?: number;
 }
 
 /** 변경분과 현재 상태를 합친 뒤 하위 클래스 생성자에 넘길 완전한 공통 상태다. */
@@ -30,6 +31,7 @@ export interface ResolvedElementCommon {
   readonly z: number;
   readonly locked: boolean;
   readonly hidden: boolean;
+  readonly pageIndex: number;
 }
 
 /**
@@ -48,6 +50,7 @@ export abstract class Element {
     public readonly z: number,
     public readonly locked: boolean,
     public readonly hidden: boolean = false,
+    public readonly pageIndex: number = 0,
   ) {}
 
   /** 렌더러가 요소 종류별 처리를 빠짐없이 구현하도록 방문자에게 제어를 넘긴다. */
@@ -76,6 +79,16 @@ export abstract class Element {
     return this.withCommon({ hidden });
   }
 
+  /**
+   * 요소가 몇 번째 쪽에 놓이는지만 교체한다.
+   *
+   * 좌표는 쪽 안에서의 위치이므로 쪽을 옮겨도 그대로 둔다. 다른 쪽 같은 자리에
+   * 놓이는 것이 사용자가 기대하는 결과다.
+   */
+  withPageIndex(pageIndex: number): Element {
+    return this.withCommon({ pageIndex });
+  }
+
   /** 하위 클래스가 종류별 속성을 보존하며 공통 상태만 교체하게 한다. */
   protected abstract withCommon(changes: ElementCommonChanges): Element;
 
@@ -86,6 +99,7 @@ export abstract class Element {
       z: changes.z ?? this.z,
       locked: changes.locked ?? this.locked,
       hidden: changes.hidden ?? this.hidden,
+      pageIndex: changes.pageIndex ?? this.pageIndex,
     };
   }
 }

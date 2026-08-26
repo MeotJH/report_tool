@@ -19,8 +19,9 @@ export class FieldElement extends Element {
     public readonly binding: Binding,
     public readonly style: TextStyle,
     hidden = false,
+    pageIndex = 0,
   ) {
-    super(id, frame, z, locked, hidden);
+    super(id, frame, z, locked, hidden, pageIndex);
   }
 
   /** 방문자가 데이터 필드 전용 처리 경로를 사용하도록 연결한다. */
@@ -65,6 +66,7 @@ export class FieldElement extends Element {
       changes.binding ?? this.binding,
       changes.style ?? this.style,
       resolved.hidden,
+      resolved.pageIndex,
     );
   }
 }

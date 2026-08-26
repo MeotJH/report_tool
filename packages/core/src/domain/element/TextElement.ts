@@ -19,8 +19,9 @@ export class TextElement extends Element {
     public readonly content: Content,
     public readonly style: TextStyle,
     hidden = false,
+    pageIndex = 0,
   ) {
-    super(id, frame, z, locked, hidden);
+    super(id, frame, z, locked, hidden, pageIndex);
   }
 
   /** 방문자가 텍스트 전용 처리 경로를 사용하도록 연결한다. */
@@ -65,6 +66,7 @@ export class TextElement extends Element {
       changes.content ?? this.content,
       changes.style ?? this.style,
       resolved.hidden,
+      resolved.pageIndex,
     );
   }
 }

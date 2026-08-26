@@ -51,18 +51,32 @@ export class DocumentLayout {
     this.tableLayout = new TableLayout(cellText, rowHeights);
   }
 
-  /** 템플릿과 데이터를 쪽 목록으로 바꾼다. 최소 한 쪽은 항상 나온다. */
+  /**
+   * 템플릿과 데이터를 쪽 목록으로 바꾼다. 최소 한 쪽은 항상 나온다.
+   *
+   * 사용자가 만든 쪽(요소의 `pageIndex`)을 차례로 내보내되, 어떤 쪽의 표가 넘치면
+   * **그 쪽 바로 뒤에** 이어지는 쪽을 넣는다. 표가 이어지는 도중에 다음 저작 쪽이
+   * 끼어들면 읽는 순서가 뒤집힌다.
+   */
   compute(template: Template, data: unknown): readonly PageLayout[] {
-    const elements = this.byStackOrder(template.getElements());
-    const first = elements.map((element) => this.placeAtOwnFrame(element, data));
-    const pages: PageLayout[] = [{ index: 0, placements: first }];
-    let pending = this.pendingFrom(first);
-    while (pending.length > 0) {
-      const page = this.continuationPage(pages.length, pending, template.page, data);
-      pages.push(page.layout);
-      pending = page.pending;
+    const pages: PageLayout[] = [];
+    for (let authored = 0; authored < template.pageCount(); authored += 1) {
+      const elements = this.byStackOrder(this.elementsOn(template, authored));
+      const placements = elements.map((element) => this.placeAtOwnFrame(element, data));
+      pages.push({ index: pages.length, placements });
+      let pending = this.pendingFrom(placements);
+      while (pending.length > 0) {
+        const page = this.continuationPage(pages.length, pending, template.page, data);
+        pages.push(page.layout);
+        pending = page.pending;
+      }
     }
     return pages;
+  }
+
+  /** 사용자가 그 쪽에 놓은 요소만 고른다. */
+  private elementsOn(template: Template, pageIndex: number): readonly Element[] {
+    return template.getElements().filter((element) => element.pageIndex === pageIndex);
   }
 
   /** 그리는 순서가 저장 순서가 아니라 쌓임 순서를 따르게 한다. */

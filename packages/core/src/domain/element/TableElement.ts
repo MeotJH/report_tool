@@ -35,8 +35,9 @@ export class TableElement extends Element {
     hidden = false,
     public readonly headerCells: TableHeaderCells = TableHeaderCells.none(),
     public readonly headerFill: string | null = TableElement.DEFAULT_HEADER_FILL,
+    pageIndex = 0,
   ) {
-    super(id, frame, z, locked, hidden);
+    super(id, frame, z, locked, hidden, pageIndex);
     this.columns = [...columns];
   }
 
@@ -140,6 +141,7 @@ export class TableElement extends Element {
       changes.showHeader ?? this.showHeader, this.overflow, resolved.hidden,
       changes.headerCells ?? this.headerCells,
       "headerFill" in changes ? changes.headerFill ?? null : this.headerFill,
+      resolved.pageIndex,
     );
   }
 }

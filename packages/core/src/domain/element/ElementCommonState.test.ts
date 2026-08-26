@@ -38,6 +38,43 @@ function createElements(): readonly Element[] {
 
 describe("요소 공통 편집 상태", () => {
   it.each(createElements().map((element) => [element.type, element] as const))(
+    "%s 요소가 쪽을 옮겨도 자리와 종류별 속성을 잃지 않는다",
+    (_type, element) => {
+      const moved = element.withPageIndex(2);
+
+      expect(moved.pageIndex).toBe(2);
+      expect(moved.frame).toEqual(element.frame);
+      expect(moved.toJSON()).toEqual(element.toJSON());
+    },
+  );
+
+  it.each(createElements().map((element) => [element.type, element] as const))(
+    "%s 요소의 다른 공통 상태 변경이 쪽 소속을 지운다면 그 쪽 요소가 사라진다",
+    (_type, element) => {
+      const onSecondPage = element.withPageIndex(1);
+
+      const edited = onSecondPage
+        .withZ(5)
+        .withLocked(true)
+        .withHidden(true)
+        .withFrame(new Frame(1, 2, 3, 4));
+
+      expect(edited.pageIndex).toBe(1);
+    },
+  );
+
+  it.each(createElements().map((element) => [element.type, element] as const))(
+    "%s 요소의 쪽 소속이 저장과 복원을 왕복해도 남는다",
+    (_type, element) => {
+      const restored = ElementFactory.fromJSON(
+        ElementFactory.toJSON(element.withPageIndex(3)),
+      );
+
+      expect(restored.pageIndex).toBe(3);
+    },
+  );
+
+  it.each(createElements().map((element) => [element.type, element] as const))(
     "%s 요소가 z·잠금·숨김을 종류별 속성을 잃지 않고 교체한다",
     (_type, element) => {
       const changed = element.withZ(9).withLocked(true).withHidden(true);
