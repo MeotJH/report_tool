@@ -414,7 +414,7 @@
 ---
 
 ### U7. 편집기가 발행본과 같은 글꼴 파일로 잰다
-`<이 커밋>` · `designer/view/FontLibrary.ts`, `CanvasTextMeasurer.ts`, `Designer.ts`
+`86d39fb` · `designer/view/FontLibrary.ts`, `CanvasTextMeasurer.ts`, `Designer.ts`
 
 **무엇을 푸는가**
 편집기는 `100px Pretendard`처럼 **가족 이름**으로 글자를 쟀다. 그 이름은 보는 사람
