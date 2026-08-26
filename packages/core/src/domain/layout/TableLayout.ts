@@ -1,5 +1,6 @@
 import type { TableElement } from "../element/TableElement.js";
 import { TableCellText } from "./TableCellText.js";
+import { TableRowHeights } from "./TableRowHeights.js";
 
 /** 표의 한 줄이 어디에 어떤 문자열로 그려지는지 렌더러가 그대로 쓸 수 있게 담는다. */
 export interface TableLayoutRow {
@@ -34,13 +35,32 @@ export interface TableLayoutResult {
  * 사실을 경고로 알릴 수 있다.
  */
 export class TableLayout {
-  /** 편집 중과 발행본의 차이를 셀 표현 방식 하나로만 두어 계산을 공유한다. */
-  constructor(private readonly cellText: TableCellText = TableCellText.resolved()) {}
+  /**
+   * 편집 중과 발행본의 차이를 셀 표현 방식 하나로만 두어 계산을 공유한다.
+   *
+   * 행 높이는 글자를 잴 수 있는 곳에서만 내용에 맞춰 늘어난다. 재지 못하는
+   * 곳에서도 줄 목록과 자르는 규칙은 같으므로 결과가 갈리지 않는다.
+   */
+  constructor(
+    private readonly cellText: TableCellText = TableCellText.resolved(),
+    private readonly rowHeights: TableRowHeights = TableRowHeights.fixed(),
+  ) {}
 
   /** 표와 데이터를 실제로 그릴 줄 목록으로 바꾼다. */
   compute(element: TableElement, data: unknown): TableLayoutResult {
     const cells = this.allRowCells(element, data);
     return this.fitToFrame(element, cells);
+  }
+
+  /**
+   * 그려질 수 있는 모든 칸의 문자열을 준다. 영역을 넘어 빠지는 줄도 포함한다.
+   *
+   * 폰트 서브셋을 만드는 쪽이 쓴다. 그 시점에는 폰트를 아직 임베딩하지 않아
+   * 글자 폭을 잴 수 없고, 따라서 어느 줄이 들어가는지도 알 수 없다. 서브셋은
+   * 넉넉한 편이 안전하다 — 모자라면 그 자리가 통째로 빈칸으로 발행된다.
+   */
+  cellsOf(element: TableElement, data: unknown): readonly (readonly string[])[] {
+    return this.allRowCells(element, data);
   }
 
   /** 머리글과 본문을 그리는 순서대로 이어 붙인다. */
@@ -86,7 +106,7 @@ export class TableLayout {
     const rows: TableLayoutRow[] = [];
     let topMm = 0;
     for (const [offset, cells] of allCells.entries()) {
-      const heightMm = element.rowHeight;
+      const heightMm = this.rowHeights.heightFor(element, cells, offset);
       if (topMm + heightMm > element.frame.height) {
         return { rows, droppedRowCount: allCells.length - offset };
       }

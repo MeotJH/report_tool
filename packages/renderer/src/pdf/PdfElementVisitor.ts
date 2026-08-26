@@ -11,8 +11,10 @@ import {
   TableCellRole,
   type TableColumn,
   type TableElement,
+  TableCellText,
   TableLayout,
   type TableLayoutRow,
+  TableRowHeights,
   type TextAlign,
   TextLayout,
   TextStyle,
@@ -31,7 +33,10 @@ export class PdfElementVisitor implements ElementVisitor<void> {
   private static readonly POINTS_PER_MM = 72 / 25.4;
   private static readonly DEFAULT_BORDER_MM = 0.2;
 
-  private readonly tableLayout = new TableLayout();
+  private readonly tableLayout = new TableLayout(
+    TableCellText.resolved(),
+    TableRowHeights.content((style) => this.measurerFor(style)),
+  );
 
   /** 요소 해석에 필요한 데이터와 PDF 자원을 한 렌더링 세션 동안 공유한다. */
   constructor(
@@ -204,6 +209,12 @@ export class PdfElementVisitor implements ElementVisitor<void> {
         color: this.toColor(style.color),
       });
     });
+  }
+
+  /** 임베딩한 폰트가 아는 실제 글자 폭을 도메인 줄 계산에 넘긴다. */
+  private measurerFor(style: TextStyle): (text: string, sizePt: number) => number {
+    const font = this.findFont(style);
+    return (text: string, sizePt: number): number => font.widthOfTextAtSize(text, sizePt);
   }
 
   /** 텍스트 굵기에 정확히 맞는 폰트를 찾고 500은 Regular로 안전하게 대체한다. */

@@ -25,6 +25,29 @@ describe("TextLayout", () => {
     expect(result.fontSize).toBe(10);
   });
 
+  it("공백 없이 긴 한 어절은 글자 단위로 나눈다", () => {
+    // 한글 문장은 어절이 폭보다 긴 경우가 흔하다. 공백만 찾으면 줄이 갈리지 않는다.
+    const result = layout.layout("연차사용촉진제도안내문", createStyle("wrap"), 10, measureWidth);
+
+    expect(result.lines.length).toBeGreaterThan(1);
+    expect(result.lines.join("")).toBe("연차사용촉진제도안내문");
+  });
+
+  it("긴 어절을 나눠도 폭을 넘는 줄은 남기지 않는다", () => {
+    const maxWidthMm = 10;
+    const maxWidthPt = maxWidthMm * (72 / 25.4);
+
+    const result = layout.layout("연차사용촉진제도안내문", createStyle("wrap"), maxWidthMm, measureWidth);
+
+    expect(result.lines.every((line) => measureWidth(line, 10) <= maxWidthPt)).toBe(true);
+  });
+
+  it("짧은 어절과 긴 어절이 섞여도 순서가 유지된다", () => {
+    const result = layout.layout("총 연차사용촉진제도 안내", createStyle("wrap"), 10, measureWidth);
+
+    expect(result.lines.join("").replace(/ /g, "")).toBe("총연차사용촉진제도안내");
+  });
+
   it("shrink 정책은 한 줄을 유지하면서 글자 크기를 줄인다", () => {
     const result = layout.layout("아주 긴 급여명세서 제목", createStyle("shrink"), 18, measureWidth);
 

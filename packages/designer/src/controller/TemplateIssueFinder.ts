@@ -6,6 +6,7 @@ import {
   StaticTableSource,
   TableElement,
   TableLayout,
+  TableRowHeights,
   TemplateReferences,
   TemplateValidator,
   TextElement,
@@ -41,7 +42,6 @@ export class TemplateIssueFinder {
   private readonly validator = new TemplateValidator();
   private readonly references = new TemplateReferences();
   private readonly textLayout = new TextLayout();
-  private readonly tableLayout = new TableLayout();
 
   /**
    * 팔레트가 만든 데이터 목록을 받아 참조가 실제로 존재하는지도 볼 수 있게 한다.
@@ -170,6 +170,18 @@ export class TemplateIssueFinder {
   }
 
   /**
+   * 경고 계산이 캔버스·발행본과 같은 행 높이를 쓰게 한다.
+   *
+   * 글자를 잴 수 없는 환경(측정기가 없는 테스트)에서는 지정된 행 높이로 물러난다.
+   * 그 경우에도 줄 목록과 자르는 규칙은 같아서 판단이 갈리지 않는다.
+   */
+  private createTableLayout(): TableLayout {
+    const factory = this.measurerFactory;
+    if (factory === null) return new TableLayout();
+    return new TableLayout(undefined, TableRowHeights.content((style) => factory(style)));
+  }
+
+  /**
    * 표 영역에 들어가지 못해 발행에서 빠지는 줄을 드러낸다.
    *
    * 이 경고가 없던 동안 표는 담당자에게 아무 말도 하지 않고 행을 버렸다. 수당이
@@ -178,7 +190,9 @@ export class TemplateIssueFinder {
    */
   private droppedTableRowWarning(element: Element): readonly TemplateIssue[] {
     if (!(element instanceof TableElement)) return [];
-    const dropped = this.tableLayout.compute(element, this.sampleData).droppedRowCount;
+    const dropped = this.createTableLayout()
+      .compute(element, this.sampleData)
+      .droppedRowCount;
     if (dropped === 0) return [];
     return [this.warning(
       element,

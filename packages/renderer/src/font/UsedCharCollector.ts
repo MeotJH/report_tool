@@ -43,15 +43,18 @@ export class UsedCharCollector implements ElementVisitor<string> {
   }
 
   /**
-   * 실제로 그려지는 줄의 문자만 수집한다.
+   * 그려질 수 있는 모든 칸의 문자를 수집한다.
    *
-   * 렌더러와 다른 규칙으로 세면 서브셋에 없는 글리프가 발행본에 남는다. 한글은
-   * 그 자리가 통째로 빈칸이 되므로, 줄 목록은 렌더러와 같은 `TableLayout`에서 얻는다.
+   * 셀 문자열을 만드는 규칙은 렌더러와 같은 `TableLayout`에서 얻는다. 다른 규칙으로
+   * 세면 서브셋에 없는 글리프가 생기고, 한글은 그 자리가 통째로 빈칸으로 발행된다.
+   *
+   * 다만 어느 줄이 영역에 들어가는지는 여기서 가리지 않는다. 이 시점에는 폰트를
+   * 아직 임베딩하지 않아 글자 폭을, 따라서 행 높이를 알 수 없다. 넉넉하게 담는다.
    */
   visitTable(element: TableElement): string {
     return this.tableLayout
-      .compute(element, this.data)
-      .rows.flatMap((row) => row.cells)
+      .cellsOf(element, this.data)
+      .flatMap((cells) => cells)
       .join("");
   }
 

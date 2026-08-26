@@ -114,6 +114,8 @@ export type {
 } from "./domain/value/PageSpec.js";
 export { TableCellText } from "./domain/layout/TableCellText.js";
 export { TableLayout } from "./domain/layout/TableLayout.js";
+export { TableRowHeights } from "./domain/layout/TableRowHeights.js";
+export type { StyleMeasurerFactory } from "./domain/layout/TableRowHeights.js";
 export type {
   TableLayoutResult,
   TableLayoutRow,

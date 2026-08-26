@@ -35,20 +35,57 @@ class WrapTextStrategy implements TextOverflowStrategy {
     maxWidthPt: number,
     measureWidth: TextWidthMeasurer,
   ): TextLayoutResult {
-    const words = text.split(" ");
     const lines: string[] = [];
-    let currentLine = words.shift() ?? "";
-    for (const word of words) {
-      const candidate = `${currentLine} ${word}`;
-      if (measureWidth(candidate, style.size) <= maxWidthPt) {
-        currentLine = candidate;
-      } else {
-        lines.push(currentLine);
-        currentLine = word;
-      }
+    let currentLine = "";
+    for (const word of text.split(" ")) {
+      currentLine = this.appendWord(
+        lines, currentLine, word, style, maxWidthPt, measureWidth,
+      );
     }
     lines.push(currentLine);
     return { lines, fontSize: style.size };
+  }
+
+  /** 어절 하나를 현재 줄에 붙이거나, 들어가지 않으면 다음 줄로 넘긴다. */
+  private appendWord(
+    lines: string[],
+    currentLine: string,
+    word: string,
+    style: TextStyle,
+    maxWidthPt: number,
+    measureWidth: TextWidthMeasurer,
+  ): string {
+    const candidate = currentLine === "" ? word : `${currentLine} ${word}`;
+    if (measureWidth(candidate, style.size) <= maxWidthPt) return candidate;
+    if (currentLine !== "") lines.push(currentLine);
+    return this.breakLongWord(lines, word, style, maxWidthPt, measureWidth);
+  }
+
+  /**
+   * 폭보다 긴 어절을 글자 단위로 끊는다.
+   *
+   * 한글은 어절 하나가 칸 폭보다 긴 일이 흔하다. 공백만 찾으면 그런 어절은 끊기지
+   * 않아 한 줄로 칸 밖까지 뻗는다. 긴 문장을 담는 칸에서는 글자가 옆 칸을 덮어
+   * 읽을 수 없게 된다. 넘치게 두느니 글자에서 끊는다.
+   */
+  private breakLongWord(
+    lines: string[],
+    word: string,
+    style: TextStyle,
+    maxWidthPt: number,
+    measureWidth: TextWidthMeasurer,
+  ): string {
+    let line = "";
+    for (const character of [...word]) {
+      const candidate = line + character;
+      if (line !== "" && measureWidth(candidate, style.size) > maxWidthPt) {
+        lines.push(line);
+        line = character;
+      } else {
+        line = candidate;
+      }
+    }
+    return line;
   }
 }
 

@@ -16,6 +16,7 @@ import {
   type TableElement,
   TableLayout,
   type TableLayoutRow,
+  TableRowHeights,
   TextLayout,
   type TextElement,
   type TextStyle,
@@ -43,6 +44,7 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   private static readonly TOKEN_STROKE = "#a5b4fc";
   private static readonly TOKEN_TEXT = "#4338ca";
   private static readonly PLACEHOLDER_LINE = "#94a3b8";
+  private static readonly TEXT_PADDING_PX = 1;
 
   private readonly textLayout = new TextLayout();
   private readonly measurer = new CanvasTextMeasurer();
@@ -94,6 +96,7 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   private tableLayout(): TableLayout {
     return new TableLayout(
       this.mode === "design" ? TableCellText.source() : TableCellText.resolved(),
+      TableRowHeights.content((style) => this.measurer.forStyle(style)),
     );
   }
 
@@ -289,7 +292,10 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
     const layout = this.textLayout.layout(
       text, style, widthMm, this.measurer.forStyle(style),
     );
-    const fits = this.textLayout.heightMm(layout, style) <= frame.height / this.mmToPx;
+    // 안쪽 여백만큼 글자가 쓸 수 있는 높이가 줄어든다. 이것을 빼지 않으면 딱 맞게
+    // 계산된 마지막 줄을 Konva가 조용히 지운다 — 도메인이 그리라고 한 줄이 사라진다.
+    const usableHeightMm = (frame.height - KonvaElementVisitor.TEXT_PADDING_PX * 2) / this.mmToPx;
+    const fits = this.textLayout.heightMm(layout, style) <= usableHeightMm;
     return new Konva.Text({
       ...frame,
       // 넘치는 문구는 높이를 비워 Konva가 조용히 잘라내지 않고 PDF처럼 넘쳐 보이게 한다.
@@ -303,7 +309,7 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
       verticalAlign: fits ? style.valign : "top",
       lineHeight: style.lineHeight,
       wrap: "none",
-      padding: 1,
+      padding: KonvaElementVisitor.TEXT_PADDING_PX,
     });
   }
 
