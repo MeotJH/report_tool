@@ -28,7 +28,7 @@ const INK = "#000000";
 const LINE_HEIGHT = 1.836;
 
 /** 원본이 칸 테두리와 글자 사이에 두는 여백(1.83pt)이다. */
-const CELL_PADDING = 0.65;
+const CELL_PADDING = 0.70;
 
 /**
  * 고객사 월간 서비스 리포트를 원본과 같은 자리·같은 값으로 다시 만든다.
@@ -48,7 +48,7 @@ export function createServiceReportTemplate(): Template {
     version: 1,
     status: "draft",
     // 이어지는 쪽의 본문 영역이 원본과 같은 자리에서 시작하고 끝나야 한다.
-    page: new PageSpec("A4", "portrait", [19.96, 10.01, 15.02, 10.16]),
+    page: new PageSpec("A4", "portrait", [11.36, 10.01, 14.95, 10.16]),
     fonts: [FONT],
     elements: [...createCoverElements(), ...createBodyElements(), createPageNumber()],
     createdAt: "2026-08-31T00:00:00.000Z",
@@ -116,7 +116,7 @@ function createWorkSection(): readonly Element[] {
     sectionTitle("work-title", 11.36, "업무별 통계(당월)"),
     periodCaption(
       "work-period", new Frame(9.98, 19.96, 190.01, 7.51),
-      47.45, 142.56,
+      47.45, 142.56, 10, 10, "left",
     ),
     boundTable(
       "work-stats", new Frame(9.98, 29.95, 190.01, 45.08),
@@ -144,7 +144,7 @@ function createTypeSection(): readonly Element[] {
     sectionTitle("type-title", 86.43, "처리구분별 통계(당월)"),
     periodCaption(
       "type-period", new Frame(9.98, 95.07, 190.01, 7.48),
-      47.45, 142.56,
+      47.45, 142.56, 10, 10, "left",
     ),
     boundTable(
       "type-stats", new Frame(9.98, 105.02, 190.01, 45.09),
@@ -176,7 +176,7 @@ function createTicketSection(): readonly Element[] {
     sectionTitle("ticket-title", 161.5, "처리내역 (상세)").withFollows(follow),
     periodCaption(
       "ticket-period", new Frame(10.16, 170.11, 189.83, 7.48),
-      54.19, 135.64,
+      54.19, 135.64, 8, 9, "center",
     ).withFollows(follow),
     boundTable(
       "tickets", new Frame(10.16, 177.58, 189.83, 104.4),
@@ -204,7 +204,7 @@ function createUnresolvedSection(): readonly Element[] {
     periodCaption(
       "unresolved-period",
       new Frame(9.98, 301.98, 190.01, 7.48),
-      54.19, 135.82,
+      54.19, 135.82, 8, 9, "center",
     ),
     boundTable(
       "unresolved",
@@ -269,18 +269,25 @@ function sectionTitle(id: string, topMm: number, text: string): TextElement {
  * 나란히 놓인 본표와 따로 노는 것처럼 보인다.
  */
 function periodCaption(
-  id: string, frame: Frame, labelWidth: number, valueWidth: number,
+  id: string,
+  frame: Frame,
+  labelWidth: number,
+  valueWidth: number,
+  labelSize: number,
+  valueSize: number,
+  valueAlign: TableColumnAlign,
 ): TableElement {
   const table = staticTable(
     id, frame,
     [["label", labelWidth], ["value", valueWidth]],
     [{ label: "기간", value: "{{period.start}} ~ {{period.end}}" }],
-    frame.height, 10, "center",
+    frame.height, labelSize, "center",
   );
   return table
+    .withStyles({ cellStyle: cellStyle(valueSize, 400) })
     .withColumns([
       table.columns[0]!,
-      new TableColumn("value", "", "{{row.value}}", valueWidth, "left", null),
+      new TableColumn("value", "", "{{row.value}}", valueWidth, valueAlign, null),
     ])
     .withHeaderCells(new TableHeaderCells([0]));
 }
@@ -456,7 +463,7 @@ const TICKETS: readonly Record<string, string>[] = [
       requester: "박진욱\n(유지보수)",
       requestedAt: "2026-07-23\n09:03:55",
       request: "안녕하세요 인팩 이피엠 음성공장 이경미 책임입니다.(070-7777-4293)현재 급여사업장 설정이 인팩 이피엠의경우 음성, 제천, 수원, CKD 4개가 있는데 지금 현재 쓰고있는건 음성, 제천만 쓰고 있습니다.근데 수원사업장도 설정을 하고자 하는데 조직조직구분조직구분등록에서 급여기준사업장을 변경하면 되는 부분이 아닌가요? 현재 나뉘어 나오지 않아 확인이 필요합니다. 7월 하계휴가비분부터바로 적용하려고 하는데 확인 부탁드릴게요~!(* 배터리설계실, 구동부품설계팀, 배터리부품설계1팀)",
-      answer: "요청하신 사항 확인 되었습니다.급여기준상버장의 경우말씀해주신대로 조직 - 조직구분 - 조직구분등록에서 각조직마다 급여기준사업장을세팅해주시면 됩니다.하지만세팅 이후 반드시 급여대상자 재생성을 해주셔야 합니다. 급여 계산시 사용되는 급여기준사업장은 급여대상자생성때 조직구분에 맞춰서등록이 되기 때문에 급여기준사업장 변경 후 급여대상자를 재생성하지 않으면 이전 사업장으로 잡혀있을 것으로 예상 됩니다.추가로 조직구분예외사항의 경우 각조직별 특별하게 다른 사업장으로 받으시는 분들을 세팅하는 경우가 많으며, 조직구분등록보다 우선시되기 때문에 특별하게 예외처리할인원이 있으실 경우 등록하시면 됩니다.물론 이 경우에도 급여대상자 재생성은 해주셔야 합니다.만약 그럼에도 불과하고 집계가 안되실경우 문의 주시면 확인 도와드리겠습니다.감사합니다.",
+      answer: "요청하신 사항 확인 되었습니다.급여기준상버장의 경우말씀해주신대로 조직 - 조직구분 - 조직구분등록에서 각조직마다 급여기준사업장을세팅해주시면 됩니다.하지만세팅 이후 반드시 급여대상자 재생성을 해주셔야 합니다. 급여 계산시 사용되는 급여기준사업장은 급여대상자생성때 조직구분에 맞춰서등록이 되기 때문에 급여기준사업장 변경 후 급여대상자를 재생성하지 않으면 이전 사업장으로 잡혀있을 것으로 예상 됩니다.추가로 조직구분예외사항의 경우 각조직별 특별하게 다른 사업장으로 받으시는 분들을 세팅하는 경우가 많으며, 조직구분등록보다 우선시되기 때문에 특별하게 예외처리할인원이 있으실 경우 등록하시면 됩니다.물론 이 경우에도 급여대상자 재생성은 해주셔야 합니다.만약 그럼에도 불과하고 집계가 안되실경우 문의 주시면 확인 도와드리겠습니다.감사합니다.\n",
       hours: "0.2",
       closedAt: "2026-07-23\n09:47:00",
     },
@@ -466,7 +473,7 @@ const TICKETS: readonly Record<string, string>[] = [
       requester: "박진욱\n(개발사항)",
       requestedAt: "2026-07-22\n14:07:13",
       request: "안녕하십니까. 인팩 일렉스 관리팀 오정은 책임입니다.(070-4900-2511 / 010-7456-6130)퇴직금 계산서 출력 시문구 변경 및 항목 추가 요청드립니다.1. 평균임금 산정내역에서 '급여내역' 상 성과평가급(INFAC Way 인센티브) 계산은 포함되어 있지만,항목이 따로 표기되어있지는 않고있습니다.가능하다면, 총계(B) 위에 '성과평과급' 으로 항목추가 부탁드립니다.2. '상여/연차 내역' 성과평가급은 기존대로 '정기상여'로 변경 부탁드립니다.관련 문의사항은 연락 부탁드리겠습니다.감사합니다.",
-      answer: "요청하신 사항 처리되었습니다.말씀해주신 내용대로 수정 하였으나, 이후 다시 검토하신다고 하였습니다.검토후 연락 주시기로 하였으나아직까지 연락을 받지 못하여 해당 문의 글은 완료 처리 하겠습니다.이후 작업이필요하실때 변경되는 내용으로 다시 올려주시면 작업 진행하겠습니다.감사합니다.",
+      answer: "요청하신 사항 처리되었습니다.말씀해주신 내용대로 수정 하였으나, 이후 다시 검토하신다고 하였습니다.검토후 연락 주시기로 하였으나아직까지 연락을 받지 못하여 해당 문의 글은 완료 처리 하겠습니다.이후 작업이필요하실때 변경되는 내용으로 다시 올려주시면 작업 진행하겠습니다.감사합니다.\n",
       hours: "2",
       closedAt: "2026-07-31\n13:26:02",
     },
@@ -576,7 +583,7 @@ const TICKETS: readonly Record<string, string>[] = [
       requester: "박진욱\n(유지보수)",
       requestedAt: "2026-07-01\n17:10:15",
       request: "안녕하십니까 인팩 인사팀 이현수 매니저(02-6714-5523,010-3871-9716)입니다.결재할문서 內 접수되는 휴가계획신청은 몇몇 건이 기안자 등이 공백으로 접수되고 있습니다.해당 건 조치 부탁드립니다.감사합니다.",
-      answer: "요청하신 사항 처리되었습니다.확인결과 연차휴가계획신청 화면에서 조회시 기안자정보를 넘겨주지 않아 이미신청된 데이터를 세부내역을통해 다시 연 다음, 임시저장-&gt; 다시 신청 할 경우 기안자 정보가 들어가지 않는현상으로 확인 되었습니다.기안자 정보를 넘겨주도록수정하여 다시 임시저장을하시고 신청 하셔도 기안자정보가 유지되도록 수정 하였습니다.감사합니다.",
+      answer: "요청하신 사항 처리되었습니다.확인결과 연차휴가계획신청 화면에서 조회시 기안자정보를 넘겨주지 않아 이미신청된 데이터를 세부내역을통해 다시 연 다음, 임시저장-&gt; 다시 신청 할 경우 기안자 정보가 들어가지 않는현상으로 확인 되었습니다.기안자 정보를 넘겨주도록수정하여 다시 임시저장을하시고 신청 하셔도 기안자정보가 유지되도록 수정 하였습니다.감사합니다.\n",
       hours: "0.5",
       closedAt: "2026-07-01\n17:23:04",
     },

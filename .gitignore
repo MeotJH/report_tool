@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.pdf
 .DS_Store
+
+# 재현 대조용 파이썬 캐시
+tools/**/__pycache__/
