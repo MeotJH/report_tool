@@ -30,6 +30,9 @@ const LINE_HEIGHT = 1.836;
 /** 원본이 칸 테두리와 글자 사이에 두는 여백(1.83pt)이다. */
 const CELL_PADDING = 0.70;
 
+/** 원본이 머리글 칸에 까는 연한 파랑이다. */
+const HEADER_FILL = "#D9E4F0";
+
 /**
  * 고객사 월간 서비스 리포트를 원본과 같은 자리·같은 값으로 다시 만든다.
  *
@@ -116,7 +119,7 @@ function createWorkSection(): readonly Element[] {
     sectionTitle("work-title", 11.36, "업무별 통계(당월)"),
     periodCaption(
       "work-period", new Frame(9.98, 19.96, 190.01, 7.51),
-      47.45, 142.56, 10, 10, "left",
+      47.45, 142.56, 10, 10, "left", [0],
     ),
     boundTable(
       "work-stats", new Frame(9.98, 29.95, 190.01, 45.08),
@@ -144,7 +147,7 @@ function createTypeSection(): readonly Element[] {
     sectionTitle("type-title", 86.43, "처리구분별 통계(당월)"),
     periodCaption(
       "type-period", new Frame(9.98, 95.07, 190.01, 7.48),
-      47.45, 142.56, 10, 10, "left",
+      47.45, 142.56, 10, 10, "left", [0],
     ),
     boundTable(
       "type-stats", new Frame(9.98, 105.02, 190.01, 45.09),
@@ -176,7 +179,7 @@ function createTicketSection(): readonly Element[] {
     sectionTitle("ticket-title", 161.5, "처리내역 (상세)").withFollows(follow),
     periodCaption(
       "ticket-period", new Frame(10.16, 170.11, 189.83, 7.48),
-      54.19, 135.64, 8, 9, "center",
+      54.19, 135.64, 8, 9, "center", [0, 1],
     ).withFollows(follow),
     boundTable(
       "tickets", new Frame(10.16, 177.58, 189.83, 104.4),
@@ -204,7 +207,7 @@ function createUnresolvedSection(): readonly Element[] {
     periodCaption(
       "unresolved-period",
       new Frame(9.98, 301.98, 190.01, 7.48),
-      54.19, 135.82, 8, 9, "center",
+      54.19, 135.82, 8, 9, "center", [0, 1],
     ),
     boundTable(
       "unresolved",
@@ -276,6 +279,7 @@ function periodCaption(
   labelSize: number,
   valueSize: number,
   valueAlign: TableColumnAlign,
+  headerColumns: readonly number[],
 ): TableElement {
   const table = staticTable(
     id, frame,
@@ -289,7 +293,7 @@ function periodCaption(
       table.columns[0]!,
       new TableColumn("value", "", "{{row.value}}", valueWidth, valueAlign, null),
     ])
-    .withHeaderCells(new TableHeaderCells([0]));
+    .withHeaderCells(new TableHeaderCells(headerColumns));
 }
 
 /** 값이 템플릿에 고정된 표를 만든다. 셀 값의 표현식은 발행 때 채워진다. */
@@ -310,7 +314,7 @@ function staticTable(
     )),
     rowHeight,
     cellStyle(size, 700), cellStyle(size, 400),
-    false, "clip", false, TableHeaderCells.none(), null,
+    false, "clip", false, TableHeaderCells.none(), HEADER_FILL,
     0, false, null, CELL_PADDING,
   );
 }
@@ -344,7 +348,7 @@ function boundTable(
     )),
     rowHeight,
     cellStyle(8, 700), cellStyle(8, 400),
-    true, "clip", false, TableHeaderCells.none(), null,
+    true, "clip", false, TableHeaderCells.none(), HEADER_FILL,
     0, false, null, CELL_PADDING,
   );
 }

@@ -122,6 +122,18 @@ def main():
                  f'{len(ra)}개, 최대 어긋남 {worst:.1f}pt' if len(ra) == len(rb)
                  else f'원본 {len(ra)}개 / 재현본 {len(rb)}개')
 
+    # 칠한 칸은 선이나 글자와 따로 세야 한다. 칠이 통째로 빠져도 선과 글자는
+    # 멀쩡하므로, 재지 않으면 없어진 줄을 모른다.
+    for index in range(min(len(a), len(b))):
+        fa, fb = a[index]['fills'], b[index]['fills']
+        near = len(fa) == len(fb) and all(
+            p[0] == q[0] and all(abs(x - y) <= 1 for x, y in zip(p[1:], q[1:]))
+            for p, q in zip(fa, fb))
+        r.record(f'{index + 1}쪽 칠한 칸', near,
+                 f'{len(fa)}칸 {fa[0][0] if fa else ""}'
+                 if near else f'원본 {len(fa)}칸 / 재현본 {len(fb)}칸'
+                              f' — 색 {sorted({x[0] for x in fa})} / {sorted({x[0] for x in fb})}')
+
     for index in range(min(len(a), len(b))):
         wa, wb = row_bands(a[index]), row_bands(b[index])
         same = len(wa) == len(wb) and all(
