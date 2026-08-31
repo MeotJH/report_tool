@@ -12,10 +12,12 @@ export class TableCellLocator {
   private readonly tableEditor = new TableEditor();
 
   /**
-   * 표 안에서 더블클릭한 지점이 어떤 편집 대상인지 판단한다.
+   * 표 안에서 더블클릭한 지점이 **어디인지**만 판단한다.
    *
-   * 데이터 표의 본문은 값이 데이터에서 오므로 편집 대상이 아니다. 헤더는
-   * 사용자가 정하는 문구이므로 두 종류의 표에서 모두 편집할 수 있다.
+   * 그 자리를 고칠 수 있는지는 여기서 묻지 않는다. 두 물음을 한자리에서 답하면
+   * "고칠 수 없는 자리"와 "아무것도 없는 자리"가 같은 답(`undefined`)이 되어,
+   * 왜 안 되는지 말해 줄 기회가 사라진다. 실제로 데이터 표의 값을 더블클릭하면
+   * 아무 일도 일어나지 않았고, 사용자는 자기가 잘못 눌렀다고 생각했다.
    */
   targetAt(table: TableElement, xMm: number, yMm: number): CanvasEditTarget | undefined {
     const columnIndex = this.tableEditor.columnIndexAtOffset(table, xMm - table.frame.x);
@@ -26,7 +28,7 @@ export class TableCellLocator {
       return { kind: "tableHeader", elementId: table.id, columnIndex };
     }
     const rowIndex = rowOffset - (table.showHeader ? 1 : 0);
-    if (!this.isEditableRow(table, rowIndex)) return undefined;
+    if (!this.hasRowAt(table, rowIndex)) return undefined;
     return { kind: "tableCell", elementId: table.id, rowIndex, columnIndex };
   }
 
@@ -92,6 +94,20 @@ export class TableCellLocator {
   /** 저장된 정적 행 안의 위치만 셀 편집 대상으로 인정한다. */
   private isEditableRow(table: TableElement, rowIndex: number): boolean {
     return rowIndex >= 0 && rowIndex < this.editableRowCount(table);
+  }
+
+  /**
+   * 그 자리에 행이 있는지만 본다. 고칠 수 있는지는 따지지 않는다.
+   *
+   * 데이터 표의 행 수는 발행 데이터가 정하므로 편집 중에는 알 수 없다. 표 안을
+   * 눌렀다면 행이 있는 것으로 본다 — 어차피 요소를 찾은 것이 프레임 안이다.
+   */
+  private hasRowAt(table: TableElement, rowIndex: number): boolean {
+    if (rowIndex < 0) return false;
+    if (table.source instanceof StaticTableSource) {
+      return rowIndex < table.source.rows.length;
+    }
+    return true;
   }
 
   /** 데이터 표는 직접 입력할 행이 없으므로 0으로 본다. */

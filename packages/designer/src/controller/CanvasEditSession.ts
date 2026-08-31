@@ -36,6 +36,25 @@ export abstract class CanvasEditSession {
       : null;
   }
 
+  /**
+   * 편집할 수 없는 자리를 눌렀을 때 왜 안 되는지 알려 준다. 편집되면 `null`이다.
+   *
+   * 아무 일도 일어나지 않는 것이 가장 나쁘다. 사용자는 자기가 잘못 눌렀다고
+   * 생각해 같은 동작을 반복하고, 그러다 "이 제품은 표를 못 고친다"는 결론에
+   * 이른다. 실제로는 고칠 수 있는 자리가 따로 있는데도 그렇다.
+   */
+  static refusalFor(
+    target: CanvasEditTarget,
+    controller: EditorController,
+  ): string | null {
+    if (CanvasEditSession.create(target, controller) !== null) return null;
+    const element = controller.getElement(target.elementId);
+    if (target.kind !== "tableCell" || !(element instanceof TableElement)) return null;
+    if (element.source instanceof StaticTableSource) return null;
+    return "이 값은 발행할 때 데이터에서 옵니다. "
+      + "여기서 고치려면 [표 구조]의 행 출처를 \"직접 입력한 행\"으로 바꾸세요.";
+  }
+
   /** 입력기를 요소와 정확히 겹치게 놓을 문서 영역을 제공한다. */
   abstract frame(): Frame;
 

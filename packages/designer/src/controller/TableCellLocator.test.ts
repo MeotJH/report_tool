@@ -62,12 +62,21 @@ describe("TableCellLocator 대상 판정", () => {
     expect(locator.targetAt(createTable(2), 130, 65)).toBeUndefined();
   });
 
-  it("데이터 표의 본문은 값이 데이터에서 오므로 편집 대상이 아니다", () => {
+  it("데이터 표의 본문도 어느 칸인지는 알려 준다", () => {
+    // 고칠 수 있는지는 여기서 답하지 않는다. `undefined`로 뭉뚱그리면 왜 안 되는지
+    // 말해 줄 기회가 사라져, 사용자에게는 아무 일도 일어나지 않는 것으로 보인다.
     const bound = createTable(0).withSource(new BoundTableSource(new Binding("items")));
 
-    expect(locator.targetAt(bound, 30, 65)).toBeUndefined();
+    expect(locator.targetAt(bound, 30, 65))
+      .toEqual({ kind: "tableCell", elementId: "t", rowIndex: 0, columnIndex: 0 });
     expect(locator.targetAt(bound, 30, 55))
       .toEqual({ kind: "tableHeader", elementId: "t", columnIndex: 0 });
+  });
+
+  it("표 위쪽 바깥은 아무 대상도 아니다", () => {
+    const bound = createTable(0).withSource(new BoundTableSource(new Binding("items")));
+
+    expect(locator.targetAt(bound, 30, 40)).toBeUndefined();
   });
 });
 

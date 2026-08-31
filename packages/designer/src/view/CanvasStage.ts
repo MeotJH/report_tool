@@ -12,6 +12,7 @@ import type { EditorController } from "../controller/EditorController.js";
 import { FrameBounds } from "../controller/FrameBounds.js";
 import { TableCellLocator } from "../controller/TableCellLocator.js";
 import { TemplateIssueFinder } from "../controller/TemplateIssueFinder.js";
+import { CanvasEditSession } from "../controller/CanvasEditSession.js";
 import { CanvasMetrics } from "./CanvasMetrics.js";
 import { CanvasOverlay } from "./CanvasOverlay.js";
 import { FontLibrary } from "./FontLibrary.js";
@@ -346,6 +347,11 @@ export class CanvasStage {
     if (!(element instanceof TableElement)) return;
     const target = this.cellLocator.targetAt(element, point.x, point.y);
     if (target === undefined) return;
+    const refusal = CanvasEditSession.refusalFor(target, this.controller);
+    if (refusal !== null) {
+      this.controller.setNotice(refusal);
+      return;
+    }
     this.controller.beginEdit(target);
   }
 

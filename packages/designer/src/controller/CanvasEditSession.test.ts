@@ -129,6 +129,39 @@ describe("정적 표 셀 편집", () => {
       controller,
     )).toBeNull();
   });
+
+  it("데이터 표의 본문 셀을 눌렀을 때 왜 안 되는지 알려 준다", () => {
+    // 아무 일도 일어나지 않으면 사용자는 자기가 잘못 눌렀다고 생각한다.
+    const bound = staticTable().withSource(new BoundTableSource(new Binding("items")));
+    const { controller } = createEditor(bound);
+
+    const refusal = CanvasEditSession.refusalFor(
+      { kind: "tableCell", elementId: "deductions", rowIndex: 0, columnIndex: 0 },
+      controller,
+    );
+
+    expect(refusal).toContain("데이터에서 옵니다");
+    expect(refusal).toContain("행 출처");
+  });
+
+  it("고칠 수 있는 자리는 아무 말도 하지 않는다", () => {
+    const { controller } = createEditor(staticTable());
+
+    expect(CanvasEditSession.refusalFor(
+      { kind: "tableCell", elementId: "deductions", rowIndex: 0, columnIndex: 0 },
+      controller,
+    )).toBeNull();
+  });
+
+  it("데이터 표라도 머리글은 고칠 수 있으므로 아무 말도 하지 않는다", () => {
+    const bound = staticTable().withSource(new BoundTableSource(new Binding("items")));
+    const { controller } = createEditor(bound);
+
+    expect(CanvasEditSession.refusalFor(
+      { kind: "tableHeader", elementId: "deductions", columnIndex: 0 },
+      controller,
+    )).toBeNull();
+  });
 });
 
 describe("표 헤더 편집", () => {
