@@ -81,6 +81,16 @@ function createCoverElements(): readonly Element[] {
   ].map((element) => element.withPageIndex(0));
 }
 
+/**
+ * 한 줄이 실제로 차지하는 높이(mm)다.
+ *
+ * 요소 높이를 눈대중으로 잡으면 글자가 자기 자리를 넘는다. 지금은 편집기가 그것을
+ * `문구 1줄이 요소 높이보다 길다`로 잡아 주므로, 처음부터 맞춰 둔다.
+ */
+function lineHeightMm(sizePt: number): number {
+  return Math.ceil(sizePt * LINE_HEIGHT * 25.4 / 72 * 100) / 100;
+}
+
 /** 표지 문구가 모두 같은 폭에서 가운데로 모이게 한다. */
 function coverText(
   id: string,
@@ -91,7 +101,7 @@ function coverText(
   weight: 400 | 700 = 700,
 ): TextElement {
   return new TextElement(
-    id, new Frame(10, topMm, 190, size * 0.36), 1, false,
+    id, new Frame(10, topMm, 190, lineHeightMm(size)), 1, false,
     { kind, value },
     new TextStyle(FONT, size, { weight, color: INK, align: "center", lineHeight: LINE_HEIGHT }),
   );
@@ -259,7 +269,7 @@ function createOtherSection(): readonly Element[] {
 /** 구역 제목은 모두 같은 크기와 굵기를 쓴다. */
 function sectionTitle(id: string, topMm: number, text: string): TextElement {
   return new TextElement(
-    id, new Frame(10.61, topMm, 120, 6), 1, false,
+    id, new Frame(10.61, topMm, 120, lineHeightMm(14)), 1, false,
     { kind: "literal", value: text },
     new TextStyle(FONT, 14, { weight: 700, color: INK, lineHeight: LINE_HEIGHT }),
   );
@@ -363,7 +373,7 @@ function cellStyle(size: number, weight: 400 | 700): TextStyle {
 /** 모든 쪽 아래 가운데에 같은 자리로 나오는 쪽 번호를 만든다. */
 function createPageNumber(): TextElement {
   return new TextElement(
-    "page-number", new Frame(0, 287.36, 210, 5), 9, false,
+    "page-number", new Frame(0, 287.36, 210, lineHeightMm(10)), 9, false,
     { kind: "literal", value: "{{page:00}} / {{pages:00}}" },
     new TextStyle(FONT, 10, { color: INK, align: "center", lineHeight: LINE_HEIGHT }),
     false, 0, true,

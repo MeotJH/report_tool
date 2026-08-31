@@ -2,14 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "designer-playground",
+      "name": "designer",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev:designer"
-      ],
-      "port": 5173,
-      "autoPort": true
+      "runtimeArgs": ["run", "dev:designer"],
+      "port": 5173
     }
   ]
 }

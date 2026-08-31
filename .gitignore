@@ -5,3 +5,6 @@ dist/
 
 # 재현 대조용 파이썬 캐시
 tools/**/__pycache__/
+
+# 플레이그라운드가 쓰는 시스템 글꼴 사본 (재현 대조용, 배포물 아님)
+packages/designer/public/*.ttf

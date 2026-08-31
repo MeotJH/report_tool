@@ -1,8 +1,15 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "..",
+    // 플레이그라운드는 배포물이 아니라 확인용 화면이다. 발행본과 같은 픽스처를
+    // 올려 "화면 = 발행본"을 눈으로 대 보려면 renderer 쪽 파일도 읽어야 한다.
+    "rootDir": "../..",
     "noEmit": true
   },
-  "include": ["../src/**/*.ts", "../src/**/*.tsx", "./**/*.ts"]
+  "include": [
+    "../src/**/*.ts",
+    "../src/**/*.tsx",
+    "./**/*.ts",
+    "../../renderer/src/pdf/ServiceReportTestFixture.ts"
+  ]
 }

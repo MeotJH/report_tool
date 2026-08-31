@@ -21,6 +21,12 @@ import {
   type Element,
 } from "@report-tool/core";
 import { Designer } from "../src/index.js";
+// 발행본과 같은 템플릿을 편집기에도 올려 "화면 = 발행본"을 눈으로 확인한다.
+// 픽스처는 core만 참조하므로 이 import가 PDF 렌더러를 끌고 오지 않는다.
+import {
+  createServiceReportData,
+  createServiceReportTemplate,
+} from "../../renderer/src/pdf/ServiceReportTestFixture.js";
 
 const container = document.querySelector<HTMLElement>("#designer");
 if (container === null) throw new Error("디자이너 컨테이너를 찾을 수 없다");
@@ -32,18 +38,28 @@ if (container === null) throw new Error("디자이너 컨테이너를 찾을 수
  * 컴퓨터에 깔린 글꼴로 재고, 그 폭은 발행본이 임베딩하는 파일과 다르다.
  */
 class PlaygroundFontProvider implements FontProvider {
-  /** 굵기에 맞는 파일을 받아 바이트로 돌려준다. */
-  async load(_family: string, weight: number): Promise<Uint8Array> {
-    const response = await fetch(weight >= 700 ? boldFontUrl : regularFontUrl);
+  /** 가족 이름에 맞는 파일을 받아 바이트로 돌려준다. */
+  async load(family: string, weight: number): Promise<Uint8Array> {
+    const response = await fetch(PlaygroundFontProvider.urlFor(family, weight));
     if (!response.ok) throw new Error(`글꼴 파일을 받지 못했다: ${response.status}`);
     return new Uint8Array(await response.arrayBuffer());
   }
+
+  /** 리포트는 원본이 임베딩한 맑은 고딕을, 나머지는 Pretendard를 쓴다. */
+  private static urlFor(family: string, weight: number): string {
+    const bold = weight >= 700;
+    if (family === "MalgunGothic") return bold ? "/malgunbd.ttf" : "/malgun.ttf";
+    return bold ? boldFontUrl : regularFontUrl;
+  }
 }
+
+/** `?doc=report`로 열면 원본과 대조한 월간 서비스 리포트를 편집기에 올린다. */
+const wantsReport = new URLSearchParams(location.search).get("doc") === "report";
 
 new Designer({
   container,
-  template: createTemplate(),
-  sampleData: createSampleData(),
+  template: wantsReport ? createServiceReportTemplate() : createTemplate(),
+  sampleData: wantsReport ? createServiceReportData() : createSampleData(),
   fontProvider: new PlaygroundFontProvider(),
   onChange: (template) => showSavedJson(template),
 });
