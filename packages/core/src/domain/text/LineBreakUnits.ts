@@ -14,6 +14,14 @@
  * 실제 리포트가 그렇게 하지 않으므로, 넣으면 오히려 원본과 달라진다.
  */
 export class LineBreakUnits {
+  /**
+   * 라틴 낱말 안에서도 줄을 바꿀 수 있는 자리다.
+   *
+   * 전화번호나 괄호가 섞인 긴 문자열은 공백이 없어 한 덩어리가 된다. 쉼표와
+   * 붙임표 뒤에서 끊지 않으면 그 덩어리가 통째로 다음 줄로 밀려 앞줄이 빈다.
+   */
+  private static readonly BREAK_AFTER = /[,.;:)\]}\/\-]/u;
+
   /** 한글·한자·가나와 전각 부호는 글자 하나가 곧 줄바꿈 자리다. */
   private static readonly BREAKABLE =
     /[ᄀ-ᇿ⺀-鿿가-힯豈-﫿︰-﹏＀-｠]/u;
@@ -39,6 +47,10 @@ export class LineBreakUnits {
         continue;
       }
       latin += character;
+      if (LineBreakUnits.BREAK_AFTER.test(character)) {
+        units.push(latin);
+        latin = "";
+      }
     }
     if (latin !== "") units.push(latin);
     return units;
