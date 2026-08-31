@@ -158,6 +158,28 @@ export class ResizeTableColumnCommand extends TableCommand {
   }
 }
 
+/**
+ * 머리글 칸 하나가 덮는 열 수 변경을 한 번의 Undo 단위로 기록한다.
+ *
+ * 병합은 되돌리기가 특히 중요하다. 잘못 덮으면 뒤 열의 이름이 화면에서 사라져
+ * "내가 열을 지웠나"로 읽히기 때문이다.
+ */
+export class SetTableHeaderSpanCommand extends TableCommand {
+  /** 대상 열 위치와 덮을 열 수를 재실행 가능한 입력으로 보존한다. */
+  constructor(
+    elementId: string,
+    private readonly index: number,
+    private readonly headerSpan: number,
+  ) {
+    super(elementId);
+  }
+
+  /** 대상 열의 머리글 병합 수만 교체한다. */
+  protected update(table: TableElement): TableElement {
+    return this.editor.setHeaderSpan(table, this.index, this.headerSpan);
+  }
+}
+
 /** 전체 표의 행 높이 변경을 한 번의 Undo 단위로 기록한다. */
 export class UpdateTableRowHeightCommand extends TableCommand {
   /** 확정한 mm 행 높이를 재실행 가능한 입력으로 보존한다. */

@@ -102,6 +102,20 @@ export class TableEditor {
     return table.withColumns(this.replaceColumn(table, index, this.columnAt(table, index).withWidth(width)));
   }
 
+  /**
+   * 머리글 칸 하나가 덮을 열 수를 정한다.
+   *
+   * 남은 열보다 크게 덮으라고 해도 표 밖으로는 나가지 않는다. 사용자가 열을
+   * 지운 뒤에도 저장된 숫자가 그대로 남아 있을 수 있기 때문이다.
+   */
+  setHeaderSpan(table: TableElement, index: number, headerSpan: number): TableElement {
+    if (headerSpan < 1) throw new Error("머리글 병합은 한 열 이상이어야 한다");
+    const limited = Math.min(headerSpan, table.columns.length - index);
+    return table.withColumns(
+      this.replaceColumn(table, index, this.columnAt(table, index).withHeaderSpan(limited)),
+    );
+  }
+
   /** 행 높이를 mm 양수로 제한해 캔버스와 PDF가 같은 배치를 계산하게 한다. */
   updateRowHeight(table: TableElement, rowHeight: number): TableElement {
     if (rowHeight <= 0) throw new Error("표 행 높이는 0보다 커야 한다");

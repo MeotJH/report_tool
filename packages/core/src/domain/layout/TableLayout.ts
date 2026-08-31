@@ -1,5 +1,6 @@
 import { TableCellRole, type CellRole } from "../element/TableCellRole.js";
 import type { TableElement } from "../element/TableElement.js";
+import { TableCellSpans } from "./TableCellSpans.js";
 import { TableCellText } from "./TableCellText.js";
 import { TableRowHeights } from "./TableRowHeights.js";
 
@@ -9,6 +10,12 @@ export interface TableLayoutRow {
   readonly cells: readonly string[];
   /** 칸마다의 역할이다. 렌더러는 이 값으로만 머리글 표현을 정한다. */
   readonly roles: readonly CellRole[];
+  /**
+   * 칸마다 덮는 열 수다. `0`이면 앞 칸이 덮으므로 그리지 않고 자리만 넘긴다.
+   *
+   * 렌더러가 열 정의를 다시 보고 병합을 판단하면 캔버스와 발행본이 갈라진다.
+   */
+  readonly spans: readonly number[];
   /** 몇 번째 본문 행인지다. 열 이름을 보여 주는 머리글 줄이면 `null`이다. */
   readonly bodyIndex: number | null;
   /** 이 배치 안에서 위에서부터 센 줄 번호다. */
@@ -173,13 +180,15 @@ export class TableLayout {
     const roles = element.columns.map(
       (_column, columnIndex) => TableCellRole.of(element, bodyIndex, columnIndex),
     );
+    const spans = TableCellSpans.forRow(element, bodyIndex);
     return {
       cells,
       roles,
+      spans: spans.toArray(),
       bodyIndex,
       offset,
       topMm,
-      heightMm: this.rowHeights.heightFor(element, cells, roles),
+      heightMm: this.rowHeights.heightFor(element, cells, roles, spans),
     };
   }
 

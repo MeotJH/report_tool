@@ -292,6 +292,8 @@ export class ElementFactory {
       json.width as number,
       json.align as TableColumnAlign,
       formatSpec,
+      // 병합 개념 이전에 저장된 열은 자기 한 칸만 덮는다.
+      typeof json.headerSpan === "number" ? json.headerSpan : 1,
     );
   }
 

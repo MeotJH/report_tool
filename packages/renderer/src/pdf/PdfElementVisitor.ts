@@ -132,7 +132,12 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     return element.source.resolveRows(this.data);
   }
 
-  /** 한 표 행의 열 너비와 정렬을 유지하며 셀 배경·테두리·문구를 함께 그린다. */
+  /**
+   * 한 표 행의 열 너비와 정렬을 유지하며 셀 배경·테두리·문구를 함께 그린다.
+   *
+   * 병합된 칸(`spans`가 0인 열)은 그리지 않고 자리만 넘긴다. 그려 버리면 앞 칸
+   * 위에 세로선이 다시 얹혀 병합한 자리에 금이 간다.
+   */
   private drawTableRow(
     element: TableElement,
     row: TableLayoutRow,
@@ -140,7 +145,12 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     const cells = row.cells;
     let x = element.frame.x;
     element.columns.forEach((column, columnIndex) => {
-      const frame = this.createCellFrame(element, column, x, row);
+      const span = row.spans[columnIndex] ?? 1;
+      if (span === 0) {
+        x += column.width;
+        return;
+      }
+      const frame = this.createCellFrame(element, columnIndex, x, row);
       const header = row.roles[columnIndex] === "header";
       this.drawCell(frame, header ? element.headerFill : null);
       const baseStyle = header ? element.headerStyle : element.cellStyle;
@@ -152,11 +162,28 @@ export class PdfElementVisitor implements ElementVisitor<void> {
   /** 표의 행·열 좌표를 문서의 절대 mm 영역으로 변환한다. */
   private createCellFrame(
     element: TableElement,
-    column: TableColumn,
+    columnIndex: number,
     x: number,
     row: TableLayoutRow,
   ): Frame {
-    return new Frame(x, element.frame.y + row.topMm, column.width, row.heightMm);
+    return new Frame(
+      x,
+      element.frame.y + row.topMm,
+      this.cellWidthMm(element, columnIndex, row),
+      row.heightMm,
+    );
+  }
+
+  /** 병합한 칸은 덮은 열의 너비까지 자기 폭으로 삼는다. */
+  private cellWidthMm(
+    element: TableElement,
+    columnIndex: number,
+    row: TableLayoutRow,
+  ): number {
+    const span = row.spans[columnIndex] ?? 1;
+    return element.columns
+      .slice(columnIndex, columnIndex + span)
+      .reduce((total, column) => total + column.width, 0);
   }
 
   /**

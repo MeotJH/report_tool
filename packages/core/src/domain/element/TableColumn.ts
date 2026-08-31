@@ -7,7 +7,15 @@ export type TableColumnAlign = "left" | "center" | "right";
  * 반복 행의 한 열이 어떤 값을 어떤 너비와 표현으로 보여줄지 보존한다.
  */
 export class TableColumn {
-  /** 열 설정을 렌더링 동작 없이 직렬화 가능한 값으로 구성한다. */
+  public readonly headerSpan: number;
+
+  /**
+   * 열 설정을 렌더링 동작 없이 직렬화 가능한 값으로 구성한다.
+   *
+   * `headerSpan`은 이 열의 **머리글 칸 하나가 몇 열을 덮는지**다. 원본 리포트의
+   * `처리시간(시간/%)`처럼 이름은 하나인데 값은 두 칸으로 나뉘는 표가 있다.
+   * 본문은 손대지 않는다 — 병합은 이름의 문제이지 값의 문제가 아니다.
+   */
   constructor(
     public readonly key: string,
     public readonly header: string,
@@ -15,32 +23,33 @@ export class TableColumn {
     public readonly width: number,
     public readonly align: TableColumnAlign,
     public readonly formatSpec: FormatSpec | null,
-  ) {}
+    headerSpan = 1,
+  ) {
+    this.headerSpan = Math.max(1, Math.trunc(headerSpan));
+  }
 
   /** 열의 데이터 연결과 표현을 유지하면서 사용자가 입력한 헤더만 교체한다. */
   withHeader(header: string): TableColumn {
-    return new TableColumn(
-      this.key, header, this.cellTemplate, this.width, this.align, this.formatSpec,
-    );
+    return this.copy({ header });
   }
 
   /** 열의 나머지 설정을 유지하면서 mm 너비만 교체한다. */
   withWidth(width: number): TableColumn {
-    return new TableColumn(
-      this.key, this.header, this.cellTemplate, width, this.align, this.formatSpec,
-    );
+    return this.copy({ width });
+  }
+
+  /** 머리글 칸 하나가 덮는 열 수만 교체한다. */
+  withHeaderSpan(headerSpan: number): TableColumn {
+    return this.copy({ headerSpan });
   }
 
   /** 데이터 Token이 선택한 행 필드와 선택적 제안 헤더를 한 열에 결합한다. */
   withDataField(fieldKey: string, suggestedHeader?: string): TableColumn {
-    return new TableColumn(
-      fieldKey,
-      suggestedHeader ?? this.header,
-      `{{row.${fieldKey}}}`,
-      this.width,
-      this.align,
-      this.formatSpec,
-    );
+    return this.copy({
+      key: fieldKey,
+      header: suggestedHeader ?? this.header,
+      cellTemplate: `{{row.${fieldKey}}}`,
+    });
   }
 
   /** 열 설정을 클래스 구현과 무관한 저장 데이터로 변환한다. */
@@ -52,6 +61,26 @@ export class TableColumn {
       width: this.width,
       align: this.align,
       formatSpec: this.formatSpec,
+      headerSpan: this.headerSpan,
     };
+  }
+
+  /** 모든 변경 메서드가 같은 복사 규칙을 공유해 설정을 흘리지 않게 한다. */
+  private copy(changes: Readonly<{
+    key?: string;
+    header?: string;
+    cellTemplate?: string;
+    width?: number;
+    headerSpan?: number;
+  }>): TableColumn {
+    return new TableColumn(
+      changes.key ?? this.key,
+      changes.header ?? this.header,
+      changes.cellTemplate ?? this.cellTemplate,
+      changes.width ?? this.width,
+      this.align,
+      this.formatSpec,
+      changes.headerSpan ?? this.headerSpan,
+    );
   }
 }

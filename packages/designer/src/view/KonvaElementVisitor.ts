@@ -185,7 +185,13 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   ): void {
     let x = 0;
     element.columns.forEach((column, columnIndex) => {
-      const width = this.toPx(column.width);
+      // 병합된 칸은 앞 칸이 이미 덮었다. 다시 그리면 그 자리에 세로선이 얹힌다.
+      const span = row.spans[columnIndex] ?? 1;
+      if (span === 0) {
+        x += this.toPx(column.width);
+        return;
+      }
+      const width = this.toPx(this.cellWidthMm(element, columnIndex, span));
       const y = this.toPx(row.topMm);
       const height = this.toPx(row.heightMm);
       const role = row.roles[columnIndex] ?? "body";
@@ -198,8 +204,15 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
       group.add(this.createTableText(
         row.cells[columnIndex] ?? "", element, { x, y, width, height }, role,
       ));
-      x += width;
+      x += this.toPx(column.width);
     });
+  }
+
+  /** 병합한 칸은 덮은 열의 너비까지 자기 폭으로 삼는다. */
+  private cellWidthMm(element: TableElement, columnIndex: number, span: number): number {
+    return element.columns
+      .slice(columnIndex, columnIndex + span)
+      .reduce((total, column) => total + column.width, 0);
   }
 
   /** 머리글과 본문이 각자 지정된 스타일과 모드별 표현을 사용하게 한다. */

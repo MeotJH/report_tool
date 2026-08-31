@@ -2,6 +2,7 @@ import type { CellRole } from "../element/TableCellRole.js";
 import type { TableElement } from "../element/TableElement.js";
 import { TextLayout, type TextWidthMeasurer } from "../text/TextLayout.js";
 import type { TextStyle } from "../value/TextStyle.js";
+import type { TableCellSpans } from "./TableCellSpans.js";
 
 /** 글자 폭을 아는 곳(폰트)에서 스타일별 측정기를 받아 온다. */
 export type StyleMeasurerFactory = (style: TextStyle) => TextWidthMeasurer;
@@ -29,6 +30,7 @@ export abstract class TableRowHeights {
     element: TableElement,
     cells: readonly string[],
     roles: readonly CellRole[],
+    spans: TableCellSpans,
   ): number;
 }
 
@@ -39,6 +41,7 @@ class FixedTableRowHeights extends TableRowHeights {
     element: TableElement,
     _cells: readonly string[],
     _roles: readonly CellRole[],
+    _spans: TableCellSpans,
   ): number {
     return element.rowHeight;
   }
@@ -64,11 +67,14 @@ class ContentTableRowHeights extends TableRowHeights {
     element: TableElement,
     cells: readonly string[],
     roles: readonly CellRole[],
+    spans: TableCellSpans,
   ): number {
-    const needed = element.columns.map((column, columnIndex) => this.cellHeight(
+    // 병합된 칸은 덮은 열까지가 자기 폭이다. 자기 열 폭으로만 재면 두 칸에 걸친
+    // 머리글이 실제보다 여러 줄로 계산되어 줄이 통째로 두꺼워진다.
+    const needed = element.columns.map((_column, columnIndex) => this.cellHeight(
       cells[columnIndex] ?? "",
       this.styleOf(element, roles[columnIndex] ?? "body"),
-      column.width,
+      spans.widthMm(element.columns, columnIndex),
     ));
     return Math.max(element.rowHeight, ...needed);
   }
