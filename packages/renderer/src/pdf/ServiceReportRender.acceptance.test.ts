@@ -8,8 +8,10 @@ import {
   createServiceReportTemplate,
 } from "./ServiceReportTestFixture";
 
-const REGULAR_FONT = "node_modules/pretendard/dist/public/static/alternative/Pretendard-Regular.ttf";
-const BOLD_FONT = "node_modules/pretendard/dist/public/static/alternative/Pretendard-Bold.ttf";
+// 원본 리포트가 실제로 임베딩한 글꼴이다. 다른 글꼴로 재면 줄바꿈이 달라져
+// "같은 자리에서 쪽이 넘어가는가"를 확인할 수 없다.
+const REGULAR_FONT = "C:/Windows/Fonts/malgun.ttf";
+const BOLD_FONT = "C:/Windows/Fonts/malgunbd.ttf";
 const OUTPUT_PATH = "apps/poc/generated-service-report.pdf";
 
 /**

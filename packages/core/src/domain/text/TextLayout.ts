@@ -1,4 +1,5 @@
 import { TextStyle, type TextOverflow } from "../value/TextStyle.js";
+import { LineBreakUnits } from "./LineBreakUnits.js";
 
 /**
  * 글자 폭 측정을 도메인 밖으로 밀어낸다.
@@ -26,9 +27,9 @@ interface TextOverflowStrategy {
   ): TextLayoutResult;
 }
 
-/** 단어 경계를 보존하면서 필요한 만큼 다음 줄로 보내는 전략이다. */
+/** 줄바꿈 가능한 자리마다 채워 넣어 필요한 만큼 다음 줄로 보내는 전략이다. */
 class WrapTextStrategy implements TextOverflowStrategy {
-  /** 공백 단위 후보가 허용 폭을 넘는 순간 현재 줄을 확정한다. */
+  /** 조각을 차례로 채우다 허용 폭을 넘는 순간 현재 줄을 확정한다. */
   layout(
     text: string,
     style: TextStyle,
@@ -37,49 +38,54 @@ class WrapTextStrategy implements TextOverflowStrategy {
   ): TextLayoutResult {
     const lines: string[] = [];
     let currentLine = "";
-    for (const word of text.split(" ")) {
-      currentLine = this.appendWord(
-        lines, currentLine, word, style, maxWidthPt, measureWidth,
+    for (const unit of LineBreakUnits.of(text)) {
+      currentLine = this.append(
+        lines, currentLine, unit, style, maxWidthPt, measureWidth,
       );
     }
-    lines.push(currentLine);
+    lines.push(currentLine.trimEnd());
     return { lines, fontSize: style.size };
   }
 
-  /** 어절 하나를 현재 줄에 붙이거나, 들어가지 않으면 다음 줄로 넘긴다. */
-  private appendWord(
+  /**
+   * 조각 하나를 현재 줄에 붙이거나, 들어가지 않으면 다음 줄로 넘긴다.
+   *
+   * 줄 끝의 공백은 폭을 재지 않는다. 재면 마지막 조각이 들어갈 자리가 있는데도
+   * 공백 하나 때문에 다음 줄로 밀려난다.
+   */
+  private append(
     lines: string[],
     currentLine: string,
-    word: string,
+    unit: string,
     style: TextStyle,
     maxWidthPt: number,
     measureWidth: TextWidthMeasurer,
   ): string {
-    const candidate = currentLine === "" ? word : `${currentLine} ${word}`;
-    if (measureWidth(candidate, style.size) <= maxWidthPt) return candidate;
-    if (currentLine !== "") lines.push(currentLine);
-    return this.breakLongWord(lines, word, style, maxWidthPt, measureWidth);
+    const candidate = currentLine + unit;
+    if (measureWidth(candidate.trimEnd(), style.size) <= maxWidthPt) return candidate;
+    if (currentLine !== "") lines.push(currentLine.trimEnd());
+    if (measureWidth(unit.trimEnd(), style.size) <= maxWidthPt) return unit;
+    return this.breakLongUnit(lines, unit, style, maxWidthPt, measureWidth);
   }
 
   /**
-   * 폭보다 긴 어절을 글자 단위로 끊는다.
+   * 빈 줄에도 들어가지 않는 조각을 글자 단위로 끊는다.
    *
-   * 한글은 어절 하나가 칸 폭보다 긴 일이 흔하다. 공백만 찾으면 그런 어절은 끊기지
-   * 않아 한 줄로 칸 밖까지 뻗는다. 긴 문장을 담는 칸에서는 글자가 옆 칸을 덮어
-   * 읽을 수 없게 된다. 넘치게 두느니 글자에서 끊는다.
+   * 끊을 자리가 없는 긴 라틴 낱말이나 붙여 쓴 URL이 여기로 온다. 넘치게 두면
+   * 글자가 옆 칸을 덮어 읽을 수 없으므로, 읽기를 조금 해치더라도 끊는다.
    */
-  private breakLongWord(
+  private breakLongUnit(
     lines: string[],
-    word: string,
+    unit: string,
     style: TextStyle,
     maxWidthPt: number,
     measureWidth: TextWidthMeasurer,
   ): string {
     let line = "";
-    for (const character of [...word]) {
+    for (const character of [...unit]) {
       const candidate = line + character;
-      if (line !== "" && measureWidth(candidate, style.size) > maxWidthPt) {
-        lines.push(line);
+      if (line !== "" && measureWidth(candidate.trimEnd(), style.size) > maxWidthPt) {
+        lines.push(line.trimEnd());
         line = character;
       } else {
         line = candidate;
