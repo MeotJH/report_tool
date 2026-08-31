@@ -114,23 +114,17 @@ export class TableLayout {
     return element.columns.map((column) => column.header);
   }
 
-  /**
-   * 본문 줄을 만든다. 행이 없고 행 수가 발행 시점에 정해지는 표만 자리표시자를 쓴다.
-   *
-   * 정적 표에 자리표시자를 만들면, 행을 모두 지운 사용자에게 지워지지 않는 행이
-   * 하나 남은 것처럼 보인다. 그 줄은 더블클릭해도 편집되지 않고 발행본에도 없다.
-   */
+/** 본문 줄을 만든다. 몇 줄이 될지는 셀 표현 방식이 정한다. */
   private bodyRowCells(
     element: TableElement,
     data: unknown,
   ): readonly (readonly string[])[] {
-    const rows = element.source.resolveRows(data);
-    if (rows.length > 0) {
-      return rows.map((row) => this.cellText.cellsFor(element.columns, row, data));
-    }
-    if (!element.source.deferredRows()) return [];
-    const placeholder = this.cellText.placeholderCells(element.columns);
-    return placeholder === null ? [] : [placeholder];
+    return this.cellText.bodyCells(
+      element.columns,
+      element.source.resolveRows(data),
+      data,
+      element.source.deferredRows(),
+    );
   }
 
   /**

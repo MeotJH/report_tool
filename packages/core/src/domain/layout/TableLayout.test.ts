@@ -120,13 +120,32 @@ describe("TableLayout", () => {
     expect(result.rows[1]?.cells).toEqual(["기본급", "{{baseSalary}}"]);
   });
 
-  it("설계 화면은 데이터가 없는 데이터 표에 자리표시자 한 줄을 둔다", () => {
+  it("설계 화면은 데이터가 없는 데이터 표에 연결 한 줄을 둔다", () => {
     const result = designed.compute(boundTable(), {});
 
     expect(result.rows.map((row) => row.cells)).toEqual([
       ["항목", "금액"],
-      ["⟨item⟩", "⟨amount⟩"],
+      ["row.item", "row.amount"],
     ]);
+  });
+
+  it("설계 화면은 데이터 표의 값 대신 무엇에 연결됐는지를 보여 준다", () => {
+    // 값을 보여 주면 고칠 수 없는 칸이 고칠 수 있는 것처럼 보인다.
+    const result = designed.compute(boundTable(), threeRows());
+
+    expect(result.rows.map((row) => row.cells)).toEqual([
+      ["항목", "금액"],
+      ["row.item", "row.amount"],
+      ["row.item", "row.amount"],
+      ["row.item", "row.amount"],
+    ]);
+  });
+
+  it("미리보기는 같은 표에 이번 달 값을 보여 준다", () => {
+    const result = published.compute(boundTable(), threeRows());
+
+    expect(result.rows.length).toBe(4);
+    expect(result.rows[1]?.cells).not.toEqual(["row.item", "row.amount"]);
   });
 
   it("발행본은 데이터가 없으면 본문을 만들지 않는다", () => {
