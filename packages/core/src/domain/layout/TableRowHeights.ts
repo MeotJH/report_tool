@@ -32,6 +32,28 @@ export abstract class TableRowHeights {
     roles: readonly CellRole[],
     spans: TableCellSpans,
   ): number;
+
+  /**
+   * 칸마다 실제로 놓이는 줄을 준다. 글자를 잴 수 없으면 `null`이다.
+   *
+   * 줄을 알아야 행을 쪽 사이에서 자를 수 있다. 자르지 못하면 자리에 들어가지
+   * 않는 행이 통째로 다음 쪽으로 밀려, 앞 쪽 아래가 통째로 빈다. 실제 리포트는
+   * 한 건의 처리내용이 두 쪽에 걸친다.
+   */
+  abstract linesOf(
+    element: TableElement,
+    cells: readonly string[],
+    roles: readonly CellRole[],
+    spans: TableCellSpans,
+  ): readonly (readonly string[])[] | null;
+
+  /** 본문 한 줄이 차지하는 세로 길이(mm)다. */
+  lineHeightMm(element: TableElement): number {
+    return element.cellStyle.size * element.cellStyle.lineHeight / TableRowHeights.POINTS_PER_MM;
+  }
+
+  /** mm와 pt 사이의 환산을 한 곳에만 둔다. */
+  private static readonly POINTS_PER_MM = 72 / 25.4;
 }
 
 /** 모든 줄이 표에 지정된 높이를 그대로 쓴다. */
@@ -44,6 +66,11 @@ class FixedTableRowHeights extends TableRowHeights {
     _spans: TableCellSpans,
   ): number {
     return element.rowHeight;
+  }
+
+  /** 글자를 재지 못하므로 줄을 알 수 없고, 따라서 행을 자를 수도 없다. */
+  linesOf(): null {
+    return null;
   }
 }
 
@@ -74,9 +101,35 @@ class ContentTableRowHeights extends TableRowHeights {
     const needed = element.columns.map((_column, columnIndex) => this.cellHeight(
       cells[columnIndex] ?? "",
       this.styleOf(element, roles[columnIndex] ?? "body"),
-      spans.widthMm(element.columns, columnIndex),
+      element.innerWidthMm(spans.widthMm(element.columns, columnIndex)),
     ));
     return Math.max(element.rowHeight, ...needed);
+  }
+
+  /** 칸마다 실제로 놓이는 줄을 그대로 준다. 높이 계산과 같은 배치를 쓴다. */
+  linesOf(
+    element: TableElement,
+    cells: readonly string[],
+    roles: readonly CellRole[],
+    spans: TableCellSpans,
+  ): readonly (readonly string[])[] {
+    return element.columns.map((_column, columnIndex) => this.cellLines(
+      cells[columnIndex] ?? "",
+      this.styleOf(element, roles[columnIndex] ?? "body"),
+      element.innerWidthMm(spans.widthMm(element.columns, columnIndex)),
+    ));
+  }
+
+  /** 한 칸의 문구를 열 너비 안에서 실제 줄로 나눈다. */
+  private cellLines(
+    text: string,
+    style: TextStyle,
+    columnWidthMm: number,
+  ): readonly string[] {
+    if (text === "") return [];
+    return this.textLayout.layout(
+      text, style, columnWidthMm, this.measurerFactory(style),
+    ).lines;
   }
 
   /** 한 칸의 문구가 열 너비 안에서 몇 줄이 되는지로 높이를 구한다. */

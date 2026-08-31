@@ -18,8 +18,17 @@ import {
 const FONT = "MalgunGothic";
 const INK = "#000000";
 
-/** 원본이 8pt 글자를 12.03pt 간격으로 쌓는다. 줄 간격을 그 비율로 맞춘다. */
-const LINE_HEIGHT = 1.504;
+/**
+ * 원본은 8pt 글자 한 줄에 14.69pt를 준다. 그 비율을 그대로 쓴다.
+ *
+ * 원본 도구는 행 높이를 재는 간격(14.69pt)과 실제로 글자를 쌓는 간격(12.03pt)을
+ * 따로 쓴다. 우리는 하나로 쓴다 — 둘로 나누면 화면에서 잰 줄과 발행본에 찍히는
+ * 줄이 달라지고, 그 차이는 발행본에서만 드러난다.
+ */
+const LINE_HEIGHT = 1.836;
+
+/** 원본이 칸 테두리와 글자 사이에 두는 여백(1.83pt)이다. */
+const CELL_PADDING = 0.65;
 
 /**
  * 고객사 월간 서비스 리포트를 원본과 같은 자리·같은 값으로 다시 만든다.
@@ -295,6 +304,7 @@ function staticTable(
     rowHeight,
     cellStyle(size, 700), cellStyle(size, 400),
     false, "clip", false, TableHeaderCells.none(), null,
+    0, false, null, CELL_PADDING,
   );
 }
 
@@ -315,6 +325,7 @@ function boundTable(
     rowHeight,
     cellStyle(8, 700), cellStyle(8, 400),
     true, "clip", false, TableHeaderCells.none(), null,
+    0, false, null, CELL_PADDING,
   );
 }
 

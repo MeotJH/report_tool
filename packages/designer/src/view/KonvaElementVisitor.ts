@@ -201,8 +201,16 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
         stroke: "#94a3b8",
         strokeWidth: 0.7,
       }));
+      const inset = this.toPx(element.cellPadding);
       group.add(this.createTableText(
-        row.cells[columnIndex] ?? "", element, { x, y, width, height }, role,
+        row.cells[columnIndex] ?? "", element,
+        {
+          x: x + inset,
+          y: y + inset,
+          width: Math.max(0, width - inset * 2),
+          height: Math.max(0, height - inset * 2),
+        },
+        role,
       ));
       x += this.toPx(column.width);
     });

@@ -39,6 +39,14 @@ export class TableElement extends Element {
     pageIndex = 0,
     repeated = false,
     follows: ElementFollow | null = null,
+    /**
+     * 칸 테두리와 글자 사이에 두는 여백(mm)이다.
+     *
+     * 없으면 글자가 선에 닿아 읽기 나쁘고, 줄바꿈 폭이 칸 폭과 같아져 마지막
+     * 글자가 선에 붙는다. 이 값은 그리는 자리뿐 아니라 **줄을 재는 폭**에도
+     * 적용된다. 한쪽에만 적용하면 화면에서 한 줄이던 칸이 발행본에서 두 줄이 된다.
+     */
+    public readonly cellPadding = 0,
   ) {
     super(id, frame, z, locked, hidden, pageIndex, repeated, follows);
     this.columns = [...columns];
@@ -70,6 +78,16 @@ export class TableElement extends Element {
   /** 어떤 열과 행이 머리글인지만 교체한 새 표를 반환한다. */
   withHeaderCells(headerCells: TableHeaderCells): TableElement {
     return this.copy({ headerCells });
+  }
+
+  /** 칸 안쪽 여백만 교체한 새 표를 반환한다. */
+  withCellPadding(cellPadding: number): TableElement {
+    return this.copy({ cellPadding });
+  }
+
+  /** 글자를 그리고 재는 데 실제로 쓸 수 있는 칸 폭을 준다. */
+  innerWidthMm(widthMm: number): number {
+    return Math.max(0, widthMm - this.cellPadding * 2);
   }
 
   /** 머리글 칸 배경만 교체한다. null이면 칠하지 않는다. */
@@ -111,6 +129,7 @@ export class TableElement extends Element {
       showHeader: this.showHeader,
       headerCells: this.headerCells.toJSON(),
       headerFill: this.headerFill,
+      cellPadding: this.cellPadding,
       overflow: this.overflow,
     };
   }
@@ -131,6 +150,7 @@ export class TableElement extends Element {
       cellStyle?: TextStyle;
       headerCells?: TableHeaderCells;
       headerFill?: string | null;
+      cellPadding?: number;
     }>,
     common: ElementCommonChanges = {},
   ): TableElement {
@@ -147,6 +167,7 @@ export class TableElement extends Element {
       resolved.pageIndex,
       resolved.repeated,
       resolved.follows,
+      changes.cellPadding ?? this.cellPadding,
     );
   }
 }

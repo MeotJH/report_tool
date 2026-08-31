@@ -154,7 +154,11 @@ export class PdfElementVisitor implements ElementVisitor<void> {
       const header = row.roles[columnIndex] === "header";
       this.drawCell(frame, header ? element.headerFill : null);
       const baseStyle = header ? element.headerStyle : element.cellStyle;
-      this.drawTextBox(cells[columnIndex] ?? "", frame, this.withAlign(baseStyle, column.align));
+      this.drawTextBox(
+        cells[columnIndex] ?? "",
+        this.textFrameOf(frame, element.cellPadding),
+        this.withAlign(baseStyle, column.align),
+      );
       x += column.width;
     });
   }
@@ -171,6 +175,17 @@ export class PdfElementVisitor implements ElementVisitor<void> {
       element.frame.y + row.topMm,
       this.cellWidthMm(element, columnIndex, row),
       row.heightMm,
+    );
+  }
+
+  /** 테두리에 글자가 닿지 않도록 칸 안쪽으로 들여 놓은 자리를 만든다. */
+  private textFrameOf(frame: Frame, paddingMm: number): Frame {
+    if (paddingMm <= 0) return frame;
+    return new Frame(
+      frame.x + paddingMm,
+      frame.y + paddingMm,
+      Math.max(0, frame.width - paddingMm * 2),
+      Math.max(0, frame.height - paddingMm * 2),
     );
   }
 

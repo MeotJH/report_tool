@@ -31,6 +31,8 @@ interface PendingTable {
   /** 표와 그 표를 따라다니는 캡션을 한 덩어리로 들고 간다. */
   readonly group: TableGroup;
   readonly nextBodyRowIndex: number;
+  /** 그 행을 몇 번째 줄부터 이어 그릴지다. 행이 잘리지 않았으면 0이다. */
+  readonly nextLineOffset: number;
 }
 
 /**
@@ -205,7 +207,11 @@ export class DocumentLayout {
       const next = placement.table?.nextBodyRowIndex;
       if (next === undefined || next === null) return [];
       const table = placement.element as TableElement;
-      return [{ group: TableGroup.of(table, elements), nextBodyRowIndex: next }];
+      return [{
+        group: TableGroup.of(table, elements),
+        nextBodyRowIndex: next,
+        nextLineOffset: placement.table?.nextLineOffset ?? 0,
+      }];
     });
   }
 
@@ -242,7 +248,11 @@ export class DocumentLayout {
       placements.push(placed.placement);
       topMm += headMm + placed.consumedMm;
       if (placed.next !== null) {
-        carried.push({ group: item.group, nextBodyRowIndex: placed.next });
+        carried.push({
+          group: item.group,
+          nextBodyRowIndex: placed.next,
+          nextLineOffset: placed.nextLineOffset,
+        });
         continue;
       }
       // 표가 여기서 끝났으므로 그 뒤의 구역도 이 쪽에 따라 나온다.
@@ -271,18 +281,25 @@ export class DocumentLayout {
     topMm: number,
     availableMm: number,
     data: unknown,
-  ): Readonly<{ placement: PlacedElement; consumedMm: number; next: number | null }> {
+  ): Readonly<{
+    placement: PlacedElement;
+    consumedMm: number;
+    next: number | null;
+    nextLineOffset: number;
+  }> {
     const authored = item.group.table;
     const frame = new Frame(authored.frame.x, topMm, authored.frame.width, availableMm);
     const element = authored.withFrame(frame) as TableElement;
     const table = this.tableLayout.compute(element, data, {
       startBodyRowIndex: item.nextBodyRowIndex,
+      startLineOffset: item.nextLineOffset,
       forceFirstBodyRow: true,
     });
     return {
       placement: { element, table },
       consumedMm: this.consumedHeight(table),
       next: table.nextBodyRowIndex,
+      nextLineOffset: table.nextLineOffset,
     };
   }
 

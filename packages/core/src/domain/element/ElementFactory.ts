@@ -141,6 +141,7 @@ export class ElementFactory {
       common.pageIndex,
       common.repeated,
       common.follows,
+      typeof json.cellPadding === "number" ? json.cellPadding : 0,
     );
   }
 

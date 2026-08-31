@@ -1,6 +1,7 @@
 import { TableCellRole, type CellRole } from "../element/TableCellRole.js";
 import type { TableElement } from "../element/TableElement.js";
 import { TableCellSpans } from "./TableCellSpans.js";
+import { TableRowSplit } from "./TableRowSplit.js";
 import { TableCellText } from "./TableCellText.js";
 import { TableRowHeights } from "./TableRowHeights.js";
 
@@ -32,6 +33,13 @@ export interface TableLayoutResult {
   readonly rows: readonly TableLayoutRow[];
   /** 이어서 그려야 할 첫 본문 행 번호다. 남은 것이 없으면 `null`이다. */
   readonly nextBodyRowIndex: number | null;
+  /**
+   * 그 행을 몇 번째 줄부터 이어 그릴지다. 행 첫 줄부터면 0이다.
+   *
+   * 행이 쪽 사이에서 잘렸다는 사실은 이 값에만 남는다. 렌더러가 다시 세면
+   * 앞 쪽에 그린 줄을 다음 쪽에 또 그린다.
+   */
+  readonly nextLineOffset: number;
   /** 이 자리에 담지 못한 본문 행 수다. 이어 그리지 않으면 그만큼 사라진다. */
   readonly remainingRowCount: number;
 }
@@ -42,6 +50,8 @@ export interface TableChunkOptions {
   readonly frameHeightMm?: number;
   /** 이 조각이 시작할 본문 행 번호다. 기본은 처음부터다. */
   readonly startBodyRowIndex?: number;
+  /** 첫 행을 몇 번째 줄부터 이어 그릴지다. 기본은 행 첫 줄부터다. */
+  readonly startLineOffset?: number;
   /**
    * 한 줄도 들어가지 않아도 본문 한 줄은 반드시 담을지 정한다.
    *
@@ -143,30 +153,104 @@ export class TableLayout {
         rows.push(header);
         topMm += header.heightMm;
       } else if (options.forceFirstBodyRow !== true) {
-        return this.result(rows, startBodyRowIndex, bodyCells.length);
+        return this.result(rows, startBodyRowIndex, 0, bodyCells.length);
       }
     }
+    let lineOffset = options.startLineOffset ?? 0;
     for (let index = startBodyRowIndex; index < bodyCells.length; index += 1) {
-      const row = this.createRow(element, bodyCells[index] ?? [], index, rows.length, topMm);
-      if (this.mustStop(topMm, row, limitMm, index === startBodyRowIndex, options)) {
-        return this.result(rows, index, bodyCells.length);
+      const cells = this.continuedCells(element, bodyCells[index] ?? [], index, lineOffset);
+      const row = this.createRow(element, cells, index, rows.length, topMm);
+      if (topMm + row.heightMm <= limitMm) {
+        rows.push(row);
+        topMm += row.heightMm;
+        lineOffset = 0;
+        continue;
       }
-      rows.push(row);
-      topMm += row.heightMm;
+      const partial = this.splitRow(element, cells, index, rows.length, topMm, limitMm);
+      if (partial !== null) {
+        rows.push(partial.row);
+        return this.result(rows, index, lineOffset + partial.lineCount, bodyCells.length);
+      }
+      if (index === startBodyRowIndex && options.forceFirstBodyRow === true) {
+        rows.push(row);
+        return this.result(rows, null, 0, bodyCells.length);
+      }
+      return this.result(rows, index, lineOffset, bodyCells.length);
     }
-    return this.result(rows, null, bodyCells.length);
+    return this.result(rows, null, 0, bodyCells.length);
   }
 
-  /** 이 줄에서 조각을 끊어야 하는지 판단한다. */
-  private mustStop(
+  /**
+   * 이어 그리는 첫 행이면 이미 그린 줄을 걷어 낸다.
+   *
+   * 걷어 내지 않으면 앞 쪽에 그린 줄이 다음 쪽에 한 번 더 나온다.
+   */
+  private continuedCells(
+    element: TableElement,
+    cells: readonly string[],
+    bodyIndex: number,
+    lineOffset: number,
+  ): readonly string[] {
+    if (lineOffset === 0) return cells;
+    const lines = this.linesOf(element, cells, bodyIndex);
+    if (lines === null) return cells;
+    return TableRowSplit.of(lines, lineOffset, Number.MAX_SAFE_INTEGER).cells;
+  }
+
+  /**
+   * 남은 자리에 들어가는 만큼만 이 행에서 잘라 낸다. 자를 수 없으면 `null`이다.
+   *
+   * 한 줄도 들어가지 않으면 자르지 않는다. 빈 조각을 남기면 같은 판단이 다음
+   * 쪽에서 되풀이되어 쪽이 무한히 늘어난다.
+   */
+  private splitRow(
+    element: TableElement,
+    cells: readonly string[],
+    bodyIndex: number,
+    offset: number,
     topMm: number,
-    row: TableLayoutRow,
     limitMm: number,
-    isFirstBodyRow: boolean,
-    options: TableChunkOptions,
-  ): boolean {
-    if (topMm + row.heightMm <= limitMm) return false;
-    return !(isFirstBodyRow && options.forceFirstBodyRow === true);
+  ): Readonly<{ row: TableLayoutRow; lineCount: number }> | null {
+    const lines = this.linesOf(element, cells, bodyIndex);
+    if (lines === null) return null;
+    const lineHeightMm = this.rowHeights.lineHeightMm(element);
+    if (lineHeightMm <= 0) return null;
+    const fits = Math.floor((limitMm - topMm) / lineHeightMm);
+    if (fits < 1) return null;
+    const split = TableRowSplit.of(lines, 0, fits);
+    if (split.isComplete() || split.lineCount < 1) return null;
+    const roles = this.rolesOf(element, bodyIndex);
+    return {
+      row: {
+        cells: split.cells,
+        roles,
+        spans: TableCellSpans.forRow(element, bodyIndex).toArray(),
+        bodyIndex,
+        offset,
+        topMm,
+        heightMm: split.lineCount * lineHeightMm,
+      },
+      lineCount: split.lineCount,
+    };
+  }
+
+  /** 행 자르기와 높이 계산이 같은 줄 목록을 쓰게 한다. */
+  private linesOf(
+    element: TableElement,
+    cells: readonly string[],
+    bodyIndex: number,
+  ): readonly (readonly string[])[] | null {
+    return this.rowHeights.linesOf(
+      element, cells, this.rolesOf(element, bodyIndex),
+      TableCellSpans.forRow(element, bodyIndex),
+    );
+  }
+
+  /** 칸의 역할 계산을 한 곳에 모은다. */
+  private rolesOf(element: TableElement, bodyIndex: number | null): readonly CellRole[] {
+    return element.columns.map(
+      (_column, columnIndex) => TableCellRole.of(element, bodyIndex, columnIndex),
+    );
   }
 
   /** 한 줄의 역할·높이·위치를 함께 정해 렌더러가 다시 판단하지 않게 한다. */
@@ -177,9 +261,7 @@ export class TableLayout {
     offset: number,
     topMm: number,
   ): TableLayoutRow {
-    const roles = element.columns.map(
-      (_column, columnIndex) => TableCellRole.of(element, bodyIndex, columnIndex),
-    );
+    const roles = this.rolesOf(element, bodyIndex);
     const spans = TableCellSpans.forRow(element, bodyIndex);
     return {
       cells,
@@ -196,11 +278,13 @@ export class TableLayout {
   private result(
     rows: readonly TableLayoutRow[],
     nextBodyRowIndex: number | null,
+    nextLineOffset: number,
     bodyRowCount: number,
   ): TableLayoutResult {
     return {
       rows,
       nextBodyRowIndex,
+      nextLineOffset,
       remainingRowCount: nextBodyRowIndex === null ? 0 : bodyRowCount - nextBodyRowIndex,
     };
   }
