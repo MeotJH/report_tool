@@ -174,6 +174,54 @@ describe("요소별 속성 변경", () => {
     expect(element.withSignature({ signer: "employer" }).label).toBe("서명");
   });
 
+  it.each(createElements().map((element) => [element.type, element] as const))(
+    "%s 요소가 따라갈 표를 저장과 복원을 왕복해도 기억한다",
+    (_type, element) => {
+      const restored = ElementFactory.fromJSON(
+        ElementFactory.toJSON(element.withFollowsElement("tickets")),
+      );
+
+      expect(restored.followsElementId).toBe("tickets");
+      expect(restored.toJSON()).toEqual(element.toJSON());
+    },
+  );
+
+  it.each(createElements().map((element) => [element.type, element] as const))(
+    "%s 요소의 따라가기 연결을 끊으면 다시 아무 표도 따라가지 않는다",
+    (_type, element) => {
+      const detached = element.withFollowsElement("tickets").withFollowsElement(null);
+
+      expect(detached.followsElementId).toBeNull();
+      expect(ElementFactory.fromJSON(ElementFactory.toJSON(detached)).followsElementId)
+        .toBeNull();
+    },
+  );
+
+  it.each(createElements().map((element) => [element.type, element] as const))(
+    "%s 요소의 다른 공통 상태를 바꿔도 따라갈 표를 잃지 않는다",
+    (_type, element) => {
+      const edited = element
+        .withFollowsElement("tickets")
+        .withPageIndex(1)
+        .withZ(5)
+        .withHidden(true)
+        .withFrame(new Frame(1, 2, 3, 4));
+
+      expect(edited.followsElementId).toBe("tickets");
+    },
+  );
+
+  it("선이 색을 바꿔도 쪽 소속과 따라갈 표를 잃지 않는다", () => {
+    const line = new LineElement("line", frame, 1, false, "#333333", 0.3)
+      .withPageIndex(2)
+      .withFollowsElement("tickets") as LineElement;
+
+    const recolored = line.withAppearance({ stroke: "#000000" });
+
+    expect(recolored.pageIndex).toBe(2);
+    expect(recolored.followsElementId).toBe("tickets");
+  });
+
   it("이미지가 맞춤 방식만 바꿔도 단일 출처 규칙을 유지한다", () => {
     const element = new ImageElement("image", frame, 1, false, { assetId: "logo" });
 

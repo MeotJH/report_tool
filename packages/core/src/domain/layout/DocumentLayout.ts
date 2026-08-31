@@ -6,6 +6,7 @@ import { Frame } from "../value/Frame.js";
 import type { PageSpec } from "../value/PageSpec.js";
 import { PageNumbering } from "./PageNumbering.js";
 import { TableCellText } from "./TableCellText.js";
+import { TableGroup } from "./TableGroup.js";
 import { TableLayout, type TableLayoutResult } from "./TableLayout.js";
 import { TableRowHeights } from "./TableRowHeights.js";
 
@@ -27,7 +28,8 @@ export interface PageLayout {
 
 /** 이어 그려야 할 표와 다음에 그릴 행 번호를 함께 들고 다닌다. */
 interface PendingTable {
-  readonly element: TableElement;
+  /** 표와 그 표를 따라다니는 캡션을 한 덩어리로 들고 간다. */
+  readonly group: TableGroup;
   readonly nextBodyRowIndex: number;
 }
 
@@ -66,7 +68,7 @@ export class DocumentLayout {
       const elements = this.byStackOrder(this.elementsOn(template, authored));
       const placements = elements.map((element) => this.placeAtOwnFrame(element, data));
       pages.push({ index: pages.length, placements });
-      let pending = this.pendingFrom(placements);
+      let pending = this.pendingFrom(placements, elements);
       while (pending.length > 0) {
         const page = this.continuationPage(pages.length, pending, template.page, data);
         pages.push(page.layout);
@@ -136,12 +138,22 @@ export class DocumentLayout {
     return { element, table: this.tableLayout.compute(element, data) };
   }
 
-  /** 이 쪽에서 다 그리지 못한 표만 다음 쪽으로 넘긴다. */
-  private pendingFrom(placements: readonly PlacedElement[]): readonly PendingTable[] {
+  /**
+   * 이 쪽에서 다 그리지 못한 표만 다음 쪽으로 넘긴다.
+   *
+   * 넘길 때 그 표를 따라다니겠다고 선언한 요소를 함께 묶는다. 같은 쪽에 있는
+   * 요소 중에서만 고른다 — 다른 쪽의 제목이 따라오면 사용자가 놓은 적 없는
+   * 자리에 글자가 나타난다.
+   */
+  private pendingFrom(
+    placements: readonly PlacedElement[],
+    elements: readonly Element[],
+  ): readonly PendingTable[] {
     return placements.flatMap((placement) => {
       const next = placement.table?.nextBodyRowIndex;
       if (next === undefined || next === null) return [];
-      return [{ element: placement.element as TableElement, nextBodyRowIndex: next }];
+      const table = placement.element as TableElement;
+      return [{ group: TableGroup.of(table, elements), nextBodyRowIndex: next }];
     });
   }
 
@@ -150,6 +162,9 @@ export class DocumentLayout {
    *
    * 이어지는 표는 본문 영역 맨 위부터 차례로 쌓는다. 가로 위치와 너비는 원래
    * 표의 것을 그대로 쓴다 — 같은 표가 쪽마다 다른 폭으로 보이면 다른 표로 읽힌다.
+   *
+   * 쌓는 단위는 표가 아니라 **덩어리**다. 캡션이 먼저 자리를 잡고 표가 그만큼
+   * 아래에서 시작해야, 이어지는 쪽도 첫 쪽과 같은 모양이 된다.
    */
   private continuationPage(
     index: number,
@@ -162,19 +177,35 @@ export class DocumentLayout {
     const carried: PendingTable[] = [];
     let topMm = content.y;
     for (const item of pending) {
-      const availableMm = content.y + content.height - topMm;
+      const headMm = item.group.headHeightMm();
+      const availableMm = content.y + content.height - topMm - headMm;
       if (availableMm <= 0) {
         carried.push(item);
         continue;
       }
-      const placed = this.continue(item, topMm, availableMm, data);
+      const placed = this.continue(item, topMm + headMm, availableMm, data);
+      for (const follower of item.group.movedFollowers(topMm)) {
+        placements.push(this.placeAtOwnFrame(follower, data));
+      }
       placements.push(placed.placement);
-      topMm += placed.consumedMm;
+      topMm += headMm + placed.consumedMm;
       if (placed.next !== null) {
-        carried.push({ element: item.element, nextBodyRowIndex: placed.next });
+        carried.push({ group: item.group, nextBodyRowIndex: placed.next });
       }
     }
-    return { layout: { index, placements }, pending: carried };
+    return {
+      layout: { index, placements: this.byPlacementStackOrder(placements) },
+      pending: carried,
+    };
+  }
+
+  /** 이어지는 쪽에서도 캡션과 표가 첫 쪽과 같은 순서로 겹치게 한다. */
+  private byPlacementStackOrder(
+    placements: readonly PlacedElement[],
+  ): readonly PlacedElement[] {
+    return [...placements].sort(
+      (first, second) => first.element.z - second.element.z,
+    );
   }
 
   /** 표 한 개의 다음 조각을 주어진 자리에 놓는다. */
@@ -184,10 +215,9 @@ export class DocumentLayout {
     availableMm: number,
     data: unknown,
   ): Readonly<{ placement: PlacedElement; consumedMm: number; next: number | null }> {
-    const frame = new Frame(
-      item.element.frame.x, topMm, item.element.frame.width, availableMm,
-    );
-    const element = item.element.withFrame(frame) as TableElement;
+    const authored = item.group.table;
+    const frame = new Frame(authored.frame.x, topMm, authored.frame.width, availableMm);
+    const element = authored.withFrame(frame) as TableElement;
     const table = this.tableLayout.compute(element, data, {
       startBodyRowIndex: item.nextBodyRowIndex,
       forceFirstBodyRow: true,

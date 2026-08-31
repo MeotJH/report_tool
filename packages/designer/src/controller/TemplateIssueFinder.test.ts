@@ -236,6 +236,63 @@ describe("TemplateIssueFinder", () => {
     expect(issues).toEqual([]);
   });
 
+  describe("따라갈 표 연결", () => {
+    /** 표를 따라다니겠다고 선언한 캡션을 만든다. */
+    function caption(follows: string, pageIndex = 0): TextElement {
+      return new TextElement(
+        "caption", new Frame(20, 12, 60, 6), 0, false,
+        { kind: "literal", value: "처리내역 (상세)" },
+        new TextStyle("Pretendard", 10), false, pageIndex, false, follows,
+      );
+    }
+
+    it("따라갈 표가 없어졌으면 경고한다", () => {
+      const issues = finder.find(createTemplate(
+        table("tickets", new BoundTableSource(new Binding("tickets"))),
+        caption("gone"),
+      ));
+
+      expect(issues).toEqual([
+        { elementId: "caption", severity: "warning", message: "따라갈 표 gone를 찾을 수 없다" },
+      ]);
+    });
+
+    it("표가 아닌 요소를 따라가면 경고한다", () => {
+      const issues = finder.find(createTemplate(
+        new BoxElement("box", new Frame(20, 20, 40, 20), 0, false),
+        caption("box"),
+      ));
+
+      expect(issues).toEqual([
+        { elementId: "caption", severity: "warning", message: "표가 아닌 요소는 따라갈 수 없다" },
+      ]);
+    });
+
+    it("다른 쪽의 표를 따라가면 경고한다", () => {
+      const issues = finder.find(createTemplate(
+        table("tickets", new BoundTableSource(new Binding("tickets"))),
+        caption("tickets", 1),
+      ));
+
+      expect(issues).toEqual([
+        {
+          elementId: "caption",
+          severity: "warning",
+          message: "따라갈 표가 다른 쪽에 있어 함께 가지 않는다",
+        },
+      ]);
+    });
+
+    it("같은 쪽의 표를 따라가면 아무 문제도 알리지 않는다", () => {
+      const issues = finder.find(createTemplate(
+        table("tickets", new BoundTableSource(new Binding("tickets"))),
+        caption("tickets"),
+      ));
+
+      expect(issues).toEqual([]);
+    });
+  });
+
   it("정상 요소만 있으면 아무 문제도 알리지 않는다", () => {
     const issues = finder.find(createTemplate(
       new BoxElement("ok", new Frame(20, 20, 40, 20), 0, false),

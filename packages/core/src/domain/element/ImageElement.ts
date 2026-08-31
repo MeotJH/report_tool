@@ -32,8 +32,9 @@ export class ImageElement extends Element {
     hidden = false,
     pageIndex = 0,
     repeated = false,
+    followsElementId: string | null = null,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex, repeated);
+    super(id, frame, z, locked, hidden, pageIndex, repeated, followsElementId);
     this.validateSource(options);
     this.assetId = options.assetId;
     this.binding = options.binding;
@@ -70,7 +71,7 @@ export class ImageElement extends Element {
       assetId: this.assetId,
       binding: this.binding,
       fit: this.fit,
-    }, resolved.hidden, resolved.pageIndex, resolved.repeated);
+    }, resolved.hidden, resolved.pageIndex, resolved.repeated, resolved.followsElementId);
   }
 
   /** 이미지 고유 속성을 특정 이미지 라이브러리와 무관한 저장 데이터로 변환한다. */

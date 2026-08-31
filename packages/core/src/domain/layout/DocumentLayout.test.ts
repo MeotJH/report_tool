@@ -207,4 +207,102 @@ describe("DocumentLayout", () => {
 
     expect(pages).toHaveLength(1);
   });
+
+  describe("표를 따라다니는 캡션", () => {
+    /** 표 위에 놓인 제목처럼 그 표를 따라다니는 요소를 만든다. */
+    function caption(id: string, topMm: number, follows: string): TextElement {
+      return new TextElement(
+        id, new Frame(20, topMm, 170, 6), 1, false,
+        { kind: "literal", value: "처리내역 (상세)" },
+        new TextStyle("Pretendard", 11, { weight: 700 }),
+        false, 0, false, follows,
+      );
+    }
+
+    it("이어지는 모든 쪽에 캡션이 함께 나온다", () => {
+      const pages = layout.compute(
+        template(caption("ticket-title", 52, "tickets"), ticketTable(50)),
+        tickets(12),
+      );
+
+      expect(pages.length).toBeGreaterThan(1);
+      for (const page of pages) {
+        expect(page.placements.map((placement) => placement.element.id))
+          .toContain("ticket-title");
+      }
+    });
+
+    it("이어지는 쪽에서 캡션이 맨 위에 놓이고 표가 그 아래에서 시작한다", () => {
+      // 캡션 52mm · 표 60mm이므로 둘 사이 간격 8mm가 그대로 유지되어야 한다.
+      const pages = layout.compute(
+        template(caption("ticket-title", 52, "tickets"), ticketTable(50)),
+        tickets(12),
+      );
+      const continued = pages[1]?.placements ?? [];
+
+      const captionFrame = continued.find(
+        (placement) => placement.element.id === "ticket-title",
+      )?.element.frame;
+      const tableFrame = continued.find(
+        (placement) => placement.element.id === "tickets",
+      )?.element.frame;
+
+      expect(captionFrame?.y).toBe(20);
+      expect(tableFrame?.y).toBe(28);
+      expect(captionFrame?.x).toBe(20);
+    });
+
+    it("캡션은 첫 쪽에서 사용자가 놓은 자리에 한 번만 나온다", () => {
+      const pages = layout.compute(
+        template(caption("ticket-title", 52, "tickets"), ticketTable(50)),
+        tickets(12),
+      );
+      const first = (pages[0]?.placements ?? []).filter(
+        (placement) => placement.element.id === "ticket-title",
+      );
+
+      expect(first).toHaveLength(1);
+      expect(first[0]?.element.frame.y).toBe(52);
+    });
+
+    it("표가 이어지지 않으면 캡션도 한 번만 나온다", () => {
+      const pages = layout.compute(
+        template(caption("ticket-title", 52, "tickets"), ticketTable(50)),
+        tickets(3),
+      );
+
+      expect(pages).toHaveLength(1);
+      expect(pages[0]?.placements.map((placement) => placement.element.id))
+        .toEqual(["ticket-title", "tickets"]);
+    });
+
+    it("표가 없는 표지에는 캡션이 나오지 않는다", () => {
+      // repeated로 풀면 표지에도 제목이 찍힌다. 그 차이를 여기서 못 박는다.
+      const cover = title();
+      const pages = layout.compute(
+        template(
+          cover,
+          caption("ticket-title", 52, "tickets").withPageIndex(1),
+          ticketTable(50).withPageIndex(1),
+        ),
+        tickets(12),
+      );
+
+      expect(pages[0]?.placements.map((placement) => placement.element.id))
+        .toEqual(["title"]);
+      expect(pages[1]?.placements.map((placement) => placement.element.id))
+        .toEqual(["ticket-title", "tickets"]);
+    });
+
+    it("다른 쪽에 있는 캡션은 따라오지 않는다", () => {
+      const strayCaption = caption("stray", 52, "tickets");
+      const pages = layout.compute(
+        template(strayCaption, ticketTable(50).withPageIndex(1)),
+        tickets(12),
+      );
+
+      expect(pages[2]?.placements.map((placement) => placement.element.id))
+        .toEqual(["tickets"]);
+    });
+  });
 });

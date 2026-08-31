@@ -28,8 +28,9 @@ export class LineElement extends Element {
     hidden = false,
     pageIndex = 0,
     repeated = false,
+    followsElementId: string | null = null,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex, repeated);
+    super(id, frame, z, locked, hidden, pageIndex, repeated, followsElementId);
     this.dash = dash === undefined ? undefined : [...dash];
   }
 
@@ -38,7 +39,12 @@ export class LineElement extends Element {
     return visitor.visitLine(this);
   }
 
-  /** 점선 해제를 유효한 변경으로 다루기 위해 전달한 키만 교체한다. */
+  /**
+   * 점선 해제를 유효한 변경으로 다루기 위해 전달한 키만 교체한다.
+   *
+   * 공통 상태는 하나도 빠뜨리지 않고 옮긴다. 하나라도 빠지면 색을 바꾼 선이
+   * 조용히 첫 쪽으로 돌아가거나 표를 따라다니기를 그만둔다.
+   */
   withAppearance(changes: LineAppearanceChanges): LineElement {
     return new LineElement(
       this.id,
@@ -49,6 +55,9 @@ export class LineElement extends Element {
       changes.strokeWidth ?? this.strokeWidth,
       "dash" in changes ? changes.dash : this.dash,
       this.hidden,
+      this.pageIndex,
+      this.repeated,
+      this.followsElementId,
     );
   }
 
@@ -66,6 +75,7 @@ export class LineElement extends Element {
       resolved.hidden,
       resolved.pageIndex,
       resolved.repeated,
+      resolved.followsElementId,
     );
   }
 

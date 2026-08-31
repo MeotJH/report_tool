@@ -21,8 +21,9 @@ export class TextElement extends Element {
     hidden = false,
     pageIndex = 0,
     repeated = false,
+    followsElementId: string | null = null,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex, repeated);
+    super(id, frame, z, locked, hidden, pageIndex, repeated, followsElementId);
   }
 
   /** 방문자가 텍스트 전용 처리 경로를 사용하도록 연결한다. */
@@ -69,6 +70,7 @@ export class TextElement extends Element {
       resolved.hidden,
       resolved.pageIndex,
       resolved.repeated,
+      resolved.followsElementId,
     );
   }
 }

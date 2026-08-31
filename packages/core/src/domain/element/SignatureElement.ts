@@ -27,8 +27,9 @@ export class SignatureElement extends Element {
     hidden = false,
     pageIndex = 0,
     repeated = false,
+    followsElementId: string | null = null,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex, repeated);
+    super(id, frame, z, locked, hidden, pageIndex, repeated, followsElementId);
   }
 
   /** 방문자가 서명 영역 전용 처리 경로를 사용하도록 연결한다. */
@@ -64,6 +65,7 @@ export class SignatureElement extends Element {
       resolved.hidden,
       resolved.pageIndex,
       resolved.repeated,
+      resolved.followsElementId,
     );
   }
 

@@ -66,7 +66,38 @@ export class TemplateIssueFinder {
     }));
     const warnings = template.getElements()
       .flatMap((element) => this.warningsFor(element, template.page));
-    return [...errors, ...warnings, ...this.findUnknownReferences(template)];
+    return [
+      ...errors,
+      ...warnings,
+      ...this.findUnknownReferences(template),
+      ...this.findBrokenFollows(template),
+    ];
+  }
+
+  /**
+   * 따라갈 표를 잃어버린 요소를 드러낸다.
+   *
+   * 연결이 끊긴 캡션은 아무 일도 하지 않는다 — 첫 쪽에는 그대로 있으니 화면만
+   * 봐서는 멀쩡하고, 이어지는 쪽에서만 조용히 사라진다. 그 차이는 발행본을
+   * 열어 봐야 알 수 있으므로 여기서 미리 말한다.
+   */
+  private findBrokenFollows(template: Template): readonly TemplateIssue[] {
+    const elements = template.getElements();
+    return elements.flatMap((element) => {
+      const targetId = element.followsElementId;
+      if (targetId === null) return [];
+      const target = elements.find((candidate) => candidate.id === targetId);
+      if (target === undefined) {
+        return [this.warning(element, `따라갈 표 ${targetId}를 찾을 수 없다`)];
+      }
+      if (!(target instanceof TableElement)) {
+        return [this.warning(element, "표가 아닌 요소는 따라갈 수 없다")];
+      }
+      if (target.pageIndex !== element.pageIndex) {
+        return [this.warning(element, "따라갈 표가 다른 쪽에 있어 함께 가지 않는다")];
+      }
+      return [];
+    });
   }
 
   /**

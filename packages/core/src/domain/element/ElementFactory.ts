@@ -35,6 +35,7 @@ interface CommonElementValues {
   readonly hidden: boolean;
   readonly pageIndex: number;
   readonly repeated: boolean;
+  readonly followsElementId: string | null;
 }
 
 /**
@@ -80,6 +81,7 @@ export class ElementFactory {
       hidden: element.hidden,
       pageIndex: element.pageIndex,
       repeated: element.repeated,
+      followsElementId: element.followsElementId,
     };
   }
 
@@ -96,6 +98,7 @@ export class ElementFactory {
       common.hidden,
       common.pageIndex,
       common.repeated,
+      common.followsElementId,
     );
   }
 
@@ -112,6 +115,7 @@ export class ElementFactory {
       common.hidden,
       common.pageIndex,
       common.repeated,
+      common.followsElementId,
     );
   }
 
@@ -135,6 +139,7 @@ export class ElementFactory {
       ElementFactory.readHeaderFill(json.headerFill),
       common.pageIndex,
       common.repeated,
+      common.followsElementId,
     );
   }
 
@@ -160,7 +165,7 @@ export class ElementFactory {
       assetId: json.assetId as string | undefined,
       binding,
       fit: json.fit as ImageFit,
-    }, common.hidden, common.pageIndex, common.repeated);
+    }, common.hidden, common.pageIndex, common.repeated, common.followsElementId);
   }
 
   /** 사각 도형의 선택적 표현을 공통 상태에 결합해 복원한다. */
@@ -171,7 +176,7 @@ export class ElementFactory {
       stroke: json.stroke as string | undefined,
       strokeWidth: json.strokeWidth as number | undefined,
       radius: json.radius as number | undefined,
-    }, common.hidden, common.pageIndex, common.repeated);
+    }, common.hidden, common.pageIndex, common.repeated, common.followsElementId);
   }
 
   /** 선 도형의 필수 표현과 점선 패턴을 공통 상태에 결합해 복원한다. */
@@ -188,6 +193,7 @@ export class ElementFactory {
       common.hidden,
       common.pageIndex,
       common.repeated,
+      common.followsElementId,
     );
   }
 
@@ -205,6 +211,7 @@ export class ElementFactory {
       common.hidden,
       common.pageIndex,
       common.repeated,
+      common.followsElementId,
     );
   }
 
@@ -231,6 +238,10 @@ export class ElementFactory {
       // schemaVersion 1에는 이 값이 없다. 그때는 문서가 한 장뿐이었으므로 첫 쪽이다.
       pageIndex: typeof json.pageIndex === "number" ? json.pageIndex : 0,
       repeated: json.repeated === true,
+      // 연결이 없던 시절의 요소는 아무 표도 따라다니지 않는다.
+      followsElementId: typeof json.followsElementId === "string"
+        ? json.followsElementId
+        : null,
     };
   }
 

@@ -4,7 +4,7 @@ import type { EditorController } from "../controller/EditorController.js";
 import type { PaletteEntry } from "../controller/PaletteEntry.js";
 import type { TemplateIssue } from "../controller/TemplateIssueFinder.js";
 import { ElementInspectorVisitor } from "./inspector/ElementInspectorVisitor.js";
-import { InspectorRow, InspectorSection, NumberField, ToggleField } from "./inspector/InspectorFields.js";
+import { InspectorRow, InspectorSection, NumberField, SelectField, ToggleField } from "./inspector/InspectorFields.js";
 import { PageInspector } from "./inspector/PageInspector.js";
 import { LayerNamer } from "./LayerNamer.js";
 
@@ -124,6 +124,13 @@ function SingleElementInspector(props: InspectorPanelProps & { element: Element 
             </p>
           )
           : null}
+        <FollowsTableField
+          element={element}
+          tables={followableTables(props.controller, element)}
+          onCommit={(followsElementId) => actions.changeElement(
+            element, element.withFollowsElement(followsElementId),
+          )}
+        />
       </InspectorSection>
       {visitor.build(element)}
     </>
@@ -168,6 +175,48 @@ function MultiElementInspector(props: InspectorPanelProps & { elements: readonly
         <OrderButtons actions={actions} />
       </InspectorSection>
     </>
+  );
+}
+
+/**
+ * 이 요소가 어떤 표를 따라다닐지 고르게 한다.
+ *
+ * 표가 없는 쪽에서는 고를 것이 없으므로 아예 보여주지 않는다. 빈 선택 상자는
+ * "여기서 뭔가 할 수 있는데 내가 못 찾는 건가"라는 질문만 남긴다.
+ */
+function FollowsTableField(props: {
+  element: Element;
+  tables: readonly Element[];
+  onCommit: (followsElementId: string | null) => void;
+}) {
+  if (props.tables.length === 0) return null;
+  const namer = new LayerNamer();
+  return (
+    <>
+      <SelectField
+        label="이 표를 따라감"
+        value={props.element.followsElementId ?? ""}
+        options={[
+          { value: "", label: "따라가지 않음" },
+          ...props.tables.map((table) => ({ value: table.id, label: namer.name(table) })),
+        ]}
+        onCommit={(id) => props.onCommit(id === "" ? null : id)}
+      />
+      <p className="rt-inspector-note">
+        고른 표가 쪽을 넘어 이어질 때, 이 요소도 이어지는 쪽마다 같은 자리에 함께 나옵니다.
+        표 제목과 기간처럼 그 표가 있는 쪽에만 나와야 하는 것에 씁니다.
+      </p>
+    </>
+  );
+}
+
+/** 같은 쪽에 있는 표만 따라갈 대상으로 고를 수 있게 한다. */
+function followableTables(
+  controller: EditorController,
+  element: Element,
+): readonly Element[] {
+  return controller.elementsOnActivePage().filter(
+    (candidate) => candidate.type === "table" && candidate.id !== element.id,
   );
 }
 
