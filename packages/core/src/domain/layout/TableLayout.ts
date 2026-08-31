@@ -73,6 +73,9 @@ export interface TableChunkOptions {
  * 그 답을 받아 쪽을 넘기는 것은 `DocumentLayout`의 일이다.
  */
 export class TableLayout {
+  /** 쪽 끝에 남길 수 있는 가장 적은 줄 수다. 이보다 적게 남으면 자르지 않는다. */
+  private static readonly MINIMUM_SPLIT_LINES = 2;
+
   /**
    * 편집 중과 발행본의 차이를 셀 표현 방식 하나로만 두어 계산을 공유한다.
    *
@@ -200,8 +203,10 @@ export class TableLayout {
   /**
    * 남은 자리에 들어가는 만큼만 이 행에서 잘라 낸다. 자를 수 없으면 `null`이다.
    *
-   * 한 줄도 들어가지 않으면 자르지 않는다. 빈 조각을 남기면 같은 판단이 다음
-   * 쪽에서 되풀이되어 쪽이 무한히 늘어난다.
+   * 한 줄만 남기고 자르지는 않는다. 쪽 끝에 한 줄만 떨어져 있으면 읽는 사람이
+   * 그 줄이 어느 건에 속하는지 알기 어렵고, 다음 쪽에서 같은 문장이 이어지는
+   * 것도 알아채기 어렵다. 그럴 때는 자리를 비워 두고 행 전체를 다음 쪽으로
+   * 보낸다 — 기준으로 삼은 리포트도 그렇게 한다.
    */
   private splitRow(
     element: TableElement,
@@ -216,7 +221,7 @@ export class TableLayout {
     const lineHeightMm = this.rowHeights.lineHeightMm(element);
     if (lineHeightMm <= 0) return null;
     const fits = Math.floor((limitMm - topMm) / lineHeightMm);
-    if (fits < 1) return null;
+    if (fits < TableLayout.MINIMUM_SPLIT_LINES) return null;
     const split = TableRowSplit.of(lines, 0, fits);
     if (split.isComplete() || split.lineCount < 1) return null;
     const roles = this.rolesOf(element, bodyIndex);
