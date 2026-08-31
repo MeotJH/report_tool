@@ -153,7 +153,7 @@ function createTypeSection(): readonly Element[] {
       "type-stats", new Frame(9.98, 105.02, 190.01, 45.09),
       "typeStats",
       [
-        ["type", "처리구분별", 69.99, "left", 1],
+        ["type", "처리구분별", 69.99, "left", 1, false, "center"],
         ["count", "처리건수(건/%)", 15.03, "center", 2],
         ["countRate", "", 14.99, "center", 1],
         ["resolved", "해결건수", 20.0, "center", 1],
@@ -189,8 +189,8 @@ function createTicketSection(): readonly Element[] {
         ["number", "등록\n번호", 14.01, "center", 1],
         ["requester", "요청자\n(처리구분)", 14.99, "center", 1],
         ["requestedAt", "요청일", 17.96, "center", 1],
-        ["request", "요청내용", 74.75, "left", 1],
-        ["answer", "처리내용", 37.22, "left", 1],
+        ["request", "요청내용", 74.75, "left", 1, false, "center"],
+        ["answer", "처리내용", 37.22, "left", 1, false, "center"],
         ["hours", "시간", 7.27, "center", 1],
         ["closedAt", "완료일", 16.4, "center", 1],
       ],
@@ -218,7 +218,7 @@ function createUnresolvedSection(): readonly Element[] {
         ["number", "등록\n번호", 14.01, "center", 1],
         ["requester", "요청자\n(처리구분)", 14.99, "center", 1],
         ["requestedAt", "요청일", 17.96, "center", 1],
-        ["request", "요청내용", 112.01, "left", 1],
+        ["request", "요청내용", 112.01, "left", 1, false, "center"],
         ["hours", "시간", 7.27, "center", 1],
         ["closedAt", "완료일", 16.55, "center", 1],
       ],
@@ -326,7 +326,7 @@ function staticTable(
  * 두 칸에 걸치는 줄에 쓴다.
  */
 type BoundColumn = readonly [
-  string, string, number, TableColumnAlign, number, boolean?,
+  string, string, number, TableColumnAlign, number, boolean?, TableColumnAlign?,
 ];
 
 /** 행 수가 발행 데이터로 정해지는 표를 만든다. */
@@ -340,10 +340,10 @@ function boundTable(
   return new TableElement(
     id, frame, 2, false,
     new BoundTableSource(new Binding(arrayPath)),
-    columns.map(([key, header, width, align, span, mergesWhenEmpty]) => (
+    columns.map(([key, header, width, align, span, mergesWhenEmpty, headerAlign]) => (
       new TableColumn(
         key, header, `{{row.${key}}}`, width, align, null,
-        span, mergesWhenEmpty === true,
+        span, mergesWhenEmpty === true, headerAlign,
       )
     )),
     rowHeight,

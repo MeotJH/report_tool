@@ -8,6 +8,7 @@ export type TableColumnAlign = "left" | "center" | "right";
  */
 export class TableColumn {
   public readonly headerSpan: number;
+  public readonly headerAlign: TableColumnAlign;
 
   /**
    * 열 설정을 렌더링 동작 없이 직렬화 가능한 값으로 구성한다.
@@ -36,8 +37,17 @@ export class TableColumn {
      * 개든 옳게 동작한다.
      */
     public readonly mergesWhenEmpty = false,
+    /**
+     * 열 이름 줄만의 가로 정렬이다. 주지 않으면 본문과 같이 놓인다.
+     *
+     * 긴 글이 들어가는 열은 본문을 왼쪽에 붙이고 이름은 가운데 두는 일이 흔하다.
+     * 이름은 칸의 뜻을 가리키므로 칸 전체에 걸쳐 보이는 편이 읽기 좋고, 본문은
+     * 줄이 여러 개라 왼쪽이 가지런하기 때문이다.
+     */
+    headerAlign?: TableColumnAlign,
   ) {
     this.headerSpan = Math.max(1, Math.trunc(headerSpan));
+    this.headerAlign = headerAlign ?? align;
   }
 
   /** 열의 데이터 연결과 표현을 유지하면서 사용자가 입력한 헤더만 교체한다. */
@@ -53,6 +63,11 @@ export class TableColumn {
   /** 머리글 칸 하나가 덮는 열 수만 교체한다. */
   withHeaderSpan(headerSpan: number): TableColumn {
     return this.copy({ headerSpan });
+  }
+
+  /** 열 이름 줄만의 정렬을 교체한다. */
+  withHeaderAlign(headerAlign: TableColumnAlign): TableColumn {
+    return this.copy({ headerAlign });
   }
 
   /** 빈 칸일 때 앞 칸에 흡수될지만 교체한다. */
@@ -80,6 +95,7 @@ export class TableColumn {
       formatSpec: this.formatSpec,
       headerSpan: this.headerSpan,
       mergesWhenEmpty: this.mergesWhenEmpty,
+      headerAlign: this.headerAlign,
     };
   }
 
@@ -91,6 +107,7 @@ export class TableColumn {
     width?: number;
     headerSpan?: number;
     mergesWhenEmpty?: boolean;
+    headerAlign?: TableColumnAlign;
   }>): TableColumn {
     return new TableColumn(
       changes.key ?? this.key,
@@ -101,6 +118,7 @@ export class TableColumn {
       this.formatSpec,
       changes.headerSpan ?? this.headerSpan,
       changes.mergesWhenEmpty ?? this.mergesWhenEmpty,
+      changes.headerAlign ?? this.headerAlign,
     );
   }
 }

@@ -13,6 +13,7 @@ import {
   type ImageElement,
   type LineElement,
   type SignatureElement,
+  type TableColumn,
   type TableElement,
   TableLayout,
   type TableLayoutRow,
@@ -203,7 +204,7 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
       }));
       const inset = this.toPx(element.cellPadding);
       group.add(this.createTableText(
-        row.cells[columnIndex] ?? "", element,
+        row.cells[columnIndex] ?? "", element, column,
         {
           x: x + inset,
           y: y + inset,
@@ -227,11 +228,15 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   private createTableText(
     value: string,
     element: TableElement,
+    column: TableColumn,
     frame: PixelFrame,
     role: CellRole,
   ): Konva.Text {
     const body = role === "body";
-    const style = body ? element.cellStyle : element.headerStyle;
+    // 정렬은 열이 정한다. 표 스타일의 정렬만 쓰면 발행본과 갈라진다 —
+    // 화면에서 가운데였던 칸이 발행본에서 왼쪽으로 나온다.
+    const style = (body ? element.cellStyle : element.headerStyle)
+      .with({ align: body ? column.align : column.headerAlign });
     const text = this.createTextNode(value, style, frame);
     if (body && this.mode === "design") text.fill(KonvaElementVisitor.TOKEN_TEXT);
     else if (body) text.opacity(0.72);

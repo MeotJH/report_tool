@@ -295,6 +295,7 @@ export class ElementFactory {
       // 병합 개념 이전에 저장된 열은 자기 한 칸만 덮는다.
       typeof json.headerSpan === "number" ? json.headerSpan : 1,
       json.mergesWhenEmpty === true,
+      json.headerAlign as TableColumnAlign | undefined,
     );
   }
 

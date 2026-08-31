@@ -157,7 +157,7 @@ export class PdfElementVisitor implements ElementVisitor<void> {
       this.drawTextBox(
         cells[columnIndex] ?? "",
         this.textFrameOf(frame, element.cellPadding),
-        this.withAlign(baseStyle, column.align),
+        this.withAlign(baseStyle, header ? column.headerAlign : column.align),
       );
       x += column.width;
     });
