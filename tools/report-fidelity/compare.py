@@ -55,6 +55,25 @@ def ticket_pages(pages):
     return found
 
 
+def row_bands(page):
+    """행 띠마다 그 띠를 가로지르는 세로선 x를 모은다.
+
+    쪽 전체의 세로선 x만 모으면 병합을 못 본다. `합계` 행에만 있는 칸막이는
+    다른 행에도 같은 x가 있어 집합으로는 구분되지 않기 때문이다. 띠마다 따로
+    세야 "이 줄이 몇 칸인가"가 드러난다.
+    """
+    rules = sorted({h[0] for h in page['horizontals']})
+    bands = []
+    for top, bottom in zip(rules, rules[1:]):
+        if bottom - top < 3:
+            continue
+        xs = sorted({round(v[0]) for v in page['verticals']
+                     if v[1] <= top + 1 and v[2] >= bottom - 1})
+        if len(xs) > 2:
+            bands.append(xs)
+    return bands
+
+
 def column_xs(page):
     """표의 세로 구분선 x 좌표만 모은다. 짧은 조각은 무시한다."""
     return sorted({round(v[0]) for v in page['verticals'] if v[2] - v[1] > 3})
@@ -104,6 +123,16 @@ def main():
                  else f'원본 {len(ra)}개 / 재현본 {len(rb)}개')
 
     for index in range(min(len(a), len(b))):
+        wa, wb = row_bands(a[index]), row_bands(b[index])
+        same = len(wa) == len(wb) and all(
+            len(p) == len(q) and all(abs(x - y) <= 1 for x, y in zip(p, q))
+            for p, q in zip(wa, wb))
+        r.record(f'{index + 1}쪽 행별 칸 나눔', same,
+                 f'{len(wa)}개 띠'
+                 + ('' if same else f' — 원본 {[len(p) - 1 for p in wa]}'
+                                    f' / 재현본 {[len(q) - 1 for q in wb]}'))
+
+    for index in range(min(len(a), len(b))):
         ca, cb = column_xs(a[index]), column_xs(b[index])
         near = len(ca) == len(cb) and all(abs(p - q) <= 1 for p, q in zip(ca, cb))
         r.record(f'{index + 1}쪽 표 세로선', near,
@@ -112,15 +141,18 @@ def main():
 
     doc_a = ''.join(page_text(p) for p in a)
     doc_b = ''.join(page_text(p) for p in b)
-    r.record('문서 전체 글자', doc_a == doc_b,
-             'same' if doc_a == doc_b else
-             f'{len(doc_a)}자/{len(doc_b)}자, 앞 {common(doc_a, doc_b)}자 공통')
+    r.record('문서 전체 글자 구성', sorted(doc_a) == sorted(doc_b),
+             f'{len(doc_a)}자 / {len(doc_b)}자 — 사라지거나 늘어난 글자 없음'
+             if sorted(doc_a) == sorted(doc_b) else
+             f'원본 {len(doc_a)}자 / 재현본 {len(doc_b)}자')
 
+    # 글자가 놓인 순서는 추출 도구가 정하므로, 그 쪽에 **무엇이** 있는지로 본다.
+    # 두 칸이 같은 줄에 있으면 글꼴 차이만으로 앞뒤가 뒤바뀌어 나온다.
     for index in range(min(len(a), len(b))):
         pa, pb = page_text(a[index]), page_text(b[index])
-        r.record(f'{index + 1}쪽 글자', pa == pb,
-                 'same' if pa == pb else
-                 f'{len(pa)}자/{len(pb)}자, 앞 {common(pa, pb)}자 공통')
+        same = sorted(pa) == sorted(pb)
+        r.record(f'{index + 1}쪽 글자 구성', same,
+                 f'{len(pa)}자' if same else f'원본 {len(pa)}자 / 재현본 {len(pb)}자')
 
     print(f'\n=== {r.passed}/{r.total} 일치 ===')
     if r.failures:

@@ -180,6 +180,23 @@ export class SetTableHeaderSpanCommand extends TableCommand {
   }
 }
 
+/** 빈 칸일 때 앞 칸에 흡수될지 바꾼 것을 한 번의 Undo 단위로 기록한다. */
+export class SetTableMergeWhenEmptyCommand extends TableCommand {
+  /** 대상 열 위치와 켤지 끌지를 재실행 가능한 입력으로 보존한다. */
+  constructor(
+    elementId: string,
+    private readonly index: number,
+    private readonly mergesWhenEmpty: boolean,
+  ) {
+    super(elementId);
+  }
+
+  /** 대상 열의 빈 칸 병합 여부만 교체한다. */
+  protected update(table: TableElement): TableElement {
+    return this.editor.setMergesWhenEmpty(table, this.index, this.mergesWhenEmpty);
+  }
+}
+
 /** 전체 표의 행 높이 변경을 한 번의 Undo 단위로 기록한다. */
 export class UpdateTableRowHeightCommand extends TableCommand {
   /** 확정한 mm 행 높이를 재실행 가능한 입력으로 보존한다. */

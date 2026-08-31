@@ -27,6 +27,7 @@ import {
   RemoveTableRowCommand,
   ResizeTableColumnCommand,
   SetTableHeaderSpanCommand,
+  SetTableMergeWhenEmptyCommand,
   ToggleHeaderColumnCommand,
   ToggleHeaderRowCommand,
   UpdateTableHeaderCommand,
@@ -539,17 +540,28 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
                 onCommit={(align) => this.changeColumnAlign(element, index, align)}
               />
             </InspectorRow>
-            <NumberField
-              label="머리글 병합"
-              value={column.headerSpan}
-              step={1}
-              min={1}
-              max={element.columns.length - index}
-              suffix="열"
-              onCommit={(headerSpan) => this.controller.execute(
-                new SetTableHeaderSpanCommand(element.id, index, headerSpan),
+            <InspectorRow>
+              <NumberField
+                label="머리글 병합"
+                value={column.headerSpan}
+                step={1}
+                min={1}
+                max={element.columns.length - index}
+                suffix="열"
+                onCommit={(headerSpan) => this.controller.execute(
+                  new SetTableHeaderSpanCommand(element.id, index, headerSpan),
+                )}
+              />
+              {index === 0 ? null : (
+                <ToggleField
+                  label="비면 앞 칸이 덮음"
+                  value={column.mergesWhenEmpty}
+                  onCommit={(mergesWhenEmpty) => this.controller.execute(
+                    new SetTableMergeWhenEmptyCommand(element.id, index, mergesWhenEmpty),
+                  )}
+                />
               )}
-            />
+            </InspectorRow>
             {this.columnDataField(element, column, index)}
             <div className="rt-column-card-foot">
               <span className="rt-token-chip rt-token-chip--muted">{column.cellTemplate}</span>

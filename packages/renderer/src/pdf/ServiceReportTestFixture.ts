@@ -123,7 +123,7 @@ function createWorkSection(): readonly Element[] {
       "workStats",
       [
         ["upper", "상위업무명", 20.0, "center", 1],
-        ["lower", "하위업무명", 35.0, "center", 1],
+        ["lower", "하위업무명", 35.0, "center", 1, true],
         ["requested", "총요청건수", 20.0, "center", 1],
         ["ongoing", "처리중건수", 20.0, "center", 1],
         ["resolved", "해결건수", 20.0, "center", 1],
@@ -315,19 +315,32 @@ function staticTable(
   );
 }
 
+/**
+ * 데이터 표의 열 하나를 적는 자리다.
+ *
+ * 마지막 값은 "이 칸이 비면 앞 칸이 여기까지 덮는가"다. `합계` 행처럼 이름 하나가
+ * 두 칸에 걸치는 줄에 쓴다.
+ */
+type BoundColumn = readonly [
+  string, string, number, TableColumnAlign, number, boolean?,
+];
+
 /** 행 수가 발행 데이터로 정해지는 표를 만든다. */
 function boundTable(
   id: string,
   frame: Frame,
   arrayPath: string,
-  columns: readonly (readonly [string, string, number, TableColumnAlign, number])[],
+  columns: readonly BoundColumn[],
   rowHeight: number,
 ): TableElement {
   return new TableElement(
     id, frame, 2, false,
     new BoundTableSource(new Binding(arrayPath)),
-    columns.map(([key, header, width, align, span]) => (
-      new TableColumn(key, header, `{{row.${key}}}`, width, align, null, span)
+    columns.map(([key, header, width, align, span, mergesWhenEmpty]) => (
+      new TableColumn(
+        key, header, `{{row.${key}}}`, width, align, null,
+        span, mergesWhenEmpty === true,
+      )
     )),
     rowHeight,
     cellStyle(8, 700), cellStyle(8, 400),

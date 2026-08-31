@@ -116,6 +116,23 @@ export class TableEditor {
     );
   }
 
+  /**
+   * 이 열의 칸이 비면 앞 칸이 덮을지 정한다.
+   *
+   * `합계` 행처럼 이름 하나가 두 칸에 걸치는 줄에 쓴다. 첫 열에는 켤 수 없다 —
+   * 덮어 줄 앞 칸이 없다.
+   */
+  setMergesWhenEmpty(
+    table: TableElement, index: number, mergesWhenEmpty: boolean,
+  ): TableElement {
+    if (index === 0 && mergesWhenEmpty) {
+      throw new Error("첫 열은 앞 칸이 없어 병합할 수 없다");
+    }
+    return table.withColumns(this.replaceColumn(
+      table, index, this.columnAt(table, index).withMergesWhenEmpty(mergesWhenEmpty),
+    ));
+  }
+
   /** 행 높이를 mm 양수로 제한해 캔버스와 PDF가 같은 배치를 계산하게 한다. */
   updateRowHeight(table: TableElement, rowHeight: number): TableElement {
     if (rowHeight <= 0) throw new Error("표 행 높이는 0보다 커야 한다");

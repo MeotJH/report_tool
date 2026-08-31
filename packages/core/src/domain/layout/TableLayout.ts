@@ -229,7 +229,7 @@ export class TableLayout {
       row: {
         cells: split.cells,
         roles,
-        spans: TableCellSpans.forRow(element, bodyIndex).toArray(),
+        spans: TableCellSpans.forRow(element, bodyIndex, split.cells).toArray(),
         bodyIndex,
         offset,
         topMm,
@@ -247,7 +247,7 @@ export class TableLayout {
   ): readonly (readonly string[])[] | null {
     return this.rowHeights.linesOf(
       element, cells, this.rolesOf(element, bodyIndex),
-      TableCellSpans.forRow(element, bodyIndex),
+      TableCellSpans.forRow(element, bodyIndex, cells),
     );
   }
 
@@ -267,7 +267,7 @@ export class TableLayout {
     topMm: number,
   ): TableLayoutRow {
     const roles = this.rolesOf(element, bodyIndex);
-    const spans = TableCellSpans.forRow(element, bodyIndex);
+    const spans = TableCellSpans.forRow(element, bodyIndex, cells);
     return {
       cells,
       roles,
