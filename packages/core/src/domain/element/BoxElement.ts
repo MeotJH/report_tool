@@ -1,5 +1,6 @@
 import { Frame } from "../value/Frame.js";
 import { Element, type ElementCommonChanges } from "./Element.js";
+import type { ElementFollow } from "./ElementFollow.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
 
 /** 장식 상자의 선택적 표현 속성을 호출부에서 명확하게 전달하게 한다. */
@@ -30,9 +31,9 @@ export class BoxElement extends Element {
     hidden = false,
     pageIndex = 0,
     repeated = false,
-    followsElementId: string | null = null,
+    follows: ElementFollow | null = null,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex, repeated, followsElementId);
+    super(id, frame, z, locked, hidden, pageIndex, repeated, follows);
     this.fill = options.fill;
     this.stroke = options.stroke;
     this.strokeWidth = options.strokeWidth;
@@ -66,7 +67,7 @@ export class BoxElement extends Element {
       stroke: this.stroke,
       strokeWidth: this.strokeWidth,
       radius: this.radius,
-    }, resolved.hidden, resolved.pageIndex, resolved.repeated, resolved.followsElementId);
+    }, resolved.hidden, resolved.pageIndex, resolved.repeated, resolved.follows);
   }
 
   /** 사각 도형의 고유 속성을 렌더러와 무관한 저장 데이터로 변환한다. */

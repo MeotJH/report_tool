@@ -1,4 +1,5 @@
 import { Frame } from "../value/Frame.js";
+import type { ElementFollow } from "./ElementFollow.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
 
 /** 저장 형식과 Factory가 지원하는 문서 요소 종류를 제한한다. */
@@ -24,7 +25,7 @@ export interface ElementCommonChanges {
   readonly hidden?: boolean;
   readonly pageIndex?: number;
   readonly repeated?: boolean;
-  readonly followsElementId?: string | null;
+  readonly follows?: ElementFollow | null;
 }
 
 /** 변경분과 현재 상태를 합친 뒤 하위 클래스 생성자에 넘길 완전한 공통 상태다. */
@@ -35,7 +36,7 @@ export interface ResolvedElementCommon {
   readonly hidden: boolean;
   readonly pageIndex: number;
   readonly repeated: boolean;
-  readonly followsElementId: string | null;
+  readonly follows: ElementFollow | null;
 }
 
 /**
@@ -56,7 +57,7 @@ export abstract class Element {
     public readonly hidden: boolean = false,
     public readonly pageIndex: number = 0,
     public readonly repeated: boolean = false,
-    public readonly followsElementId: string | null = null,
+    public readonly follows: ElementFollow | null = null,
   ) {}
 
   /** 렌더러가 요소 종류별 처리를 빠짐없이 구현하도록 방문자에게 제어를 넘긴다. */
@@ -113,8 +114,8 @@ export abstract class Element {
    * 표가 없는 표지에도 제목이 나오기 때문이다. 필요한 것은 "모든 쪽"이 아니라
    * **"그 표가 그려지는 쪽"**이고, 그 조건은 표에 매달아야만 표현된다.
    */
-  withFollowsElement(followsElementId: string | null): Element {
-    return this.withCommon({ followsElementId });
+  withFollows(follows: ElementFollow | null): Element {
+    return this.withCommon({ follows });
   }
 
   /** 하위 클래스가 종류별 속성을 보존하며 공통 상태만 교체하게 한다. */
@@ -130,9 +131,7 @@ export abstract class Element {
       pageIndex: changes.pageIndex ?? this.pageIndex,
       repeated: changes.repeated ?? this.repeated,
       // 연결 해제는 null을 넘기는 정상 변경이므로 ??로 지워지면 안 된다.
-      followsElementId: "followsElementId" in changes
-        ? changes.followsElementId ?? null
-        : this.followsElementId,
+      follows: "follows" in changes ? changes.follows ?? null : this.follows,
     };
   }
 }

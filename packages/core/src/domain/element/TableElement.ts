@@ -1,6 +1,7 @@
 import { Frame } from "../value/Frame.js";
 import { TextStyle } from "../value/TextStyle.js";
 import { Element, type ElementCommonChanges } from "./Element.js";
+import type { ElementFollow } from "./ElementFollow.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
 import { TableColumn } from "./TableColumn.js";
 import { TableHeaderCells } from "./TableHeaderCells.js";
@@ -37,9 +38,9 @@ export class TableElement extends Element {
     public readonly headerFill: string | null = TableElement.DEFAULT_HEADER_FILL,
     pageIndex = 0,
     repeated = false,
-    followsElementId: string | null = null,
+    follows: ElementFollow | null = null,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex, repeated, followsElementId);
+    super(id, frame, z, locked, hidden, pageIndex, repeated, follows);
     this.columns = [...columns];
   }
 
@@ -145,7 +146,7 @@ export class TableElement extends Element {
       "headerFill" in changes ? changes.headerFill ?? null : this.headerFill,
       resolved.pageIndex,
       resolved.repeated,
-      resolved.followsElementId,
+      resolved.follows,
     );
   }
 }

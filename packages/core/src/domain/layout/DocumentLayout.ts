@@ -66,7 +66,7 @@ export class DocumentLayout {
     const pages: PageLayout[] = [];
     for (let authored = 0; authored < template.pageCount(); authored += 1) {
       const elements = this.byStackOrder(this.elementsOn(template, authored));
-      const placements = elements.map((element) => this.placeAtOwnFrame(element, data));
+      const placements = this.placeAuthoredPage(elements, data);
       pages.push({ index: pages.length, placements });
       let pending = this.pendingFrom(placements, elements);
       while (pending.length > 0) {
@@ -76,6 +76,58 @@ export class DocumentLayout {
       }
     }
     return this.withRepeatedElements(pages, template, data);
+  }
+
+  /**
+   * 사용자가 만든 쪽 하나를 배치한다.
+   *
+   * 표를 따라 밀려 내려가는 요소(`flow`)는 자기 좌표에 놓지 않는다. 그 자리는
+   * 표가 실제로 몇 줄을 썼는지가 정하고, 표가 이 쪽에서 끝나지 않으면 이 쪽에
+   * 나오지도 않는다.
+   */
+  private placeAuthoredPage(
+    elements: readonly Element[],
+    data: unknown,
+  ): readonly PlacedElement[] {
+    const flowing = new Set(this.flowingElements(elements).map((element) => element.id));
+    const placements = elements
+      .filter((element) => !flowing.has(element.id))
+      .map((element) => this.placeAtOwnFrame(element, data));
+    return this.byPlacementStackOrder([
+      ...placements,
+      ...this.settledFlowPlacements(placements, elements, data),
+    ]);
+  }
+
+  /** 표를 따라 밀려 내려가는 요소만 고른다. */
+  private flowingElements(elements: readonly Element[]): readonly Element[] {
+    return elements.filter((element) => element.follows?.mode === "flow");
+  }
+
+  /** 이 쪽에서 끝난 표만 자기 뒤의 구역을 데리고 나온다. */
+  private settledFlowPlacements(
+    placements: readonly PlacedElement[],
+    elements: readonly Element[],
+    data: unknown,
+  ): readonly PlacedElement[] {
+    return placements.flatMap((placement) => {
+      const table = placement.table;
+      if (table === null || table.nextBodyRowIndex !== null) return [];
+      const group = TableGroup.of(placement.element as TableElement, elements);
+      return this.placeFlowed(group, placement.element.frame.y, table, data);
+    });
+  }
+
+  /** 표가 끝난 자리에 맞춰 옮긴 다음 구역을 배치 결과로 만든다. */
+  private placeFlowed(
+    group: TableGroup,
+    tableTopMm: number,
+    table: TableLayoutResult,
+    data: unknown,
+  ): readonly PlacedElement[] {
+    return group
+      .movedFlowed(tableTopMm, this.consumedHeight(table))
+      .map((element) => this.placeAtOwnFrame(element, data));
   }
 
   /** 사용자가 그 쪽에 놓은 요소만 고른다. 반복 요소는 따로 얹는다. */
@@ -184,14 +236,19 @@ export class DocumentLayout {
         continue;
       }
       const placed = this.continue(item, topMm + headMm, availableMm, data);
-      for (const follower of item.group.movedFollowers(topMm)) {
-        placements.push(this.placeAtOwnFrame(follower, data));
+      for (const caption of item.group.movedCaptions(topMm)) {
+        placements.push(this.placeAtOwnFrame(caption, data));
       }
       placements.push(placed.placement);
       topMm += headMm + placed.consumedMm;
       if (placed.next !== null) {
         carried.push({ group: item.group, nextBodyRowIndex: placed.next });
+        continue;
       }
+      // 표가 여기서 끝났으므로 그 뒤의 구역도 이 쪽에 따라 나온다.
+      placements.push(...this.placeFlowed(
+        item.group, placed.placement.element.frame.y, placed.placement.table!, data,
+      ));
     }
     return {
       layout: { index, placements: this.byPlacementStackOrder(placements) },

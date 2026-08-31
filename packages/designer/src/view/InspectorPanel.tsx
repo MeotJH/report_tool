@@ -1,10 +1,17 @@
-import type { Element } from "@report-tool/core";
+import { ElementFollow, type Element, type FollowMode } from "@report-tool/core";
 import type { EditorActions } from "../controller/EditorActions.js";
 import type { EditorController } from "../controller/EditorController.js";
 import type { PaletteEntry } from "../controller/PaletteEntry.js";
 import type { TemplateIssue } from "../controller/TemplateIssueFinder.js";
 import { ElementInspectorVisitor } from "./inspector/ElementInspectorVisitor.js";
-import { InspectorRow, InspectorSection, NumberField, SelectField, ToggleField } from "./inspector/InspectorFields.js";
+import {
+  ChoiceField,
+  InspectorRow,
+  InspectorSection,
+  NumberField,
+  SelectField,
+  ToggleField,
+} from "./inspector/InspectorFields.js";
 import { PageInspector } from "./inspector/PageInspector.js";
 import { LayerNamer } from "./LayerNamer.js";
 
@@ -127,9 +134,7 @@ function SingleElementInspector(props: InspectorPanelProps & { element: Element 
         <FollowsTableField
           element={element}
           tables={followableTables(props.controller, element)}
-          onCommit={(followsElementId) => actions.changeElement(
-            element, element.withFollowsElement(followsElementId),
-          )}
+          onCommit={(follows) => actions.changeElement(element, element.withFollows(follows))}
         />
       </InspectorSection>
       {visitor.build(element)}
@@ -187,25 +192,44 @@ function MultiElementInspector(props: InspectorPanelProps & { elements: readonly
 function FollowsTableField(props: {
   element: Element;
   tables: readonly Element[];
-  onCommit: (followsElementId: string | null) => void;
+  onCommit: (follows: ElementFollow | null) => void;
 }) {
   if (props.tables.length === 0) return null;
   const namer = new LayerNamer();
+  const follows = props.element.follows;
   return (
     <>
       <SelectField
         label="이 표를 따라감"
-        value={props.element.followsElementId ?? ""}
+        value={follows?.elementId ?? ""}
         options={[
           { value: "", label: "따라가지 않음" },
           ...props.tables.map((table) => ({ value: table.id, label: namer.name(table) })),
         ]}
-        onCommit={(id) => props.onCommit(id === "" ? null : id)}
+        onCommit={(id) => props.onCommit(
+          id === "" ? null : ElementFollow.of(id, follows?.mode ?? "caption"),
+        )}
       />
-      <p className="rt-inspector-note">
-        고른 표가 쪽을 넘어 이어질 때, 이 요소도 이어지는 쪽마다 같은 자리에 함께 나옵니다.
-        표 제목과 기간처럼 그 표가 있는 쪽에만 나와야 하는 것에 씁니다.
-      </p>
+      {follows === null ? null : (
+        <>
+          <ChoiceField<FollowMode>
+            label="따라가는 방식"
+            value={follows.mode}
+            options={[
+              { value: "caption", label: "표 위 제목" },
+              { value: "flow", label: "표 아래 구역" },
+            ]}
+            onCommit={(mode) => props.onCommit(follows.withMode(mode))}
+          />
+          <p className="rt-inspector-note">
+            <strong>표 위 제목</strong>은 표가 쪽을 넘을 때마다 이어지는 쪽에 같은 모양으로
+            다시 나옵니다. 표 제목과 기간에 씁니다.
+            <br />
+            <strong>표 아래 구역</strong>은 표가 실제로 쓴 높이만큼 밀려 내려갑니다. 건수가
+            달라져도 다음 표가 앞 표를 파고들지 않습니다.
+          </p>
+        </>
+      )}
     </>
   );
 }

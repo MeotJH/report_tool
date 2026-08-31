@@ -2,6 +2,7 @@ import { Binding } from "../value/Binding.js";
 import { Frame } from "../value/Frame.js";
 import { TextStyle } from "../value/TextStyle.js";
 import { Element, type ElementCommonChanges } from "./Element.js";
+import type { ElementFollow } from "./ElementFollow.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
 
 /**
@@ -21,9 +22,9 @@ export class FieldElement extends Element {
     hidden = false,
     pageIndex = 0,
     repeated = false,
-    followsElementId: string | null = null,
+    follows: ElementFollow | null = null,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex, repeated, followsElementId);
+    super(id, frame, z, locked, hidden, pageIndex, repeated, follows);
   }
 
   /** 방문자가 데이터 필드 전용 처리 경로를 사용하도록 연결한다. */
@@ -70,7 +71,7 @@ export class FieldElement extends Element {
       resolved.hidden,
       resolved.pageIndex,
       resolved.repeated,
-      resolved.followsElementId,
+      resolved.follows,
     );
   }
 }

@@ -1,5 +1,6 @@
 import { Frame } from "../value/Frame.js";
 import { Element, type ElementCommonChanges } from "./Element.js";
+import type { ElementFollow } from "./ElementFollow.js";
 import type { ElementVisitor } from "./ElementVisitor.js";
 
 /** 선의 표현 속성 중 바꾸려는 것만 Inspector가 전달하게 한다. */
@@ -28,9 +29,9 @@ export class LineElement extends Element {
     hidden = false,
     pageIndex = 0,
     repeated = false,
-    followsElementId: string | null = null,
+    follows: ElementFollow | null = null,
   ) {
-    super(id, frame, z, locked, hidden, pageIndex, repeated, followsElementId);
+    super(id, frame, z, locked, hidden, pageIndex, repeated, follows);
     this.dash = dash === undefined ? undefined : [...dash];
   }
 
@@ -57,7 +58,7 @@ export class LineElement extends Element {
       this.hidden,
       this.pageIndex,
       this.repeated,
-      this.followsElementId,
+      this.follows,
     );
   }
 
@@ -75,7 +76,7 @@ export class LineElement extends Element {
       resolved.hidden,
       resolved.pageIndex,
       resolved.repeated,
-      resolved.followsElementId,
+      resolved.follows,
     );
   }
 

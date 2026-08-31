@@ -1,5 +1,6 @@
 import {
   Binding,
+  ElementFollow,
   BoundTableSource,
   BoxElement,
   Frame,
@@ -242,7 +243,8 @@ describe("TemplateIssueFinder", () => {
       return new TextElement(
         "caption", new Frame(20, 12, 60, 6), 0, false,
         { kind: "literal", value: "처리내역 (상세)" },
-        new TextStyle("Pretendard", 10), false, pageIndex, false, follows,
+        new TextStyle("Pretendard", 10), false, pageIndex, false,
+        ElementFollow.caption(follows),
       );
     }
 

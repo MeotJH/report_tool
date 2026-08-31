@@ -6,6 +6,7 @@ import { BoxElement } from "./BoxElement";
 import type { Content } from "./Content";
 import type { Element } from "./Element";
 import { ElementFactory } from "./ElementFactory";
+import { ElementFollow } from "./ElementFollow";
 import { FieldElement } from "./FieldElement";
 import { ImageElement } from "./ImageElement";
 import { LineElement } from "./LineElement";
@@ -178,10 +179,10 @@ describe("요소별 속성 변경", () => {
     "%s 요소가 따라갈 표를 저장과 복원을 왕복해도 기억한다",
     (_type, element) => {
       const restored = ElementFactory.fromJSON(
-        ElementFactory.toJSON(element.withFollowsElement("tickets")),
+        ElementFactory.toJSON(element.withFollows(ElementFollow.caption("tickets"))),
       );
 
-      expect(restored.followsElementId).toBe("tickets");
+      expect(restored.follows?.elementId).toBe("tickets");
       expect(restored.toJSON()).toEqual(element.toJSON());
     },
   );
@@ -189,10 +190,12 @@ describe("요소별 속성 변경", () => {
   it.each(createElements().map((element) => [element.type, element] as const))(
     "%s 요소의 따라가기 연결을 끊으면 다시 아무 표도 따라가지 않는다",
     (_type, element) => {
-      const detached = element.withFollowsElement("tickets").withFollowsElement(null);
+      const detached = element
+        .withFollows(ElementFollow.caption("tickets"))
+        .withFollows(null);
 
-      expect(detached.followsElementId).toBeNull();
-      expect(ElementFactory.fromJSON(ElementFactory.toJSON(detached)).followsElementId)
+      expect(detached.follows).toBeNull();
+      expect(ElementFactory.fromJSON(ElementFactory.toJSON(detached)).follows)
         .toBeNull();
     },
   );
@@ -201,25 +204,26 @@ describe("요소별 속성 변경", () => {
     "%s 요소의 다른 공통 상태를 바꿔도 따라갈 표를 잃지 않는다",
     (_type, element) => {
       const edited = element
-        .withFollowsElement("tickets")
+        .withFollows(ElementFollow.caption("tickets"))
         .withPageIndex(1)
         .withZ(5)
         .withHidden(true)
         .withFrame(new Frame(1, 2, 3, 4));
 
-      expect(edited.followsElementId).toBe("tickets");
+      expect(edited.follows?.elementId).toBe("tickets");
     },
   );
 
   it("선이 색을 바꿔도 쪽 소속과 따라갈 표를 잃지 않는다", () => {
     const line = new LineElement("line", frame, 1, false, "#333333", 0.3)
       .withPageIndex(2)
-      .withFollowsElement("tickets") as LineElement;
+      .withFollows(ElementFollow.flow("tickets")) as LineElement;
 
     const recolored = line.withAppearance({ stroke: "#000000" });
 
     expect(recolored.pageIndex).toBe(2);
-    expect(recolored.followsElementId).toBe("tickets");
+    expect(recolored.follows?.elementId).toBe("tickets");
+    expect(recolored.follows?.mode).toBe("flow");
   });
 
   it("이미지가 맞춤 방식만 바꿔도 단일 출처 규칙을 유지한다", () => {

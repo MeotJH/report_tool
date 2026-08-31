@@ -84,8 +84,9 @@ export class TemplateIssueFinder {
   private findBrokenFollows(template: Template): readonly TemplateIssue[] {
     const elements = template.getElements();
     return elements.flatMap((element) => {
-      const targetId = element.followsElementId;
-      if (targetId === null) return [];
+      const follows = element.follows;
+      if (follows === null) return [];
+      const targetId = follows.elementId;
       const target = elements.find((candidate) => candidate.id === targetId);
       if (target === undefined) {
         return [this.warning(element, `따라갈 표 ${targetId}를 찾을 수 없다`)];

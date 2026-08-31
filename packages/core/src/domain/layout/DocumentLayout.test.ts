@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Element } from "../element/Element.js";
+import { ElementFollow } from "../element/ElementFollow.js";
 import { TableElement } from "../element/TableElement.js";
 import { TableColumn } from "../element/TableColumn.js";
 import { BoundTableSource } from "../element/TableSource.js";
@@ -209,13 +210,23 @@ describe("DocumentLayout", () => {
   });
 
   describe("표를 따라다니는 캡션", () => {
+    /** 표 아래에 놓여 표가 끝난 만큼 밀리는 다음 구역을 만든다. */
+    function nextSection(id: string, topMm: number, follows: string): TextElement {
+      return new TextElement(
+        id, new Frame(20, topMm, 170, 6), 3, false,
+        { kind: "literal", value: "미처리내역 (상세)" },
+        new TextStyle("Pretendard", 11, { weight: 700 }),
+        false, 0, false, ElementFollow.flow(follows),
+      );
+    }
+
     /** 표 위에 놓인 제목처럼 그 표를 따라다니는 요소를 만든다. */
     function caption(id: string, topMm: number, follows: string): TextElement {
       return new TextElement(
         id, new Frame(20, topMm, 170, 6), 1, false,
         { kind: "literal", value: "처리내역 (상세)" },
         new TextStyle("Pretendard", 11, { weight: 700 }),
-        false, 0, false, follows,
+        false, 0, false, ElementFollow.caption(follows),
       );
     }
 
@@ -292,6 +303,66 @@ describe("DocumentLayout", () => {
         .toEqual(["title"]);
       expect(pages[1]?.placements.map((placement) => placement.element.id))
         .toEqual(["ticket-title", "tickets"]);
+    });
+
+    it("표가 짧아지면 다음 구역이 위로 올라온다", () => {
+      // 표 자리는 60mm~110mm. 머리글+3줄 = 40mm만 쓰므로 10mm가 남는다.
+      const pages = layout.compute(
+        template(ticketTable(50), nextSection("gap", 120, "tickets")),
+        tickets(3),
+      );
+      const section = pages[0]?.placements.find(
+        (placement) => placement.element.id === "gap",
+      );
+
+      expect(pages).toHaveLength(1);
+      expect(section?.element.frame.y).toBe(110);
+    });
+
+    it("표가 이어지면 다음 구역은 표가 끝난 쪽에 나온다", () => {
+      const pages = layout.compute(
+        template(ticketTable(50), nextSection("gap", 120, "tickets")),
+        tickets(12),
+      );
+      const appearances = pages.flatMap((page, index) => page.placements
+        .filter((placement) => placement.element.id === "gap")
+        .map(() => index));
+
+      expect(appearances).toEqual([pages.length - 1]);
+    });
+
+    it("다음 구역은 마지막 쪽에서 표가 끝난 자리 아래에 놓인다", () => {
+      // 사용자가 만든 간격(표 자리 아래 10mm)이 그대로 지켜져야 한다.
+      const pages = layout.compute(
+        template(ticketTable(50), nextSection("gap", 120, "tickets")),
+        tickets(12),
+      );
+      const last = pages[pages.length - 1]?.placements ?? [];
+      const table = last.find((placement) => placement.element.id === "tickets");
+      const section = last.find((placement) => placement.element.id === "gap");
+      const usedMm = (table?.table?.rows ?? []).reduce(
+        (total, row) => Math.max(total, row.topMm + row.heightMm), 0,
+      );
+
+      expect(section?.element.frame.y)
+        .toBe((table?.element.frame.y ?? 0) + usedMm + 10);
+    });
+
+    it("건수가 달라져도 다음 구역이 표를 파고들지 않는다", () => {
+      for (const count of [1, 3, 4, 7, 12, 23]) {
+        const pages = layout.compute(
+          template(ticketTable(50), nextSection("gap", 120, "tickets")),
+          tickets(count),
+        );
+        const last = pages[pages.length - 1]?.placements ?? [];
+        const table = last.find((placement) => placement.element.id === "tickets");
+        const section = last.find((placement) => placement.element.id === "gap");
+        const endMm = (table?.element.frame.y ?? 0) + (table?.table?.rows ?? []).reduce(
+          (total, row) => Math.max(total, row.topMm + row.heightMm), 0,
+        );
+
+        expect(section?.element.frame.y).toBeGreaterThanOrEqual(endMm);
+      }
     });
 
     it("다른 쪽에 있는 캡션은 따라오지 않는다", () => {
