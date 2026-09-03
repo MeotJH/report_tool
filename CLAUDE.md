@@ -8,7 +8,8 @@
 - 제품 상세: [docs/PRODUCT.md](docs/PRODUCT.md)
 - 코드 구조: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 전체 요약: [docs/SUMMARY.md](docs/SUMMARY.md)
-- **구현 작업 목록 (T01~T78)**: [docs/TASKS.md](docs/TASKS.md) — 항상 번호가 낮은 작업부터 진행한다
+- **구현 작업 목록 (T01~T78)**: [docs/TASKS.md](docs/TASKS.md) — 항상 번호가 낮은 작업부터 진행한다.
+  Phase 0~12·14 완료, Phase 13(데모 앱)만 Next.js 검증이 남았다
 - 문서 유형별 기능 공백(임금명세서·비밀유지서약서): [docs/PAYSLIP_GAP_ANALYSIS.md](docs/PAYSLIP_GAP_ANALYSIS.md)
 - **공백을 메우는 다음 작업 (N00~N19)**: [docs/TASKS_NEXT.md](docs/TASKS_NEXT.md) — T78 이후 진행 순서
 - **리포트형 문서 로드맵 (완료)**: [docs/REPORT_ROADMAP.md](docs/REPORT_ROADMAP.md) — 월간 서비스 리포트 기준. 1~13단계 전부 끝났다.

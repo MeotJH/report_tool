@@ -75,11 +75,28 @@
 | 7 | Application: 서비스 | T33~T37 | isomorphic | ✅ |
 | 8 | Renderer: PDF 생성 | T38~T43 | node | ✅ |
 | 9 | Designer: 캔버스 에디터 | T44~T57 | browser | ✅ (+ 리포트 로드맵 1~13단계) |
-| 10 | Viewer: 열람 + 서명 | T58~T63 | browser | ⬅ **다음** |
+| 10 | Viewer: 열람 + 서명 | T58~T63 | browser | ✅ |
 | 11 | Server: HTTP 계층 | T64~T68 | node | ✅ |
-| 12 | 참조 어댑터 (데모용) | T69~T73 | node | |
-| 13 | 데모 앱 연결 | T74~T77 | node + browser | |
-| 14 | 통합 검증 | T78 | - | |
+| 12 | 참조 어댑터 (데모용) | T69~T73 | node | ✅ |
+| 13 | 데모 앱 연결 | T74~T77 | node + browser | ⚠️ Next.js 대신 Vite (아래 참고) |
+| 14 | 통합 검증 | T78 | - | ✅ 자동 테스트로 |
+
+### Phase 13에서 계획과 다르게 한 것
+
+**Next.js 앱을 만들지 않았다.** 데모는 편집기 플레이그라운드의 Vite 개발 서버에
+붙였다(`packages/designer/vite.config.ts`) — `createMiddleware`를 connect 미들웨어로
+마운트하고, 발행 화면(`issue.html`)과 수신자 화면(`viewer.html`)을 그 위에 얹었다.
+
+그래서 **확인된 것**과 **아직 확인되지 않은 것**이 갈린다.
+
+- 확인됨: `(Request) => Promise<Response>` 하나로 실제 HTTP 서버에 붙는다. 붙여
+  보고서야 마운트 경로 문제를 찾았고(`basePath`), 그것이 없었다면 Next.js에서도
+  첫 요청부터 404였다
+- 확인 안 됨: **T74가 검증 대상으로 삼은 "`route.ts`가 3줄로 끝나는가"**. Next.js
+  App Router에 실제로 붙여 봐야 한다
+- T75(설계 페이지)는 기존 플레이그라운드가 대신한다. 다만 "저장·발행 버튼이 API
+  라우트를 부른다"는 부분은 없다 — 편집기는 호스트 보관소(`TemplateLibrary`)에
+  저장하고, 발행 표시는 아직 화면에서 하지 못한다
 
 Phase 0~7(T01~T37)은 `domain`/`application`뿐이라 브라우저도 서버도 없이 순수 로직만
 Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 실제 기술이 등장한다.
