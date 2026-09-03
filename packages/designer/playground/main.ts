@@ -16,6 +16,8 @@ import {
   TableHeaderCells,
   Template,
   TemplateFactory,
+  type TemplateLibrary,
+  type TemplateSummary,
   TemplateVariable,
   TextElement,
   TextStyle,
@@ -69,60 +71,78 @@ class PlaygroundFontProvider implements FontProvider {
 const documentKind = new URLSearchParams(location.search).get("doc") ?? "payslip";
 
 /**
- * 백지 작업을 브라우저에 남겨 새로고침에도 살아남게 한다.
+ * 만든 양식을 브라우저에 보관한다. 호스트가 해야 할 일의 전부를 보여 준다.
  *
- * 라이브러리는 I/O를 하지 않는다 — 저장은 호스트의 일이다. 이 클래스가 하는 일이
- * 호스트가 실제로 해야 하는 일의 전부다: `getTemplate().toJSON()`을 어딘가 넣고,
- * 열 때 `TemplateFactory.fromJSON()`으로 되돌린다.
+ * 라이브러리는 I/O를 하지 않는다 — 급여 데이터가 고객사 밖으로 나가면 안 되므로
+ * 어디에 저장할지는 호스트만 정할 수 있다. 그 자리에 들어가는 것이 이 클래스이고,
+ * 하는 일은 셋뿐이다: `toJSON()`을 어딘가 넣고, 목록을 보여 주고,
+ * `TemplateFactory.fromJSON()`으로 되돌린다.
  *
- * 여기서는 그 어딘가가 `localStorage`다. 한 쪽짜리 양식이면 없어도 되지만, 요소
- * 스무 개짜리 문서를 만드는 동안 창이 한 번 닫히면 하루가 사라진다.
+ * 여기서는 그 어딘가가 `localStorage`다. 실제 호스트라면 사내 DB가 그 자리에 온다.
  */
-class BlankDraftStore {
-  /** 다른 문서와 섞이지 않도록 백지 초안만의 자리를 쓴다. */
-  private static readonly KEY = "report-tool.blank-draft";
+class LocalStorageTemplateLibrary implements TemplateLibrary {
+  /** 보관한 양식을 한 자리에 모아 둔다. 키가 흩어지면 목록을 만들 수 없다. */
+  private static readonly KEY = "report-tool.templates";
 
-  /** 저장해 둔 초안을 되살린다. 없거나 깨졌으면 null이다. */
-  load(): Template | null {
-    const saved = localStorage.getItem(BlankDraftStore.KEY);
-    if (saved === null) return null;
-    try {
-      return TemplateFactory.fromJSON(JSON.parse(saved) as Record<string, unknown>);
-    } catch {
-      return null;
-    }
+  /** 최근에 고친 것이 위로 오게 한다. 방금 저장한 것을 찾느라 훑지 않게. */
+  async list(): Promise<readonly TemplateSummary[]> {
+    return Object.values(this.read())
+      .map((saved) => ({
+        id: String(saved["id"]),
+        name: String(saved["name"]),
+        updatedAt: String(saved["updatedAt"]),
+      }))
+      .sort((first, second) => second.updatedAt.localeCompare(first.updatedAt));
   }
 
-  /** 편집 결과를 즉시 남긴다. 저장 버튼을 누르는 순간을 기다리지 않는다. */
-  save(template: Template): void {
-    localStorage.setItem(BlankDraftStore.KEY, JSON.stringify(template.toJSON()));
+  /** 저장해 둔 JSON을 편집할 수 있는 템플릿으로 되돌린다. */
+  async load(id: string): Promise<Template> {
+    const saved = this.read()[id];
+    if (saved === undefined) throw new Error(`보관소에 ${id}가 없다`);
+    return TemplateFactory.fromJSON(saved);
+  }
+
+  /** 같은 식별자 자리에 덮어 넣는다. */
+  async save(template: Template): Promise<void> {
+    const all = this.read();
+    all[template.id] = template.toJSON();
+    localStorage.setItem(LocalStorageTemplateLibrary.KEY, JSON.stringify(all));
   }
 
   /** 처음부터 다시 시작할 수 있게 비운다. */
   clear(): void {
-    localStorage.removeItem(BlankDraftStore.KEY);
+    localStorage.removeItem(LocalStorageTemplateLibrary.KEY);
+  }
+
+  /** 저장된 것이 없거나 깨졌으면 빈 보관소로 다룬다. */
+  private read(): Record<string, Record<string, unknown>> {
+    const saved = localStorage.getItem(LocalStorageTemplateLibrary.KEY);
+    if (saved === null) return {};
+    try {
+      return JSON.parse(saved) as Record<string, Record<string, unknown>>;
+    } catch {
+      return {};
+    }
   }
 }
 
-const blankDrafts = new BlankDraftStore();
-if (new URLSearchParams(location.search).get("fresh") === "1") blankDrafts.clear();
+const templateLibrary = new LocalStorageTemplateLibrary();
+if (new URLSearchParams(location.search).get("fresh") === "1") templateLibrary.clear();
 
 new Designer({
   container,
   template: createTemplateFor(documentKind),
   sampleData: documentKind === "payslip" ? createSampleData() : createServiceReportData(),
   fontProvider: new PlaygroundFontProvider(),
-  onChange: (template) => {
-    showSavedJson(template);
-    if (documentKind === "blank") blankDrafts.save(template);
-  },
+  templateLibrary,
+  onChange: (template) => showSavedJson(template),
 });
 
 /** 주소로 고른 종류에 맞는 시작 템플릿을 준다. */
 function createTemplateFor(kind: string): Template {
   if (kind === "report") return createServiceReportTemplate();
   if (kind === "saved") return TemplateFactory.fromJSON(savedServiceReport);
-  if (kind === "blank") return blankDrafts.load() ?? createBlankTemplate();
+  if (kind === "blank") return createBlankTemplate();
   return createTemplate();
 }
 

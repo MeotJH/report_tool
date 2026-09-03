@@ -3,6 +3,7 @@ import {
   FieldElement,
   type FontProvider,
   type Template,
+  type TemplateLibrary,
 } from "@report-tool/core";
 import { createElement } from "react";
 import { flushSync } from "react-dom";
@@ -10,6 +11,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { BindFieldCommand } from "./command/BindFieldCommand.js";
 import { EditorActions } from "./controller/EditorActions.js";
 import { EditorController } from "./controller/EditorController.js";
+import { TemplateFiling } from "./controller/TemplateFiling.js";
 import { PaletteDrag } from "./controller/PaletteDrag.js";
 import type { PaletteEntry } from "./controller/PaletteEntry.js";
 import { FieldTool } from "./tool/FieldTool.js";
@@ -34,12 +36,21 @@ export interface DesignerOptions {
    * 깔린 글꼴로 해석되어 결과가 사람마다 달라진다. 그 사실은 화면에 표시된다.
    */
   readonly fontProvider?: FontProvider;
+
+  /**
+   * 만든 양식을 어디에 보관할지 정한다.
+   *
+   * 주지 않으면 편집기에 저장·열기가 나오지 않는다. 있지도 않은 보관소에 넣는
+   * 시늉을 하면, 담당자는 저장했다고 믿고 창을 닫는다.
+   */
+  readonly templateLibrary?: TemplateLibrary;
 }
 
 /** React와 Konva 내부 구조를 숨기고 호스트에 안정적인 편집기 API만 제공한다. */
 export class Designer {
   private readonly controller: EditorController;
   private readonly actions: EditorActions;
+  private readonly filing: TemplateFiling;
   private readonly reactRoot: Root;
   private readonly canvasStage: CanvasStage;
   private readonly mountElement: HTMLDivElement;
@@ -59,6 +70,7 @@ export class Designer {
       (style) => measurer.forStyle(style),
     );
     this.actions = new EditorActions(this.controller);
+    this.filing = new TemplateFiling(this.controller, options.templateLibrary ?? null);
     this.mountElement = this.createMountElement(options.container);
     this.reactRoot = createRoot(this.mountElement);
     this.renderApplication();
@@ -133,6 +145,7 @@ export class Designer {
     flushSync(() => this.reactRoot.render(createElement(DesignerShell, {
       controller: this.controller,
       actions: this.actions,
+      filing: this.filing,
       onFieldPick: (item) => this.pickField(item),
       onFieldDragStart: (item) => this.startFieldDrag(item),
       onFieldDragEnd: () => this.endFieldDrag(),

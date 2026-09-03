@@ -75,6 +75,42 @@ const DESIGNER_CSS = `
     color: var(--rt-muted); padding: 4px 10px;
   }
 
+  /* 문서 이름·저장 상태·열기를 머리줄 한 자리에 모은다. */
+  .rt-filing { align-items: center; display: flex; gap: 6px; position: relative; }
+  .rt-filing-name {
+    background: var(--rt-panel); border: 1px solid var(--rt-border); border-radius: 6px;
+    color: var(--rt-text); font: inherit; padding: 4px 8px; width: 180px;
+  }
+  .rt-filing-name:focus { border-color: var(--rt-primary); outline: none; }
+  .rt-filing-save {
+    background: var(--rt-primary); border: 1px solid var(--rt-primary); border-radius: 6px;
+    color: #fff; cursor: pointer; font: inherit; padding: 4px 12px;
+  }
+  .rt-filing-save:disabled { background: var(--rt-bg); border-color: var(--rt-border); color: var(--rt-muted); cursor: default; }
+  .rt-filing-button {
+    background: var(--rt-panel); border: 1px solid var(--rt-border); border-radius: 6px;
+    color: var(--rt-text); cursor: pointer; font: inherit; padding: 4px 10px;
+  }
+  .rt-filing-state { color: var(--rt-muted); font-size: 11px; }
+  .rt-filing-state--warn { color: var(--rt-warning); font-weight: 600; }
+  .rt-filing-open { position: relative; }
+  .rt-filing-menu {
+    background: var(--rt-panel); border: 1px solid var(--rt-border-strong); border-radius: 8px;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 12%); display: flex; flex-direction: column; gap: 4px;
+    left: 0; max-height: 320px; overflow-y: auto; padding: 8px; position: absolute;
+    top: calc(100% + 6px); width: 260px; z-index: 20;
+  }
+  .rt-filing-warn { color: var(--rt-warning); font-size: 11px; margin: 0 0 4px; }
+  .rt-filing-empty { color: var(--rt-muted); font-size: 11px; margin: 0; }
+  .rt-filing-item {
+    background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+    display: flex; font: inherit; gap: 8px; justify-content: space-between; padding: 6px 8px;
+    text-align: left;
+  }
+  .rt-filing-item:hover { background: var(--rt-primary-soft); border-color: var(--rt-border); }
+  .rt-filing-item-name { color: var(--rt-text); }
+  .rt-filing-item-time { color: var(--rt-muted); font-size: 11px; }
+
   .rt-toolbar {
     align-items: center; background: var(--rt-panel); border-bottom: 1px solid var(--rt-border);
     display: flex; gap: 12px; justify-content: space-between; padding: 8px 16px;

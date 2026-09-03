@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import type { EditorActions } from "../controller/EditorActions.js";
 import type { EditorController, EditorMode } from "../controller/EditorController.js";
 import { PaletteEntryBuilder, type PaletteEntry } from "../controller/PaletteEntry.js";
+import type { TemplateFiling } from "../controller/TemplateFiling.js";
 import { TemplateIssueFinder, type TemplateIssue } from "../controller/TemplateIssueFinder.js";
 import type { ToolKind } from "../tool/EditorTool.js";
 import { ImageTool } from "../tool/ImageTool.js";
@@ -16,12 +17,14 @@ import { FieldPalette } from "./FieldPalette.js";
 import { FontLibrary } from "./FontLibrary.js";
 import { InspectorPanel } from "./InspectorPanel.js";
 import { LayersPanel } from "./LayersPanel.js";
+import { TemplateFilingBar } from "./TemplateFilingBar.js";
 import { CanvasEditOverlay } from "./CanvasEditOverlay.js";
 
 /** React 셸이 파사드 동작을 호출할 때 필요한 최소 경계를 정의한다. */
 export interface DesignerShellProps {
   readonly controller: EditorController;
   readonly actions: EditorActions;
+  readonly filing: TemplateFiling;
   readonly onFieldPick: (entry: PaletteEntry) => void;
   readonly onFieldDragStart: (entry: PaletteEntry) => void;
   readonly onFieldDragEnd: () => void;
@@ -48,7 +51,11 @@ export function DesignerShell(props: DesignerShellProps) {
   ];
   return (
     <div className="rt-designer">
-      <DesignerHeader controller={props.controller} />
+      <DesignerHeader
+        controller={props.controller}
+        actions={props.actions}
+        filing={props.filing}
+      />
       <DesignerToolbar controller={props.controller} actions={props.actions} />
       <div className="rt-workspace">
         <aside className="rt-panel rt-panel--left">
@@ -98,7 +105,11 @@ function fontIssues(
 }
 
 /** 문서 정체성과 설계·미리보기 전환을 한 줄에 함께 둔다. */
-function DesignerHeader(props: { controller: EditorController }) {
+function DesignerHeader(props: {
+  controller: EditorController;
+  actions: EditorActions;
+  filing: TemplateFiling;
+}) {
   const template = props.controller.getTemplate();
   const mode = props.controller.getMode();
   return (
@@ -111,7 +122,11 @@ function DesignerHeader(props: { controller: EditorController }) {
         </span>
       </div>
       <div className="rt-document-meta">
-        <span className="rt-meta-pill">{template.name}</span>
+        <TemplateFilingBar
+          controller={props.controller}
+          actions={props.actions}
+          filing={props.filing}
+        />
         <span className="rt-meta-pill">Draft · v{template.version}</span>
         <span className="rt-segmented" role="group" aria-label="표시 모드">
           {(["design", "preview"] as readonly EditorMode[]).map((candidate) => (
