@@ -1,0 +1,15 @@
+{
+  "name": "@report-tool/server",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@report-tool/core": "*"
+  }
+}

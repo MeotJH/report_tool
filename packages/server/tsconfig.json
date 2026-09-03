@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"],
+  // 스텁 어댑터는 HTTP 계층 검증용이다. 배포물에 들어가면 프로덕션에서
+  // 쓰일 수 있으므로 빌드 대상에서 뺀다.
+  "exclude": ["src/**/*.test.ts", "src/test/**"]
+}
