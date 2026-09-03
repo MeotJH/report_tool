@@ -4,8 +4,12 @@
     {
       "name": "designer",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev:designer"],
-      "port": 5173
+      "runtimeArgs": [
+        "run",
+        "dev:designer"
+      ],
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }

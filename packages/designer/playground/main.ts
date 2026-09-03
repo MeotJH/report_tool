@@ -15,6 +15,7 @@ import {
   TableElement,
   TableHeaderCells,
   Template,
+  TemplateFactory,
   TemplateVariable,
   TextElement,
   TextStyle,
@@ -27,6 +28,9 @@ import {
   createServiceReportData,
   createServiceReportTemplate,
 } from "../../renderer/src/pdf/ServiceReportTestFixture.js";
+// 발행 스크립트가 읽는 것과 **같은 파일**을 편집기도 읽는다. 저장된 양식이
+// 화면에서 그대로 열리는지는 이 경로로만 확인된다.
+import savedServiceReport from "../../../apps/poc/service-report/template.json";
 
 const container = document.querySelector<HTMLElement>("#designer");
 if (container === null) throw new Error("디자이너 컨테이너를 찾을 수 없다");
@@ -53,16 +57,101 @@ class PlaygroundFontProvider implements FontProvider {
   }
 }
 
-/** `?doc=report`로 열면 원본과 대조한 월간 서비스 리포트를 편집기에 올린다. */
-const wantsReport = new URLSearchParams(location.search).get("doc") === "report";
+/**
+ * 어떤 문서로 편집기를 열지 주소로 고른다.
+ *
+ * `report`는 코드가 만든 완성본, `saved`는 그것을 저장한 **JSON 파일**을 다시 읽은
+ * 것, `blank`는 요소도 변수도 없는 백지다. `saved`가 열리는지가 "저장한 것이
+ * 그대로 열린다"의 확인이다.
+ * 백지를 따로 두는 이유는, 완성본을 손보는 것과 아무것도 없는 데서 만드는 것이
+ * 전혀 다른 일이기 때문이다. 후자에서만 드러나는 구멍이 있다.
+ */
+const documentKind = new URLSearchParams(location.search).get("doc") ?? "payslip";
+
+/**
+ * 백지 작업을 브라우저에 남겨 새로고침에도 살아남게 한다.
+ *
+ * 라이브러리는 I/O를 하지 않는다 — 저장은 호스트의 일이다. 이 클래스가 하는 일이
+ * 호스트가 실제로 해야 하는 일의 전부다: `getTemplate().toJSON()`을 어딘가 넣고,
+ * 열 때 `TemplateFactory.fromJSON()`으로 되돌린다.
+ *
+ * 여기서는 그 어딘가가 `localStorage`다. 한 쪽짜리 양식이면 없어도 되지만, 요소
+ * 스무 개짜리 문서를 만드는 동안 창이 한 번 닫히면 하루가 사라진다.
+ */
+class BlankDraftStore {
+  /** 다른 문서와 섞이지 않도록 백지 초안만의 자리를 쓴다. */
+  private static readonly KEY = "report-tool.blank-draft";
+
+  /** 저장해 둔 초안을 되살린다. 없거나 깨졌으면 null이다. */
+  load(): Template | null {
+    const saved = localStorage.getItem(BlankDraftStore.KEY);
+    if (saved === null) return null;
+    try {
+      return TemplateFactory.fromJSON(JSON.parse(saved) as Record<string, unknown>);
+    } catch {
+      return null;
+    }
+  }
+
+  /** 편집 결과를 즉시 남긴다. 저장 버튼을 누르는 순간을 기다리지 않는다. */
+  save(template: Template): void {
+    localStorage.setItem(BlankDraftStore.KEY, JSON.stringify(template.toJSON()));
+  }
+
+  /** 처음부터 다시 시작할 수 있게 비운다. */
+  clear(): void {
+    localStorage.removeItem(BlankDraftStore.KEY);
+  }
+}
+
+const blankDrafts = new BlankDraftStore();
+if (new URLSearchParams(location.search).get("fresh") === "1") blankDrafts.clear();
 
 new Designer({
   container,
-  template: wantsReport ? createServiceReportTemplate() : createTemplate(),
-  sampleData: wantsReport ? createServiceReportData() : createSampleData(),
+  template: createTemplateFor(documentKind),
+  sampleData: documentKind === "payslip" ? createSampleData() : createServiceReportData(),
   fontProvider: new PlaygroundFontProvider(),
-  onChange: (template) => showSavedJson(template),
+  onChange: (template) => {
+    showSavedJson(template);
+    if (documentKind === "blank") blankDrafts.save(template);
+  },
 });
+
+/** 주소로 고른 종류에 맞는 시작 템플릿을 준다. */
+function createTemplateFor(kind: string): Template {
+  if (kind === "report") return createServiceReportTemplate();
+  if (kind === "saved") return TemplateFactory.fromJSON(savedServiceReport);
+  if (kind === "blank") return blankDrafts.load() ?? createBlankTemplate();
+  return createTemplate();
+}
+
+/**
+ * 요소도 변수도 없는 백지 한 장을 만든다.
+ *
+ * 쪽 규격과 여백은 A4 기본값으로 둔다. 원본 리포트의 여백(11.36·10.01·14.95·10.16)을
+ * 미리 넣어 주면 "백지에서 만들 수 있는가"를 확인할 수 없다 — 그 값을 사람이 속성
+ * 패널에서 넣을 수 있는지도 확인 대상이다.
+ *
+ * 글꼴은 두 가족을 다 올린다. 원본은 맑은 고딕으로 만들어졌고, Pretendard는 그
+ * 밖의 문서가 쓴다. 편집기가 실제로 잴 파일을 미리 받아 두어야 화면 줄바꿈이
+ * 발행본과 같아진다.
+ */
+function createBlankTemplate(): Template {
+  const now = new Date().toISOString();
+  return new Template({
+    id: "blank-document",
+    name: "제목 없는 문서",
+    version: 1,
+    status: "draft",
+    page: new PageSpec("A4", "portrait", [12, 12, 12, 12]),
+    fonts: ["MalgunGothic", "Pretendard"],
+    variables: [],
+    elements: [],
+    createdAt: now,
+    updatedAt: now,
+  });
+}
 
 /**
  * 편집 결과가 저장 가능한 JSON으로 즉시 바뀌는 것을 눈으로 확인하게 한다.
