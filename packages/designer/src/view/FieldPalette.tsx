@@ -1,4 +1,4 @@
-import type { TemplateVariable } from "@report-tool/core";
+import { VariableInference, type TemplateVariable } from "@report-tool/core";
 import { useMemo, useState } from "react";
 import type { PaletteEntry } from "../controller/PaletteEntry.js";
 import { FieldPaletteFilter } from "./FieldPaletteFilter.js";
@@ -14,6 +14,8 @@ export interface FieldPaletteProps {
   readonly onDragEnd?: () => void;
   readonly onAddMode?: () => void;
   readonly onAddVariables: (variables: readonly TemplateVariable[]) => void;
+  /** 호스트가 미리보기에 쓰라고 준 샘플이다. 선언을 읽어 낼 유일한 근거다. */
+  readonly sampleData: unknown;
   readonly onRemoveVariable: (path: string) => void;
   readonly mode?: "add" | "rebind";
 }
@@ -29,6 +31,7 @@ export function FieldPalette({
   onAddMode,
   onAddVariables,
   onRemoveVariable,
+  sampleData,
   mode = "add",
 }: FieldPaletteProps) {
   const [query, setQuery] = useState("");
@@ -53,9 +56,16 @@ export function FieldPalette({
         : null}
       {adding === null
         ? (
-          <button className="rt-mode-switch" type="button" onClick={() => setAdding("")}>
-            ＋ 변수 추가
-          </button>
+          <>
+            <button className="rt-mode-switch" type="button" onClick={() => setAdding("")}>
+              ＋ 변수 추가
+            </button>
+            <InferFromSampleButton
+              sampleData={sampleData}
+              declared={entries.length}
+              onAddVariables={onAddVariables}
+            />
+          </>
         )
         : (
           <VariableEditor
@@ -219,4 +229,38 @@ function TypeBadge(props: { entry: PaletteEntry }) {
 function describeInsert(entry: PaletteEntry, mode: "add" | "rebind"): string {
   if (entry.type === "array") return `${entry.label} 배열로 반복 표 만들기`;
   return `${entry.label} ${mode === "add" ? "문서에 넣기" : "연결 변경"}`;
+}
+
+/**
+ * 호스트가 준 샘플에서 선언을 한 번에 만들어 준다.
+ *
+ * 이미 선언이 있는 문서에서는 보여주지 않는다. 손으로 다듬어 둔 표시 이름을
+ * 덮어쓸 위험이 있는 자리에 큰 버튼을 두면, 누르지 말아야 할 때 눌린다.
+ * (겹치는 이름은 `addVariables`가 건너뛰지만, 버튼 자체를 감추는 편이 더 낫다.)
+ */
+function InferFromSampleButton(props: {
+  sampleData: unknown;
+  declared: number;
+  onAddVariables: (variables: readonly TemplateVariable[]) => void;
+}) {
+  const inferred = useMemo(
+    () => new VariableInference().infer(props.sampleData),
+    [props.sampleData],
+  );
+  if (props.declared > 0 || inferred.length === 0) return null;
+  return (
+    <>
+      <button
+        className="rt-mode-switch"
+        type="button"
+        onClick={() => props.onAddVariables(inferred)}
+      >
+        ⇥ 샘플에서 {inferred.length}개 만들기
+      </button>
+      <p className="rt-palette-help">
+        미리보기에 쓰는 샘플 데이터의 모양을 그대로 선언으로 옮깁니다. 표시 이름은
+        경로 그대로 들어가므로 뒤에 고치세요.
+      </p>
+    </>
+  );
 }

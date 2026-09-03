@@ -97,6 +97,7 @@ export { TemplateReferences } from "./domain/template/TemplateReferences.js";
 export type { DataReference } from "./domain/template/TemplateReferences.js";
 export { TemplateFactory } from "./domain/template/TemplateFactory.js";
 export { TemplateVariable } from "./domain/template/TemplateVariable.js";
+export { VariableInference } from "./domain/template/VariableInference.js";
 export type { VariableValueType } from "./domain/template/TemplateVariable.js";
 export type {
   TemplateOptions,

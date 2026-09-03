@@ -64,6 +64,7 @@ export function DesignerShell(props: DesignerShellProps) {
             onAddMode={() => props.controller.selectElement(null)}
             onAddVariables={(variables) => props.actions.addVariables(variables)}
             onRemoveVariable={(path) => props.actions.removeVariable(path)}
+            sampleData={props.controller.getSampleData()}
           />
         </aside>
         <CanvasWorkspace {...props} />
