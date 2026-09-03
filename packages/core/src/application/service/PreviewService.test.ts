@@ -12,7 +12,6 @@ describe("PreviewService", () => {
     const render = vi.fn(async () => new Uint8Array([1, 2, 3]));
     const renderer: DocumentRenderer = { render };
     const dataProvider: DataProvider = {
-      fields: vi.fn(async () => ({})),
       sample: vi.fn(async () => sampleData),
       resolve: vi.fn(async () => ({})),
     };

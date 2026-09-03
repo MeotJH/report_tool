@@ -1,4 +1,7 @@
 {
+  // 배포물을 만드는 설정이다. 검사용(tsconfig.json)과 나눠 둔 이유는,
+  // 검사는 테스트까지 봐야 하고 빌드는 테스트를 내보내면 안 되기 때문이다.
+  // 하나로 두려다 `noEmit`이 켜졌고, 그 뒤로 dist가 갱신되지 않은 채 남았다.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false

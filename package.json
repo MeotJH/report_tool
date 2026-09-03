@@ -11,8 +11,11 @@
   },
   "scripts": {
     "poc:pdf": "node apps/poc/font-poc.mjs",
-    "dev:designer": "npm run dev --workspace @report-tool/designer",
+    "dev:designer": "npm run build && npm run dev --workspace @report-tool/designer",
     "test": "vitest run",
+    "build": "npm run build:core && npm run build:renderer",
+    "build:core": "tsc -p packages/core/tsconfig.build.json",
+    "build:renderer": "tsc -p packages/renderer/tsconfig.build.json",
     "typecheck:core": "tsc -p packages/core",
     "typecheck:renderer": "tsc -p packages/renderer",
     "typecheck:designer": "tsc -p packages/designer --noEmit && tsc -p packages/designer/playground",

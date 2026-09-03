@@ -1,0 +1,9 @@
+{
+  // 배포물을 만드는 설정이다. 검사는 테스트까지 보고(tsconfig.json),
+  // 빌드는 테스트를 내보내지 않는다.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false
+  },
+  "exclude": ["src/**/*.test.ts"]
+}

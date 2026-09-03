@@ -11,7 +11,9 @@ describe("페이지 설정 편집", () => {
   });
 
   it("반환한 여백 배열을 바꿔도 원본 페이지 설정이 변하지 않는다", () => {
-    const margin = page.marginMm() as number[];
+    // 읽기 전용 타입을 일부러 벗긴다. 이 테스트가 지키려는 것은 타입이 아니라
+    // **런타임에 실제로 복사본을 주는가**이다. 호스트는 JS로도 부를 수 있다.
+    const margin = page.marginMm() as unknown as number[];
     margin[0] = 99;
 
     expect(page.marginMm()).toEqual([10, 10, 10, 10]);

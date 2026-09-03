@@ -91,19 +91,18 @@ function createTemplateStore(template: Template): TemplateStore {
 /** 발행용 데이터 반환만 필요한 공급자 스텁을 만든다. */
 function createDataProvider(data: unknown): DataProvider {
   return {
-    fields: vi.fn(async () => ({})),
     sample: vi.fn(async () => ({})),
     resolve: vi.fn(async () => data),
   };
 }
 
 /** 저장 호출을 관찰하면서 사용하지 않는 조회도 계약에 맞춰 제공한다. */
-function createStorage(put: ReturnType<typeof vi.fn>): StorageAdapter {
+function createStorage(put: StorageAdapter["put"]): StorageAdapter {
   return { put, get: vi.fn(async () => new Uint8Array()) };
 }
 
 /** 문서 생성 호출을 관찰할 최소 저장소 스텁을 만든다. */
-function createDocumentStore(create: ReturnType<typeof vi.fn>): DocumentStore {
+function createDocumentStore(create: DocumentStore["create"]): DocumentStore {
   return {
     create,
     get: vi.fn(async () => { throw new Error("호출하지 않는다"); }),
