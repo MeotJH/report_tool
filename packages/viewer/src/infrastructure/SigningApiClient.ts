@@ -27,10 +27,17 @@ export interface FetchedDocument {
 export class SigningApiClient {
   private readonly baseUrl: string;
 
-  /** 테스트가 네트워크 없이 계약만 확인할 수 있도록 fetch를 주입받는다. */
+  /**
+   * 테스트가 네트워크 없이 계약만 확인할 수 있도록 fetch를 주입받는다.
+   *
+   * 기본값을 `globalThis.fetch`로 그냥 두면 안 된다. 속성에 담아 `this.fetchImpl(...)`로
+   * 부르는 순간 수신자가 `window`가 아니라 이 객체가 되고, 브라우저는
+   * `Illegal invocation`으로 거절한다. Node에서는 그냥 되기 때문에 단위 테스트로는
+   * 드러나지 않는다 — 실제로 브라우저에 띄워 보고 찾았다.
+   */
   constructor(
     baseUrl: string,
-    private readonly fetchImpl: typeof fetch = globalThis.fetch,
+    private readonly fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis),
   ) {
     // 끝 슬래시를 지운다. 남겨 두면 `/api//documents/view`가 되어, 서버가
     // 경로를 정규화하지 않는 경우 404가 난다.
