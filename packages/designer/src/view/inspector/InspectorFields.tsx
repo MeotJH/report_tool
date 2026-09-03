@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { NumberFieldDraft } from "./NumberFieldDraft.js";
 
 /** Inspector 섹션이 제목과 내용을 같은 형태로 묶게 한다. */
 export function InspectorSection(props: {
@@ -38,21 +39,27 @@ export function NumberField(props: {
   suffix?: string;
   disabled?: boolean;
 }) {
-  const [draft, setDraft] = useState(() => formatNumber(props.value));
-  useEffect(() => setDraft(formatNumber(props.value)), [props.value]);
+  const rule = useMemo(
+    () => new NumberFieldDraft(props.min, props.max),
+    [props.min, props.max],
+  );
+  const [draft, setDraft] = useState(() => rule.format(props.value));
+  useEffect(() => setDraft(rule.format(props.value)), [props.value, rule]);
 
-  /** 잘못된 입력은 원래 값으로 되돌리고 유효한 변경만 전달한다. */
+  /**
+   * 확정할 값이 있을 때만 문서를 바꾼다.
+   *
+   * 칸에 들어갔다 나오기만 한 경우까지 저장하면, 화면에 보여 준 자리 수로 값이
+   * 깎인다. 무엇이 확정 대상인지는 `NumberFieldDraft`가 판단한다.
+   */
   const commit = (): void => {
-    const parsed = Number(draft);
-    if (!Number.isFinite(parsed)) {
-      setDraft(formatNumber(props.value));
+    const resolved = rule.resolve(draft, props.value);
+    if (resolved === null) {
+      setDraft(rule.format(props.value));
       return;
     }
-    const clamped = Math.min(props.max ?? Number.MAX_SAFE_INTEGER,
-      Math.max(props.min ?? -Number.MAX_SAFE_INTEGER, parsed));
-    setDraft(formatNumber(clamped));
-    if (clamped === props.value) return;
-    props.onCommit(clamped);
+    setDraft(rule.format(resolved));
+    props.onCommit(resolved);
   };
 
   return (
@@ -68,7 +75,7 @@ export function NumberField(props: {
           onBlur={commit}
           onKeyDown={(event) => {
             if (event.key === "Enter") commit();
-            if (event.key === "Escape") setDraft(formatNumber(props.value));
+            if (event.key === "Escape") setDraft(rule.format(props.value));
           }}
         />
         {props.suffix === undefined ? null : <span className="rt-field-suffix">{props.suffix}</span>}
@@ -226,9 +233,4 @@ export function ChoiceField<TValue extends string>(props: {
       </span>
     </div>
   );
-}
-
-/** mm 값이 소수점 잡음 없이 표시되도록 자릿수를 제한한다. */
-function formatNumber(value: number): string {
-  return String(Math.round(value * 100) / 100);
 }
