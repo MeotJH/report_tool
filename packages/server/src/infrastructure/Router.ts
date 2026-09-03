@@ -15,6 +15,18 @@ export type Handler = (
  */
 export class Router {
   private readonly routes: Route[] = [];
+  private readonly basePath: string;
+
+  /**
+   * 라우터가 붙는 자리를 받는다.
+   *
+   * 호스트는 이 미들웨어를 `/api/report` 같은 자리에 붙인다. 그때 들어오는 요청의
+   * 경로에는 그 앞자리가 그대로 들어 있다(Next.js가 그렇다). 떼지 않으면 등록해 둔
+   * `/documents/issue`와 영영 만나지 못하고, 증상은 모든 요청이 404다.
+   */
+  constructor(basePath = "") {
+    this.basePath = basePath.replace(/\/+$/, "");
+  }
 
   /**
    * 경로 하나를 등록한다. `:id` 같은 조각은 값으로 꺼내 준다.
@@ -31,7 +43,8 @@ export class Router {
 
   /** 요청에 맞는 경로를 찾아 넘긴다. 없으면 404다. */
   async handle(request: Request): Promise<Response> {
-    const path = new URL(request.url).pathname;
+    const path = this.pathWithoutBase(new URL(request.url).pathname);
+    if (path === null) return new Response("Not Found", { status: 404 });
     for (const route of this.routes) {
       if (route.method !== request.method.toUpperCase()) continue;
       const matched = route.pattern.exec(path);
@@ -39,6 +52,13 @@ export class Router {
       return route.handler(request, Router.toParams(route.paramNames, matched));
     }
     return new Response("Not Found", { status: 404 });
+  }
+
+  /** 붙인 자리를 뗀 경로다. 그 자리 밖에서 온 요청이면 `null`이다. */
+  private pathWithoutBase(pathname: string): string | null {
+    if (this.basePath === "") return pathname;
+    if (!pathname.startsWith(this.basePath)) return null;
+    return pathname.slice(this.basePath.length) || "/";
   }
 
   /**

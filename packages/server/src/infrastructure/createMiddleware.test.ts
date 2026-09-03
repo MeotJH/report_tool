@@ -59,6 +59,35 @@ describe("createMiddleware", () => {
     expect(world.documents.get(id)?.status).toBe("signed");
   });
 
+  it("붙인 자리(basePath)를 떼고 경로를 맞춘다", async () => {
+    const handle = createMiddleware(depsOf(new StubWorld()), { basePath: "/api/report" });
+
+    const response = await handle(new Request("http://host/api/report/documents/issue", {
+      method: "POST",
+      body: JSON.stringify({ templateId: "payslip", recipientId: "emp-1", issuedBy: "admin" }),
+    }));
+
+    expect(response.status).toBe(201);
+  });
+
+  it("붙인 자리 밖으로 온 요청은 404로 답한다", async () => {
+    const handle = createMiddleware(depsOf(new StubWorld()), { basePath: "/api/report" });
+
+    const response = await handle(new Request("http://host/documents/issue", { method: "POST" }));
+
+    expect(response.status).toBe(404);
+  });
+
+  it("붙인 자리 끝의 슬래시는 있으나 없으나 같다", async () => {
+    const handle = createMiddleware(depsOf(new StubWorld()), { basePath: "/api/report/" });
+
+    const response = await handle(
+      new Request("http://host/api/report/documents/view?token=doc:emp"),
+    );
+
+    expect(response.status).not.toBe(404);
+  });
+
   it("만료된 링크로 열면 401로 답한다", async () => {
     const handle = createMiddleware(depsOf(new StubWorld()));
 

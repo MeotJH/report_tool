@@ -15,6 +15,17 @@ import { IssuanceController } from "../controller/IssuanceController.js";
 import { SigningController } from "../controller/SigningController.js";
 import { Router } from "./Router.js";
 
+/** 미들웨어를 어디에 붙였는지 알려 주는 값이다. */
+export interface MiddlewareOptions {
+  /**
+   * 이 미들웨어가 붙은 자리다. 예: `/api/report`.
+   *
+   * 주지 않으면 요청 경로를 그대로 쓴다. Next.js처럼 요청 URL에 마운트 경로가
+   * 그대로 들어오는 곳에서는 반드시 줘야 한다 — 없으면 모든 요청이 404다.
+   */
+  readonly basePath?: string;
+}
+
 /**
  * 호스트가 자기 인프라로 채워야 하는 자리다.
  *
@@ -45,7 +56,10 @@ export interface MiddlewareDeps {
  * 서비스 조립도 여기서 한다. 호스트가 `IssuanceService`의 인자 여섯 개 순서를 알아야
  * 한다면, 그것은 라이브러리가 자기 내부를 호스트에게 외우게 한 것이다.
  */
-export function createMiddleware(deps: MiddlewareDeps): (request: Request) => Promise<Response> {
+export function createMiddleware(
+  deps: MiddlewareDeps,
+  options: MiddlewareOptions = {},
+): (request: Request) => Promise<Response> {
   const issuance = new IssuanceController(new IssuanceService(
     deps.templateStore, deps.dataProvider, deps.renderer,
     deps.storage, deps.documentStore, deps.hashProvider,
@@ -57,7 +71,7 @@ export function createMiddleware(deps: MiddlewareDeps): (request: Request) => Pr
     new SigningService(deps.documentStore, deps.authAdapter, deps.storage),
   );
 
-  const router = new Router();
+  const router = new Router(options.basePath);
   router.add("POST", "/documents/issue", (request) => issuance.handle(request));
   router.add("GET", "/documents/view", (request) => signing.handleView(request));
   router.add("POST", "/documents/sign", (request) => signing.handleSign(request));
