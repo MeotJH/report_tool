@@ -152,6 +152,34 @@ describe("EditorActions", () => {
     expect(controller.getTemplate().page.widthMm()).toBe(210);
   });
 
+  it("이름 변경도 같은 이력에 남아 되돌릴 수 있다", () => {
+    const { controller, actions } = createEditor();
+    const before = controller.getTemplate().name;
+
+    actions.renameTemplate("8월 서비스 리포트");
+    expect(controller.getTemplate().name).toBe("8월 서비스 리포트");
+
+    controller.undo();
+    expect(controller.getTemplate().name).toBe(before);
+  });
+
+  it("같은 이름으로 고치면 이력을 남기지 않는다", () => {
+    const { controller, actions } = createEditor();
+
+    actions.renameTemplate(controller.getTemplate().name);
+
+    expect(controller.canUndo()).toBe(false);
+  });
+
+  it("빈 이름으로는 고치지 않는다", () => {
+    const { controller, actions } = createEditor();
+    const before = controller.getTemplate().name;
+
+    actions.renameTemplate("   ");
+
+    expect(controller.getTemplate().name).toBe(before);
+  });
+
   it("텍스트 속성 변경은 배치와 잠금 상태를 유지한다", () => {
     const text = new TextElement(
       "t", new Frame(10, 20, 30, 8), 3, true,

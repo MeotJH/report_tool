@@ -156,6 +156,46 @@ describe("EditorController", () => {
   });
 });
 
+describe("EditorController.openTemplate", () => {
+  it("연 문서를 지금 편집 대상으로 삼는다", () => {
+    const controller = new EditorController(createTemplate());
+
+    controller.openTemplate(createTemplate().rename("8월 리포트"));
+
+    expect(controller.getTemplate().name).toBe("8월 리포트");
+  });
+
+  it("앞 문서의 실행 취소 이력을 가져오지 않는다", () => {
+    const controller = new EditorController(createTemplate());
+    controller.execute(new AddElementCommand(createText("text")));
+
+    controller.openTemplate(createTemplate());
+
+    expect(controller.canUndo()).toBe(false);
+  });
+
+  it("앞 문서에서 보던 쪽과 고른 요소를 남기지 않는다", () => {
+    const controller = createControllerWith(createText("text"));
+    controller.selectElement("text");
+    controller.setActivePageIndex(2);
+
+    controller.openTemplate(createTemplate());
+
+    expect(controller.getSelectionModel().count()).toBe(0);
+    expect(controller.getActivePageIndex()).toBe(0);
+  });
+
+  it("문서를 열면 구독자에게 알린다", () => {
+    const controller = new EditorController(createTemplate());
+    const listener = vi.fn();
+    controller.subscribe(listener);
+
+    controller.openTemplate(createTemplate());
+
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
 /** 컨트롤러 테스트가 사용할 빈 초안 템플릿을 만든다. */
 function createTemplate(): Template {
   return new Template({

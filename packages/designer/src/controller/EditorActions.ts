@@ -13,6 +13,7 @@ import { ChangeVariablesCommand } from "../command/ChangeVariablesCommand.js";
 import { CompositeCommand } from "../command/CompositeCommand.js";
 import type { EditorCommand } from "../command/EditorCommand.js";
 import { RemoveElementCommand } from "../command/RemoveElementCommand.js";
+import { RenameTemplateCommand } from "../command/RenameTemplateCommand.js";
 import {
   UpdateTableCellCommand,
   UpdateTableHeaderCommand,
@@ -218,6 +219,21 @@ export class EditorActions {
       return;
     }
     this.replaceVariables(remaining);
+  }
+
+  /**
+   * 문서 이름을 고친다.
+   *
+   * 이름은 저장된 목록에서 이 문서를 찾는 유일한 단서이므로 되돌릴 수 있어야
+   * 한다. 빈 이름은 받지 않는다 — 목록에서 고를 수 없는 문서가 된다. 같은
+   * 이름이면 이력을 남기지 않는다. 칸에 들어갔다 나오기만 한 것을 실행 취소
+   * 한 번으로 세면, 되돌리기가 아무 일도 하지 않는 것처럼 보인다.
+   */
+  renameTemplate(name: string): void {
+    const trimmed = name.trim();
+    const current = this.controller.getTemplate().name;
+    if (trimmed === "" || trimmed === current) return;
+    this.controller.execute(new RenameTemplateCommand(current, trimmed));
   }
 
   /** 용지 설정 변경도 요소 편집과 같은 이력에 남게 한다. */

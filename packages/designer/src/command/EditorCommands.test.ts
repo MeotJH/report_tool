@@ -12,6 +12,7 @@ import { AddElementCommand } from "./AddElementCommand.js";
 import { BindFieldCommand } from "./BindFieldCommand.js";
 import { CommandStack } from "./CommandStack.js";
 import { RemoveElementCommand } from "./RemoveElementCommand.js";
+import { RenameTemplateCommand } from "./RenameTemplateCommand.js";
 import { TransformElementCommand } from "./TransformElementCommand.js";
 
 describe("Designer commands", () => {
@@ -79,6 +80,27 @@ describe("Designer commands", () => {
       .toBe("employee.number");
     expect((restored.getElements()[0] as FieldElement).binding.path.toString())
       .toBe("employee.name");
+  });
+
+  it("이름 변경 명령이 이전 이름으로 되돌아간다", () => {
+    const command = new RenameTemplateCommand("테스트", "7월 서비스 리포트");
+
+    const renamed = command.execute(createTemplate());
+    const restored = command.undo(renamed);
+
+    expect(renamed.name).toBe("7월 서비스 리포트");
+    expect(restored.name).toBe("테스트");
+  });
+
+  it("이력을 비우면 앞 문서의 실행 취소가 남지 않는다", () => {
+    const stack = new CommandStack();
+    const added = stack.execute(new AddElementCommand(createText("text")), createTemplate());
+    stack.undo(added);
+
+    stack.clear();
+
+    expect(stack.canUndo()).toBe(false);
+    expect(stack.canRedo()).toBe(false);
   });
 
   it("일반 텍스트에는 바인딩을 적용하지 않는다", () => {

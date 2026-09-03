@@ -12,6 +12,10 @@ export type {
   ImageProvider,
 } from "./application/port/ImageProvider.js";
 export type { StorageAdapter } from "./application/port/StorageAdapter.js";
+export type {
+  TemplateLibrary,
+  TemplateSummary,
+} from "./application/port/TemplateLibrary.js";
 export type { TemplateStore } from "./application/port/TemplateStore.js";
 export { DistributionService } from "./application/service/DistributionService.js";
 export { IssuanceService } from "./application/service/IssuanceService.js";

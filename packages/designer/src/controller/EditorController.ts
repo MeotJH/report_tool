@@ -277,6 +277,25 @@ export class EditorController {
     this.afterTemplateChange();
   }
 
+  /**
+   * 저장소에서 꺼낸 다른 문서로 편집 세션을 갈아 끼운다.
+   *
+   * 앞 문서에서 이어져 오면 안 되는 것이 셋이다. **실행 취소 이력**은 명령이
+   * 어느 문서의 것인지 모르므로 앞 문서의 요소를 지금 문서에 되살린다. **고른
+   * 요소**는 같은 식별자를 가진 남의 요소를 가리킬 수 있다. **보던 쪽**은 새
+   * 문서에 없을 수 있어, 열자마자 빈 쪽이 나온다.
+   */
+  openTemplate(template: Template): void {
+    this.template = template;
+    this.commandStack.clear();
+    this.selectionModel.clear();
+    this.activePageIndex = 0;
+    this.editTarget = null;
+    this.transformPreview.clear();
+    this.notice = null;
+    this.notifyChange();
+  }
+
   /** 취소할 명령이 있을 때만 템플릿을 갱신하고 알린다. */
   undo(): void {
     const previous = this.commandStack.undo(this.template);

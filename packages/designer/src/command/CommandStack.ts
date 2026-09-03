@@ -32,6 +32,17 @@ export class CommandStack {
     return next;
   }
 
+  /**
+   * 이력을 통째로 비운다. 다른 문서를 열 때 쓴다.
+   *
+   * 앞 문서의 명령을 남겨 두면 실행 취소가 지금 문서에 앞 문서의 요소를 되살린다.
+   * 명령은 자기가 어느 문서의 것인지 모르기 때문이다.
+   */
+  clear(): void {
+    this.undoStack.length = 0;
+    this.redoStack = [];
+  }
+
   /** UI가 실행 불가능한 undo 버튼을 미리 비활성화하게 한다. */
   canUndo(): boolean {
     return this.undoStack.length > 0;
