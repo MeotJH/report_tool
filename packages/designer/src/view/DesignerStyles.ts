@@ -185,6 +185,12 @@ const DESIGNER_CSS = `
     align-items: center; color: var(--rt-muted); display: flex; font-size: 11px; gap: 6px;
   }
   .rt-child-list { display: flex; flex-direction: column; gap: 5px; }
+  /* 엑셀에서 복사한 표를 붙여넣는 자리. 탭이 보이도록 등폭 글꼴을 쓴다. */
+  .rt-grid-paste {
+    border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+    padding: 6px; resize: vertical; white-space: pre; width: 100%;
+  }
   .rt-child-row { align-items: center; display: flex; gap: 3px; }
   .rt-child-row input, .rt-child-row select {
     background: #fff; border: 1px solid var(--rt-border); border-radius: 6px;

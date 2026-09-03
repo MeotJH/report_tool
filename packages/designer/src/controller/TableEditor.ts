@@ -1,10 +1,12 @@
 import {
   Binding,
   BoundTableSource,
+  PastedGrid,
   StaticTableSource,
   TableColumn,
   type TableCellValue,
   TableElement,
+  TableHeaderCells,
   TableSource,
 } from "@report-tool/core";
 import type { PaletteEntry } from "./PaletteEntry.js";
@@ -15,6 +17,62 @@ import { TableColumnPlanner } from "./TableColumnPlanner.js";
 export class TableEditor {
   private readonly columnFitter = new TableColumnFitter();
   private readonly columnPlanner = new TableColumnPlanner();
+
+  /**
+   * 스프레드시트에서 붙여넣은 격자로 표의 열과 행을 한 번에 만든다.
+   *
+   * 표 하나에 머리글과 고정 문구가 여덟 칸씩 있고 그런 표가 다섯 개다. 한 칸씩
+   * 손으로 넣으면 백지에서 시작할 수 없다 — 담당자는 이미 그 표를 엑셀로 갖고 있다.
+   *
+   * 표의 **가로 자리는 건드리지 않는다.** 붙여넣은 열 수만큼 지금 폭을 고르게
+   * 나눈다. 붙여넣기가 표를 페이지 밖으로 밀어내면 사용자는 방금 만든 표를 찾지
+   * 못한다. 열마다 다른 폭은 붙여넣은 뒤 하나씩 정한다.
+   *
+   * 머리글 지정은 비운다. 몇 번째 줄이 머리글인지는 새 격자에서 다시 정해야 하고,
+   * 앞 표의 지정을 남기면 엉뚱한 줄이 짙어진다.
+   */
+  applyGrid(
+    table: TableElement,
+    grid: PastedGrid,
+    firstRowIsHeader: boolean,
+  ): TableElement {
+    if (grid.isEmpty()) throw new Error("붙여넣을 표 내용이 없다");
+    const { headers, body } = firstRowIsHeader
+      ? grid.split()
+      : { headers: TableEditor.blankHeaders(grid.columnCount()), body: grid.rows() };
+    const columns = this.pastedColumns(headers, table.frame.width);
+    return table
+      .withColumns(columns)
+      .withSource(new StaticTableSource(TableEditor.rowsOf(columns, body)))
+      .withHeaderCells(TableHeaderCells.none());
+  }
+
+  /** 붙여넣은 열 이름으로 열을 만든다. 폭은 표의 지금 폭을 고르게 나눈다. */
+  private pastedColumns(
+    headers: readonly string[],
+    totalWidthMm: number,
+  ): readonly TableColumn[] {
+    const width = this.columnFitter.evenWidth(totalWidthMm, headers.length);
+    return headers.map((header, index) => {
+      const key = `c${index + 1}`;
+      return new TableColumn(key, header, `{{row.${key}}}`, width, "left", null);
+    });
+  }
+
+  /** 열 이름이 없는 격자를 붙여넣을 때 쓸 빈 이름을 만든다. */
+  private static blankHeaders(count: number): readonly string[] {
+    return Array.from({ length: count }, () => "");
+  }
+
+  /** 격자의 각 줄을 열 키에 맞춘 행으로 바꾼다. */
+  private static rowsOf(
+    columns: readonly TableColumn[],
+    body: readonly (readonly string[])[],
+  ): readonly Record<string, string>[] {
+    return body.map((cells) => Object.fromEntries(
+      columns.map((column, index) => [column.key, cells[index] ?? ""]),
+    ));
+  }
 
   /** 데이터 표의 원본을 훼손하지 않도록 정적 표에서만 셀 값을 교체한다. */
   updateCell(

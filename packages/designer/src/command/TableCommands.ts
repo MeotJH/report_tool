@@ -1,4 +1,5 @@
 import {
+  type PastedGrid,
   type TableCellValue,
   TableColumn,
   TableElement,
@@ -293,5 +294,27 @@ export class ChangeHeaderFillCommand extends TableCommand {
   /** 배경만 교체하고 어떤 칸이 머리글인지는 그대로 둔다. */
   protected update(table: TableElement): TableElement {
     return this.editor.changeHeaderFill(table, this.headerFill);
+  }
+}
+
+/**
+ * 스프레드시트에서 붙여넣은 격자로 표를 다시 만든다.
+ *
+ * 열과 행과 머리글 지정이 한꺼번에 바뀌므로 한 명령으로 묶는다. 사용자가 한 번 한
+ * 행동을 되돌리는 데 세 번 눌러야 하면, 무엇이 되돌려지는지 알 수 없다.
+ */
+export class PasteTableGridCommand extends TableCommand {
+  /** 붙여넣은 격자와 첫 줄 해석 방식을 명령 수명 동안 보존한다. */
+  constructor(
+    elementId: string,
+    private readonly grid: PastedGrid,
+    private readonly firstRowIsHeader: boolean,
+  ) {
+    super(elementId);
+  }
+
+  /** 격자를 표의 열·행으로 바꾼다. */
+  protected update(table: TableElement): TableElement {
+    return this.editor.applyGrid(table, this.grid, this.firstRowIsHeader);
   }
 }

@@ -29,6 +29,19 @@ export class TableColumnFitter {
     return this.absorbRoundingError(scaled, target);
   }
 
+  /**
+   * 열 수만큼 폭을 고르게 나눈 한 열의 폭을 준다.
+   *
+   * 붙여넣기로 열을 새로 만들 때 쓴다. 그때는 유지할 비율이 없으므로 고르게 나누고,
+   * 열마다 다른 폭은 사람이 뒤에 정한다. 짐작해서 넓혀 주면 사람이 정한 것과
+   * 구별되지 않는다.
+   */
+  evenWidth(totalWidthMm: number, columnCount: number): number {
+    if (columnCount <= 0) throw new Error("열이 없으면 폭을 나눌 수 없다");
+    const usable = Math.max(totalWidthMm, columnCount * TableColumnFitter.MINIMUM_WIDTH_MM);
+    return this.round(usable / columnCount);
+  }
+
   /** 최소 폭조차 담을 수 없는 목표는 열 수에 맞춰 넓혀 음수 폭을 막는다. */
   private usableWidth(columns: readonly TableColumn[], totalWidthMm: number): number {
     const minimum = columns.length * TableColumnFitter.MINIMUM_WIDTH_MM;

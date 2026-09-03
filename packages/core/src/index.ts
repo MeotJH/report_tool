@@ -50,6 +50,7 @@ export type { BoxElementOptions } from "./domain/element/BoxElement.js";
 export type { Content } from "./domain/element/Content.js";
 export { ContentResolver } from "./domain/element/ContentResolver.js";
 export { ContentText } from "./domain/element/ContentText.js";
+export { PastedGrid } from "./domain/element/PastedGrid.js";
 export { Element } from "./domain/element/Element.js";
 export type {
   ElementCommonChanges,
