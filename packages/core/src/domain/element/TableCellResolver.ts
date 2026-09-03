@@ -1,3 +1,4 @@
+import { FormatterRegistry } from "../format/FormatterRegistry.js";
 import type { TableColumn } from "./TableColumn.js";
 import { TemplateExpression } from "./TemplateExpression.js";
 
@@ -7,6 +8,11 @@ import { TemplateExpression } from "./TemplateExpression.js";
  * 셀 값은 두 단계로 정해진다. 먼저 열의 표현식이 행에서 값을 꺼내고, 그 값이 다시
  * 표현식이면 문서 데이터로 채운다. 두 번째 단계가 있어야 "항목 이름은 템플릿에
  * 고정하고 금액만 사람마다 다르게" 하는 급여명세서 표가 만들어진다.
+ *
+ * 마지막으로 열이 정한 표시 형식을 적용한다. 이것이 빠져 있던 동안 열에 `금액`을
+ * 지정해도 발행본에는 `4200000`이 찍혔다 — 설정은 저장되는데 아무 일도 일어나지
+ * 않으니, 담당자는 그 기능이 없는 것으로 읽는다. 단일 필드는 `BindingResolver`가
+ * 같은 일을 하고 있었고 표만 빠져 있었다.
  *
  * 이 계산을 세 곳이 각자 하면 반드시 어긋난다. 실제로 폰트 서브셋이 수집한 글자와
  * 실제로 찍히는 글자가 달라지면 한글이 통째로 빈칸으로 발행된다.
@@ -21,7 +27,8 @@ export class TableCellResolver {
    */
   resolve(column: TableColumn, row: unknown, data: unknown): string {
     const cell = TemplateExpression.render(column.cellTemplate, { row });
-    return TemplateExpression.render(cell, data);
+    const value = TemplateExpression.render(cell, data);
+    return FormatterRegistry.create(column.formatSpec).format(value);
   }
 
   /** 한 행 전체를 열 순서대로 해석해 호출부가 열을 다시 순회하지 않게 한다. */

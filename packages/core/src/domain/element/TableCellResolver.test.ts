@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TableColumn } from "./TableColumn.js";
 import { TableCellResolver } from "./TableCellResolver.js";
+import type { FormatSpec } from "../format/FormatSpec.js";
 
 /** 행에서 값을 꺼내는 평범한 열을 짧게 만든다. */
 function column(key: string): TableColumn {
@@ -71,5 +72,45 @@ describe("TableCellResolver", () => {
 
   it("빈 셀은 빈 문자열이 된다", () => {
     expect(resolver.resolve(column("amount"), {}, {})).toBe("");
+  });
+});
+
+/** 표시 형식만 바꾼 열을 만든다. */
+function formatted(formatSpec: FormatSpec): TableColumn {
+  return new TableColumn("hours", "처리시간", "{{row.hours}}", 20, "right", formatSpec);
+}
+
+describe("TableCellResolver — 열이 정한 표시 형식", () => {
+  const resolver = new TableCellResolver();
+
+  it("호스트가 보낸 숫자에 단위를 붙인다", () => {
+    const spec: FormatSpec = { kind: "number", decimals: 1, thousands: false, suffix: "시간" };
+
+    expect(resolver.resolve(formatted(spec), { hours: 5.5 }, {})).toBe("5.5시간");
+  });
+
+  it("이미 백분율인 값에 %를 붙인다", () => {
+    const spec: FormatSpec = { kind: "number", decimals: 1, thousands: false, suffix: "%" };
+
+    expect(resolver.resolve(formatted(spec), { hours: 25.1 }, {})).toBe("25.1%");
+  });
+
+  it("금액 열은 천 단위를 찍는다", () => {
+    // 이 형식이 무시되던 동안, 열에 `금액`을 지정해도 `4200000`이 그대로 찍혔다.
+    const spec: FormatSpec = { kind: "currency", currency: "KRW" };
+
+    expect(resolver.resolve(formatted(spec), { hours: 4200000 }, {})).toContain("4,200,000");
+  });
+
+  it("비율을 백분율로 바꾼다", () => {
+    const spec: FormatSpec = { kind: "percent", decimals: 1 };
+
+    expect(resolver.resolve(formatted(spec), { hours: 0.251 }, {})).toBe("25.1%");
+  });
+
+  it("설계 화면이 보는 값에는 형식을 적용하지 않는다", () => {
+    const spec: FormatSpec = { kind: "number", suffix: "시간" };
+
+    expect(resolver.resolveRowSource([formatted(spec)], { hours: 5.5 })).toEqual(["5.5"]);
   });
 });

@@ -23,7 +23,11 @@ export class FormatterRegistry {
       case "currency":
         return new CurrencyFormatter(spec.currency, spec.showSymbol ?? true);
       case "number":
-        return new NumberFormatter(spec.decimals ?? 0, spec.thousands ?? true);
+        return new NumberFormatter(
+          spec.decimals ?? 0,
+          spec.thousands ?? true,
+          spec.suffix ?? "",
+        );
       case "date":
         return new DateFormatter(spec.pattern);
       case "mask":

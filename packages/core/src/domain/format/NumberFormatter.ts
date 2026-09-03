@@ -4,10 +4,16 @@ import { ValueFormatter } from "./ValueFormatter.js";
  * 근무시간과 수량을 지정된 소수 자릿수와 천 단위 정책으로 표시한다.
  */
 export class NumberFormatter extends ValueFormatter {
-  /** 숫자 표시 규칙을 생성 시점에 고정해 호출부의 조건 분기를 없앤다. */
+  /**
+   * 숫자 표시 규칙을 생성 시점에 고정해 호출부의 조건 분기를 없앤다.
+   *
+   * 단위는 값의 일부가 아니라 표시 방식이다. `5.5`를 받아 `5.5시간`으로 찍는 것이
+   * 양식의 일이고, 호스트는 숫자만 보낸다.
+   */
   constructor(
     private readonly decimals: number = 0,
     private readonly thousands: boolean = true,
+    private readonly suffix: string = "",
   ) {
     super();
   }
@@ -20,7 +26,8 @@ export class NumberFormatter extends ValueFormatter {
     }
 
     const fixedValue = numericValue.toFixed(this.decimals);
-    return this.thousands ? this.addThousandsSeparators(fixedValue) : fixedValue;
+    const grouped = this.thousands ? this.addThousandsSeparators(fixedValue) : fixedValue;
+    return `${grouped}${this.suffix}`;
   }
 
   /** 소수부를 변경하지 않고 정수부에만 천 단위 구분자를 적용한다. */
