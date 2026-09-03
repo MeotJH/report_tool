@@ -16,8 +16,10 @@ import {
   TableHeaderCells,
   Template,
   TemplateFactory,
+  type DocumentRenderer,
   type ImageAsset,
   type ImageLibrary,
+  type RenderMode,
   type TemplateLibrary,
   type TemplateSummary,
   TemplateVariable,
@@ -174,6 +176,16 @@ class LocalStorageImageLibrary implements ImageLibrary {
     localStorage.removeItem(LocalStorageImageLibrary.KEY);
   }
 
+  /**
+   * 보관한 그림을 통째로 준다. 서버에 미리보기를 부탁할 때 함께 보낸다.
+   *
+   * 브라우저에 올린 그림을 Node가 볼 수 없기 때문이다. 실제 호스트라면 서버가
+   * 같은 보관소를 읽으므로 이 메서드는 필요 없다.
+   */
+  all(): Record<string, { base64: string; mediaType: ImageAsset["mediaType"] }> {
+    return this.read();
+  }
+
   /** 저장된 것이 없거나 깨졌으면 빈 보관소로 다룬다. */
   private read(): Record<string, { base64: string; mediaType: ImageAsset["mediaType"] }> {
     const saved = localStorage.getItem(LocalStorageImageLibrary.KEY);
@@ -202,6 +214,31 @@ class LocalStorageImageLibrary implements ImageLibrary {
   }
 }
 
+/**
+ * 미리보기 PDF를 개발 서버에 만들어 달라고 부탁한다.
+ *
+ * 편집기는 이 클래스가 fetch를 쓰는지 사내 API를 쓰는지 모른다. `DocumentRenderer`
+ * 포트 하나만 안다. 실제 호스트라면 여기가 `POST /api/report/preview`가 된다.
+ *
+ * **발행본은 거절한다.** 미리보기 경로로 발행본을 만들 수 있게 두면, 데이터·템플릿·
+ * 해시를 동결하지 않은 PDF가 발행본 행세를 하게 된다.
+ */
+class PreviewEndpointRenderer implements DocumentRenderer {
+  /** 그림을 함께 보내야 서버가 로고를 그릴 수 있다. */
+  constructor(private readonly images: LocalStorageImageLibrary) {}
+
+  /** 템플릿과 데이터를 그대로 넘기고 PDF 바이트를 받는다. */
+  async render(template: Template, data: unknown, mode: RenderMode): Promise<Uint8Array> {
+    if (mode !== "preview") throw new Error("발행본은 서버 발행 경로로만 만든다");
+    const response = await fetch("/__preview", {
+      method: "POST",
+      body: JSON.stringify({ template: template.toJSON(), data, images: this.images.all() }),
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return new Uint8Array(await response.arrayBuffer());
+  }
+}
+
 const templateLibrary = new LocalStorageTemplateLibrary();
 const imageLibrary = new LocalStorageImageLibrary();
 if (new URLSearchParams(location.search).get("fresh") === "1") {
@@ -216,6 +253,7 @@ new Designer({
   fontProvider: new PlaygroundFontProvider(),
   templateLibrary,
   imageLibrary,
+  documentRenderer: new PreviewEndpointRenderer(imageLibrary),
   onChange: (template) => showSavedJson(template),
 });
 

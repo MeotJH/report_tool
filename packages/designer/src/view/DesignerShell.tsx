@@ -16,7 +16,9 @@ import { CanvasTextMeasurer } from "./CanvasTextMeasurer.js";
 import { FieldPalette } from "./FieldPalette.js";
 import { FontLibrary } from "./FontLibrary.js";
 import { InspectorPanel } from "./InspectorPanel.js";
+import type { DocumentPreview } from "../controller/DocumentPreview.js";
 import { ImageStore } from "./ImageStore.js";
+import { PdfPreviewOverlay } from "./PdfPreviewOverlay.js";
 import { LayersPanel } from "./LayersPanel.js";
 import { TemplateFilingBar } from "./TemplateFilingBar.js";
 import { CanvasEditOverlay } from "./CanvasEditOverlay.js";
@@ -27,6 +29,7 @@ export interface DesignerShellProps {
   readonly actions: EditorActions;
   readonly filing: TemplateFiling;
   readonly images: ImageStore;
+  readonly preview: DocumentPreview;
   readonly onFieldPick: (entry: PaletteEntry) => void;
   readonly onFieldDragStart: (entry: PaletteEntry) => void;
   readonly onFieldDragEnd: () => void;
@@ -57,6 +60,7 @@ export function DesignerShell(props: DesignerShellProps) {
         controller={props.controller}
         actions={props.actions}
         filing={props.filing}
+        preview={props.preview}
       />
       <DesignerToolbar controller={props.controller} actions={props.actions} />
       <div className="rt-workspace">
@@ -86,6 +90,7 @@ export function DesignerShell(props: DesignerShellProps) {
         />
       </div>
       <DesignerStatus controller={props.controller} issues={issues} />
+      <PdfPreviewOverlay preview={props.preview} />
     </div>
   );
 }
@@ -112,6 +117,7 @@ function DesignerHeader(props: {
   controller: EditorController;
   actions: EditorActions;
   filing: TemplateFiling;
+  preview: DocumentPreview;
 }) {
   const template = props.controller.getTemplate();
   const mode = props.controller.getMode();
@@ -131,6 +137,15 @@ function DesignerHeader(props: {
           filing={props.filing}
         />
         <span className="rt-meta-pill">Draft · v{template.version}</span>
+        {props.preview.isAvailable() ? (
+          <button
+            className="rt-filing-button"
+            type="button"
+            onClick={() => void props.preview.open()}
+          >
+            PDF 미리보기
+          </button>
+        ) : null}
         <span className="rt-segmented" role="group" aria-label="표시 모드">
           {(["design", "preview"] as readonly EditorMode[]).map((candidate) => (
             <button

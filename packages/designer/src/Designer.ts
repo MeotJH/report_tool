@@ -1,6 +1,7 @@
 import {
   Binding,
   FieldElement,
+  type DocumentRenderer,
   type FontProvider,
   type ImageLibrary,
   type Template,
@@ -11,6 +12,7 @@ import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { BindFieldCommand } from "./command/BindFieldCommand.js";
 import { EditorActions } from "./controller/EditorActions.js";
+import { DocumentPreview } from "./controller/DocumentPreview.js";
 import { EditorController } from "./controller/EditorController.js";
 import { TemplateFiling } from "./controller/TemplateFiling.js";
 import { PaletteDrag } from "./controller/PaletteDrag.js";
@@ -21,6 +23,7 @@ import { CanvasTextMeasurer } from "./view/CanvasTextMeasurer.js";
 import { DesignerShell } from "./view/DesignerShell.js";
 import { DesignerStyles } from "./view/DesignerStyles.js";
 import { FontLibrary } from "./view/FontLibrary.js";
+import { BrowserPreviewLinks } from "./view/BrowserPreviewLinks.js";
 import { ImageStore } from "./view/ImageStore.js";
 import { KeyboardShortcutAdapter } from "./view/KeyboardShortcutAdapter.js";
 
@@ -55,6 +58,16 @@ export interface DesignerOptions {
    * 식별자를 손으로 적는 지금까지의 방식만 남는다.
    */
   readonly imageLibrary?: ImageLibrary;
+
+  /**
+   * 발행 직전 PDF를 만들어 주는 경로다.
+   *
+   * 발행 렌더러는 서버에서만 돌므로, 보통 이 구현은 서버로 요청을 넘긴다.
+   * 편집기는 어디서 그리는지 모른다 — 여기에 pdf-lib를 직접 넣으면 편집기 번들에
+   * 발행 경로가 통째로 들어오고, 브라우저에서 발행본을 만들 수 있게 된다.
+   * 주지 않으면 미리보기 단추가 나오지 않는다.
+   */
+  readonly documentRenderer?: DocumentRenderer;
 }
 
 /** React와 Konva 내부 구조를 숨기고 호스트에 안정적인 편집기 API만 제공한다. */
@@ -72,6 +85,7 @@ export class Designer {
   private readonly keyboardShortcutAdapter: KeyboardShortcutAdapter;
   private readonly fonts = new FontLibrary();
   private readonly images: ImageStore;
+  private readonly preview: DocumentPreview;
   private draggedItem: PaletteDrag | null = null;
 
   /** Shadow DOM 안에 편집 UI를 마운트하고 도메인 변경 통지를 연결한다. */
@@ -92,6 +106,11 @@ export class Designer {
       options.imageLibrary ?? null,
       undefined,
       () => this.onImagesChanged(),
+    );
+    this.preview = new DocumentPreview(
+      this.controller,
+      options.documentRenderer ?? null,
+      new BrowserPreviewLinks(),
     );
     this.mountElement = this.createMountElement(options.container);
     this.reactRoot = createRoot(this.mountElement);
@@ -170,6 +189,7 @@ export class Designer {
       actions: this.actions,
       filing: this.filing,
       images: this.images,
+      preview: this.preview,
       onFieldPick: (item) => this.pickField(item),
       onFieldDragStart: (item) => this.startFieldDrag(item),
       onFieldDragEnd: () => this.endFieldDrag(),

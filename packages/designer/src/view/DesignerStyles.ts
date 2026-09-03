@@ -50,6 +50,8 @@ const DESIGNER_CSS = `
     min-height: 640px;
     min-width: 1080px;
     overflow: hidden;
+    /* 미리보기 창이 편집기 안쪽에만 덮이도록 기준점을 여기 둔다. */
+    position: relative;
   }
 
   .rt-header {
@@ -118,6 +120,24 @@ const DESIGNER_CSS = `
     color: var(--rt-primary); cursor: pointer; padding: 6px 10px; text-align: center;
   }
   .rt-image-pick-button input { display: none; }
+
+  /* 미리보기는 편집 화면 위를 덮는다. 옆에 두면 종이가 반으로 줄어 볼 수 없다. */
+  .rt-preview-overlay {
+    align-items: center; background: rgb(15 23 42 / 55%); bottom: 0; display: flex;
+    justify-content: center; left: 0; position: absolute; right: 0; top: 0; z-index: 40;
+  }
+  .rt-preview-window {
+    background: var(--rt-panel); border-radius: 10px; display: flex; flex-direction: column;
+    height: 92%; overflow: hidden; width: 76%;
+  }
+  .rt-preview-bar {
+    align-items: center; border-bottom: 1px solid var(--rt-border); display: flex;
+    justify-content: space-between; padding: 8px 12px;
+  }
+  .rt-preview-label { color: var(--rt-muted); font-size: 12px; }
+  .rt-preview-actions { display: flex; gap: 6px; }
+  .rt-preview-frame { border: 0; flex: 1; width: 100%; }
+  .rt-preview-empty { color: var(--rt-muted); margin: auto; padding: 24px; }
 
   .rt-toolbar {
     align-items: center; background: var(--rt-panel); border-bottom: 1px solid var(--rt-border);
