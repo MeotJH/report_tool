@@ -4,7 +4,6 @@ import {
   FieldElement,
   Frame,
   TableElement,
-  TextStyle,
 } from "@report-tool/core";
 import { BindTableColumnCommand } from "../command/TableCommands.js";
 import { ChangeElementCommand } from "../command/ChangeElementCommand.js";
@@ -12,6 +11,7 @@ import type { EditorController } from "./EditorController.js";
 import { FieldPlacementPlanner } from "./FieldPlacementPlanner.js";
 import type { PaletteEntry } from "./PaletteEntry.js";
 import { TableColumnPlanner } from "./TableColumnPlanner.js";
+import { DocumentFont } from "../tool/DocumentFont.js";
 import { TableEditor } from "./TableEditor.js";
 
 /**
@@ -44,6 +44,11 @@ export abstract class PaletteDrag {
   protected nextZIndex(controller: EditorController): number {
     const zIndexes = controller.getTemplate().getElements().map((element) => element.z);
     return zIndexes.length === 0 ? 0 : Math.max(...zIndexes) + 1;
+  }
+
+  /** 놓아서 만드는 요소도 문서가 선언한 글꼴로 시작하게 한다. */
+  protected documentFont(controller: EditorController): DocumentFont {
+    return new DocumentFont(controller.getTemplate().fonts);
   }
 }
 
@@ -115,7 +120,7 @@ class FieldDrag extends PaletteDrag {
       this.nextZIndex(controller),
       false,
       new Binding(this.entry.path),
-      new TextStyle("Pretendard", 10),
+      this.documentFont(controller).style(10),
     );
     controller.placeNewElement(element);
   }
@@ -202,8 +207,8 @@ class ArrayDrag extends PaletteDrag {
       new BoundTableSource(new Binding(this.arrayPath)),
       this.columnPlanner.fromArrayChildren(this.children, width),
       ArrayDrag.DEFAULT_ROW_HEIGHT_MM,
-      new TextStyle("Pretendard", 9, { weight: 700 }),
-      new TextStyle("Pretendard", 9),
+      this.documentFont(controller).style(9, { weight: 700 }),
+      this.documentFont(controller).style(9),
       true,
       "clip",
     );

@@ -1,12 +1,37 @@
 import type { TextAlign, TextOverflow, TextStyle, TextVerticalAlign } from "@report-tool/core";
 import { ChoiceField, ColorField, InspectorRow, NumberField, SelectField, ToggleField } from "./InspectorFields.js";
 
-/** 편집기가 제안하는 글꼴 목록을 한곳에서 관리한다. */
-const FONTS: readonly Readonly<{ value: string; label: string }>[] = [
-  { value: "Pretendard", label: "Pretendard" },
-  { value: "NotoSansKR", label: "Noto Sans KR" },
-  { value: "Helvetica", label: "Helvetica" },
-];
+/**
+ * 가족 이름만으로는 읽기 어려운 글꼴에 사람이 부르는 이름을 붙인다.
+ *
+ * 목록 자체는 여기서 정하지 않는다. 무엇을 고를 수 있는지는 템플릿이 선언한
+ * 글꼴이 정한다 — 그것이 호스트가 파일을 주기로 한 목록이기 때문이다.
+ */
+const FONT_LABELS: Readonly<Record<string, string>> = {
+  MalgunGothic: "맑은 고딕",
+  NotoSansKR: "Noto Sans KR",
+};
+
+/**
+ * 고를 수 있는 글꼴을 템플릿 선언에서 만든다.
+ *
+ * 목록을 코드에 박아 두면 호스트가 파일을 주지 않는 글꼴을 편집기가 권하게 된다.
+ * 그 글꼴을 고르면 화면은 시스템에 깔린 아무 글꼴로 재고, 발행본은 다른 파일을
+ * 임베딩한다. 그 차이는 발행본에서만 드러난다.
+ *
+ * 지금 쓰고 있는 글꼴은 선언에 없더라도 목록에 남긴다. 목록에 없는 값을 고른
+ * 상태로 두면 select가 첫 항목을 보여 주고, 사람이 건드리지 않은 글꼴이 조용히
+ * 바뀐 것처럼 보인다.
+ */
+function toFontOptions(
+  families: readonly string[],
+  current: string,
+): readonly Readonly<{ value: string; label: string }>[] {
+  return [...new Set([...families, current])].map((family) => ({
+    value: family,
+    label: FONT_LABELS[family] ?? family,
+  }));
+}
 
 /**
  * 텍스트·필드·표가 같은 글자 표현 편집 UI를 공유하게 한다.
@@ -17,6 +42,8 @@ export function TextStyleEditor(props: {
   style: TextStyle;
   onCommit: (style: TextStyle) => void;
   showOverflow?: boolean;
+  /** 이 문서가 쓰기로 선언한 글꼴이다. 고를 수 있는 것은 이 목록뿐이다. */
+  fontFamilies: readonly string[];
 }) {
   const { style, onCommit } = props;
   return (
@@ -24,7 +51,7 @@ export function TextStyleEditor(props: {
       <SelectField
         label="글꼴"
         value={style.font}
-        options={FONTS}
+        options={toFontOptions(props.fontFamilies, style.font)}
         onCommit={(font) => onCommit(style.with({ font }))}
       />
       <InspectorRow>

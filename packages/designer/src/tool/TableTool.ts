@@ -3,8 +3,8 @@ import {
   StaticTableSource,
   TableColumn,
   TableElement,
-  TextStyle,
 } from "@report-tool/core";
+import type { DocumentFont } from "./DocumentFont.js";
 import { DragCreateTool } from "./EditorTool.js";
 
 /**
@@ -19,10 +19,10 @@ export class TableTool extends DragCreateTool {
   public readonly kind = "table" as const;
 
   /** 항목과 금액 두 열에 빈 행 세 개를 가진 편집 가능한 기본 표를 만든다. */
-  protected createElement(frame: Frame): TableElement {
+  protected createElement(frame: Frame, font: DocumentFont): TableElement {
     const columnWidth = frame.width / 2;
-    const headerStyle = new TextStyle("Pretendard", 9, { weight: 700 });
-    const cellStyle = new TextStyle("Pretendard", 9);
+    const headerStyle = font.style(9, { weight: 700 });
+    const cellStyle = font.style(9);
     const columns = this.createColumns(columnWidth);
     return new TableElement(
       this.createId(), frame, 0, false, this.createEmptyRows(columns),

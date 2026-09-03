@@ -1,6 +1,7 @@
 import { Frame, type Element } from "@report-tool/core";
 import type { EditorController, PointerModifiers } from "../controller/EditorController.js";
 import { SnapGuide, SnapTargets } from "../controller/SnapGuide.js";
+import { DocumentFont } from "./DocumentFont.js";
 
 /** 툴바가 현재 입력 전략을 안정적인 값으로 강조하도록 종류를 제한한다. */
 export type ToolKind =
@@ -84,11 +85,17 @@ export abstract class DragCreateTool extends EditorTool {
     const planned = this.planFrame(start, xMm, yMm, controller, modifiers).frame;
     const frame = this.isClick(planned) ? this.clickFrame(start) : planned;
     controller.clearPreview();
-    controller.placeNewElement(this.createElement(frame));
+    const font = new DocumentFont(controller.getTemplate().fonts);
+    controller.placeNewElement(this.createElement(frame, font));
   }
 
-  /** 도구마다 다른 도메인 요소 생성만 하위 전략이 결정하게 한다. */
-  protected abstract createElement(frame: Frame): Element;
+  /**
+   * 도구마다 다른 도메인 요소 생성만 하위 전략이 결정하게 한다.
+   *
+   * 글꼴을 함께 넘기는 이유는, 새 요소가 이 문서가 선언한 글꼴로 시작해야 하기
+   * 때문이다. 도구가 이름을 직접 박으면 문서마다 다른 글꼴이 섞인다.
+   */
+  protected abstract createElement(frame: Frame, font: DocumentFont): Element;
 
   /** 생성 도구가 충돌 가능성이 낮은 브라우저 표준 ID를 공유하게 한다. */
   protected createId(): string {

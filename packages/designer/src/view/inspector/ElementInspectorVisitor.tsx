@@ -78,6 +78,16 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
     return element.accept(this);
   }
 
+  /**
+   * 글꼴 선택 목록을 문서가 선언한 글꼴로 한정한다.
+   *
+   * 호스트는 이 목록의 파일만 주기로 했다. 목록에 없는 글꼴을 고를 수 있게 두면
+   * 편집기는 시스템 글꼴로 재고 발행본은 다른 파일을 임베딩한다.
+   */
+  private fontFamilies(): readonly string[] {
+    return this.controller.getTemplate().fonts;
+  }
+
   /** 고정 문구와 글자 표현을 함께 편집하게 한다. */
   visitText(element: TextElement): ReactNode {
     return (
@@ -104,6 +114,7 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
         </InspectorSection>
         <InspectorSection title="글자">
           <TextStyleEditor
+            fontFamilies={this.fontFamilies()}
             style={element.style}
             onCommit={(style) => this.actions.changeElement(element, element.withStyle(style))}
           />
@@ -132,6 +143,7 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
         </InspectorSection>
         <InspectorSection title="글자">
           <TextStyleEditor
+            fontFamilies={this.fontFamilies()}
             style={element.style}
             onCommit={(style) => this.actions.changeElement(element, element.withStyle(style))}
           />
@@ -157,6 +169,7 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
             )}
           />
           <TextStyleEditor
+            fontFamilies={this.fontFamilies()}
             style={element.headerStyle}
             showOverflow={false}
             onCommit={(headerStyle) => this.actions.changeElement(
@@ -166,6 +179,7 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
         </InspectorSection>
         <InspectorSection title="본문 글자">
           <TextStyleEditor
+            fontFamilies={this.fontFamilies()}
             style={element.cellStyle}
             showOverflow={false}
             onCommit={(cellStyle) => this.actions.changeElement(
