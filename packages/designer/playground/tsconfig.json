@@ -12,7 +12,9 @@
     "../src/**/*.ts",
     "../src/**/*.tsx",
     "./**/*.ts",
+    "./vite-env.d.ts",
     "../../renderer/src/pdf/ServiceReportTestFixture.ts",
+    "../../viewer/src/**/*.ts",
     "../../../apps/poc/service-report/template.json"
   ]
 }

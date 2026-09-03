@@ -9,5 +9,8 @@ tools/**/__pycache__/
 # 플레이그라운드가 쓰는 시스템 글꼴 사본 (재현 대조용, 배포물 아님)
 packages/designer/public/*.ttf
 
+# 데모 서버가 발행본을 떨어뜨리는 자리
+packages/designer/.demo-storage/
+
 # 원본 대조용으로 뽑은 쪽 이미지
 apps/poc/compare-pages/

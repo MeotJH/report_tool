@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Report Tool 수신자 화면</title>
+    <style>
+      body { background: #eef2f7; margin: 0; font-family: Pretendard, system-ui, sans-serif; }
+      /* 수신자는 대개 휴대폰에서 연다. 좁은 폭을 기본으로 두고 확인한다. */
+      #viewer { margin: 0 auto; max-width: 720px; min-height: 100vh; }
+      #status { color: #64748b; font-size: 13px; padding: 12px; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <p id="status">문서를 발행하고 링크를 만드는 중…</p>
+    <div id="viewer"></div>
+    <script type="module" src="./viewer.ts"></script>
+  </body>
+</html>

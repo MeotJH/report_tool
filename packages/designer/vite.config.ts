@@ -29,6 +29,70 @@ function previewEndpoint(): Plugin {
   };
 }
 
+/**
+ * 데모용 report-tool 서버를 개발 서버에 붙인다.
+ *
+ * `apps/admin`의 참조 어댑터와 `createMiddleware`를 그대로 쓴다. **호스트가 할 일이
+ * 이게 전부라는 것을 보여 주는 자리**이므로, 여기서 지름길을 쓰면 본보기가 아니게
+ * 된다. 실제 서비스라면 이 미들웨어가 Next.js 라우트 하나에 붙는다.
+ */
+function demoApiEndpoint(): Plugin {
+  let handler: ((request: Request) => Promise<Response>) | null = null;
+  return {
+    name: "report-tool-demo-api",
+    configureServer(server) {
+      server.middlewares.use("/api/report", (request, response) => {
+        void serveDemoApi(request, response, async () => (handler ??= await createDemoHandler()));
+      });
+    },
+  };
+}
+
+/** Node 요청을 표준 `Request`로 바꿔 미들웨어에 넘기고, 응답을 되돌려 쓴다. */
+async function serveDemoApi(
+  request: IncomingMessage,
+  response: ServerResponse,
+  handlerOf: () => Promise<(request: Request) => Promise<Response>>,
+): Promise<void> {
+  try {
+    const method = request.method ?? "GET";
+    const url = new URL(`http://localhost/api/report${request.url ?? ""}`);
+    const body = method === "GET" || method === "HEAD" ? undefined : await readBody(request);
+    const result = await (await handlerOf())(new Request(url, { method, body }));
+    response.statusCode = result.status;
+    result.headers.forEach((value, key) => response.setHeader(key, value));
+    response.end(Buffer.from(await result.arrayBuffer()));
+  } catch (error) {
+    response.statusCode = 500;
+    response.end(error instanceof Error ? error.message : String(error));
+  }
+}
+
+/** 참조 어댑터를 꽂아 완성된 요청 핸들러를 만든다. 서버 하나가 이 열 줄이다. */
+async function createDemoHandler(): Promise<(request: Request) => Promise<Response>> {
+  const admin = await import("@report-tool/admin");
+  const { createMiddleware } = await import("@report-tool/server");
+  const { PdfDocumentRenderer } = await import("@report-tool/renderer");
+  const templateStore = new admin.InMemoryTemplateStore();
+  await templateStore.save(admin.createDemoTemplate());
+  await templateStore.publish("demo-payslip", 1);
+  const fontDir = new URL(
+    "../../node_modules/pretendard/dist/public/static/alternative/",
+    import.meta.url,
+  ).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+  return createMiddleware({
+    templateStore,
+    documentStore: new admin.InMemoryDocumentStore(),
+    dataProvider: new admin.StaticJsonDataProvider(),
+    storage: new admin.FileSystemStorageAdapter(
+      new URL("../../.demo-storage/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"),
+    ),
+    authAdapter: new admin.TokenAuthAdapter("데모-비밀열쇠"),
+    renderer: new PdfDocumentRenderer(new admin.NodeFontProvider(fontDir)),
+    hashProvider: new admin.NodeCryptoHashProvider(),
+  }, { basePath: "/api/report" });
+}
+
 /** 요청 본문의 템플릿·데이터·그림으로 미리보기 PDF를 만들어 돌려준다. */
 async function renderPreview(
   request: IncomingMessage,
@@ -97,7 +161,7 @@ class PostedImageProvider {
 
 /** React 호스트가 기존 런타임을 재사용하는 ESM 라이브러리 산출물을 만든다. */
 export default defineConfig({
-  plugins: [previewEndpoint()],
+  plugins: [previewEndpoint(), demoApiEndpoint()],
   // 개발 서버 포트는 호스트 환경이 정할 수 있게 둔다. 5173이 이미 쓰이는
   // 상황(다른 세션·다른 프로젝트)에서 편집기를 못 띄우는 일을 막는다.
   server: { port: Number(process.env.PORT) || 5173 },
