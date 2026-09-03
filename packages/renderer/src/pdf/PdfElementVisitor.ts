@@ -6,6 +6,7 @@ import {
   type FieldElement,
   Frame,
   type ImageElement,
+  ImagePlacement,
   type LineElement,
   type SignatureElement,
   type TableColumn,
@@ -71,19 +72,24 @@ export class PdfElementVisitor implements ElementVisitor<void> {
     }
   }
 
-  /** 미리 임베딩된 이미지를 요소의 contain·cover·stretch 정책에 맞춰 배치한다. */
+  /**
+   * 미리 임베딩된 이미지를 요소의 맞춤 정책에 맞춰 배치한다.
+   *
+   * 어디에 얼마나 크게 그릴지는 `ImagePlacement`가 정한다. 여기서 다시 계산하면
+   * 편집 화면과 발행본이 갈라지고, 그 차이는 발행본을 열어 봐야 드러난다.
+   */
   visitImage(element: ImageElement): void {
     const rectangle = element.frame.toPdfRect(this.pageHeightMm);
     const image = this.images.get(element.id);
     if (image === undefined) {
       throw new Error(`이미지 요소 ${element.id}의 자산을 찾을 수 없다`);
     }
-    const size = this.fitImage(image, rectangle.width, rectangle.height, element.fit);
+    const box = ImagePlacement.of(element.fit).place(image, rectangle);
     this.page.drawImage(image, {
-      x: rectangle.x + (rectangle.width - size.width) / 2,
-      y: rectangle.y + (rectangle.height - size.height) / 2,
-      width: size.width,
-      height: size.height,
+      x: rectangle.x + box.x,
+      y: rectangle.y + box.y,
+      width: box.width,
+      height: box.height,
     });
   }
 
@@ -214,22 +220,6 @@ export class PdfElementVisitor implements ElementVisitor<void> {
       borderColor: rgb(0.45, 0.45, 0.45),
       borderWidth: this.toPoints(PdfElementVisitor.DEFAULT_BORDER_MM),
     });
-  }
-
-  /** 이미지 비율 정책을 실제 PDF 영역 안에서 사용할 pt 크기로 계산한다. */
-  private fitImage(
-    image: PDFImage,
-    availableWidth: number,
-    availableHeight: number,
-    fit: "contain" | "cover" | "stretch",
-  ): { width: number; height: number } {
-    if (fit === "stretch") {
-      return { width: availableWidth, height: availableHeight };
-    }
-    const scaleX = availableWidth / image.width;
-    const scaleY = availableHeight / image.height;
-    const scale = fit === "cover" ? Math.max(scaleX, scaleY) : Math.min(scaleX, scaleY);
-    return { width: image.width * scale, height: image.height * scale };
   }
 
   /** 텍스트 레이아웃 결과의 각 줄을 정렬과 세로 위치에 맞춰 그린다. */

@@ -11,6 +11,7 @@ export type {
   ImageAsset,
   ImageProvider,
 } from "./application/port/ImageProvider.js";
+export type { ImageLibrary } from "./application/port/ImageLibrary.js";
 export type { StorageAdapter } from "./application/port/StorageAdapter.js";
 export type {
   TemplateLibrary,
@@ -127,6 +128,8 @@ export { PageNumbering } from "./domain/layout/PageNumbering.js";
 export { DocumentLayout } from "./domain/layout/DocumentLayout.js";
 export type { PageLayout, PlacedElement } from "./domain/layout/DocumentLayout.js";
 export { PageOverflow } from "./domain/layout/PageOverflow.js";
+export { ImagePlacement } from "./domain/layout/ImagePlacement.js";
+export type { ImageBox, ImageSize } from "./domain/layout/ImagePlacement.js";
 export { TableCellText } from "./domain/layout/TableCellText.js";
 export { TableLayout } from "./domain/layout/TableLayout.js";
 export { TableRowHeights } from "./domain/layout/TableRowHeights.js";
