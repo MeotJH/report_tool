@@ -1,10 +1,16 @@
-import type { Element, Frame, Template } from "@report-tool/core";
+import type {
+  Element,
+  Frame,
+  StyleMeasurerFactory,
+  Template,
+} from "@report-tool/core";
 import type { CanvasEditTarget } from "./CanvasEditTarget.js";
 import { AddElementCommand } from "../command/AddElementCommand.js";
 import { CommandStack } from "../command/CommandStack.js";
 import type { EditorCommand } from "../command/EditorCommand.js";
 import type { EditorTool, ToolKind } from "../tool/EditorTool.js";
 import { SelectTool } from "../tool/SelectTool.js";
+import { EditorComposition } from "./EditorComposition.js";
 import { ElementClipboard } from "./ElementClipboard.js";
 import { SelectionModel } from "./SelectionModel.js";
 import { TransformPreview } from "./TransformPreview.js";
@@ -36,12 +42,40 @@ export class EditorController {
   private activePageIndex = 0;
   private revision = 0;
 
-  /** 호스트가 제공한 초안과 샘플 데이터로 독립적인 편집 세션을 시작한다. */
+  /** 배치는 비싸므로 상태가 바뀌지 않는 동안 다시 계산하지 않는다. */
+  private cachedComposition: Readonly<{ key: string; value: EditorComposition }> | null = null;
+
+  /**
+   * 호스트가 제공한 초안과 샘플 데이터로 독립적인 편집 세션을 시작한다.
+   *
+   * 글자 폭 측정기를 받는 이유는 쪽 나눔이 줄 수에 달려 있기 때문이다. 폭을 모르면
+   * 몇 줄이 되는지 모르고, 그러면 어느 쪽에서 끊기는지도 모른다. 기본값은 글자 수
+   * 근사이며, 브라우저에서는 호스트가 준 글꼴 파일로 재는 측정기가 들어온다.
+   */
   constructor(
     initialTemplate: Template,
     private readonly sampleData: unknown = {},
+    private readonly measurerFactory: StyleMeasurerFactory = () => (
+      (text: string, sizePt: number): number => text.length * sizePt * 0.5
+    ),
   ) {
     this.template = initialTemplate;
+  }
+
+  /**
+   * 지금 화면이 그려야 할 쪽 배치다. 발행본과 같은 계산을 쓴다.
+   *
+   * 캔버스·선택·쪽 이동이 모두 이 하나를 읽어야 한다. 그리는 자리와 잡는 자리가
+   * 갈리면 눈에 보이는 데서 눌러도 요소가 잡히지 않는다.
+   */
+  composition(): EditorComposition {
+    const key = `${this.revision}|${this.mode}`;
+    if (this.cachedComposition?.key === key) return this.cachedComposition.value;
+    const value = EditorComposition.of(
+      this.template, this.sampleData, this.mode, this.measurerFactory,
+    );
+    this.cachedComposition = { key, value };
+    return value;
   }
 
   /** React와 Konva가 동일한 최신 불변 템플릿을 읽게 한다. */
@@ -118,11 +152,15 @@ export class EditorController {
   /**
    * 편집기가 오갈 수 있는 쪽 수다. 아직 비어 있는 새 쪽도 한 장으로 센다.
    *
-   * 쪽 수는 요소가 정하므로(`Template.pageCount`) 빈 쪽은 저장되지 않는다.
-   * 그래도 요소를 놓기 전에 그 쪽으로 갈 수 있어야 쪽을 만들 수 있다.
+   * 저작한 쪽 수가 아니라 **배치가 정한 쪽 수**다. 표가 넘쳐 생긴 이어지는 쪽도
+   * 오갈 수 있어야 한다 — 그 쪽에 무엇이 나오는지 볼 수 없으면 표가 어디서
+   * 끊기는지 알 방법이 없다.
+   *
+   * 빈 쪽은 저장되지 않으므로(`Template.pageCount`) 요소를 놓기 전에 그 쪽으로
+   * 갈 수 있도록 지금 보고 있는 쪽까지는 항상 센다.
    */
   pageCount(): number {
-    return Math.max(this.template.pageCount(), this.activePageIndex + 1);
+    return Math.max(this.composition().pageCount(), this.activePageIndex + 1);
   }
 
   /**
@@ -281,17 +319,29 @@ export class EditorController {
   findElementAt(xMm: number, yMm: number): Element | undefined {
     return this.selectableElements()
       .sort((first, second) => second.z - first.z)
-      .find((element) => element.frame.contains(xMm, yMm));
+      .find((element) => this.displayFrameOf(element).contains(xMm, yMm));
   }
 
   /** 영역 선택이 완전히 포함된 요소만 고르게 한다. */
   findElementsWithin(area: Frame): readonly Element[] {
-    return this.selectableElements().filter((element) => (
-      element.frame.x >= area.x
-      && element.frame.y >= area.y
-      && element.frame.x + element.frame.width <= area.x + area.width
-      && element.frame.y + element.frame.height <= area.y + area.height
-    ));
+    return this.selectableElements().filter((element) => {
+      const frame = this.displayFrameOf(element);
+      return frame.x >= area.x
+        && frame.y >= area.y
+        && frame.x + frame.width <= area.x + area.width
+        && frame.y + frame.height <= area.y + area.height;
+    });
+  }
+
+  /**
+   * 이 요소가 **화면에 그려진 자리**를 준다.
+   *
+   * 표를 따라 올라온 구역은 저장된 좌표와 그려진 자리가 다르다. 집는 자리를
+   * 저장된 좌표로 두면 눈에 보이는 데서 눌러도 잡히지 않고, 쪽 밖의 보이지 않는
+   * 자리에서만 잡힌다.
+   */
+  displayFrameOf(element: Element): Frame {
+    return this.composition().frameOf(this.activePageIndex, element.id) ?? element.frame;
   }
 
   /** Inspector와 명령이 같은 방식으로 대상 요소를 찾게 한다. */

@@ -153,6 +153,8 @@ export class CanvasStage {
 
   /** 숨김 요소를 제외하고 진행 중인 배치를 반영해 요소를 그린다. */
   private addElements(): void {
+    const placements = this.controller.composition()
+      .placementsOn(this.controller.getActivePageIndex());
     const visitor = new KonvaElementVisitor(
       this.metrics().scale(),
       this.controller.getSampleData(),
@@ -163,6 +165,9 @@ export class CanvasStage {
         this.controller.pageCount(),
       ),
       this.fonts,
+      new Map(placements
+        .filter((placement) => placement.table !== null)
+        .map((placement) => [placement.element.id, placement.table!])),
     );
     for (const element of this.displayedElements()) {
       const node = element.accept(visitor);
@@ -238,18 +243,39 @@ export class CanvasStage {
 
   /** 화면에 그릴 요소를 z 순서대로 정렬해 한 번만 계산한다. */
   private displayedElements(): readonly Element[] {
-    return [...this.controller.elementsOnActivePage()]
+    return this.controller.composition()
+      .placementsOn(this.controller.getActivePageIndex())
+      .map((placement) => placement.element)
       .filter((element) => !element.hidden)
-      .sort((first, second) => first.z - second.z)
       .map((element) => {
-        const preview = this.controller.getPreview().frameFor(element.id);
-        return preview === undefined ? element : element.withFrame(preview);
+        const dragged = this.draggedFrame(element);
+        return dragged === undefined ? element : element.withFrame(dragged);
       });
   }
 
-  /** 보조 도형이 요소와 같은 진행 중 위치를 사용하게 한다. */
+  /**
+   * 보조 도형이 요소와 같은 진행 중 위치를 사용하게 한다.
+   *
+   * 배치 결과가 정한 자리를 기준으로 삼는다. 저장된 좌표를 쓰면 표를 따라 올라온
+   * 구역의 테두리가 쪽 밖에 그려진다.
+   */
   private displayFrame(element: Element): Frame {
-    return this.controller.getPreview().frameFor(element.id) ?? element.frame;
+    const placed = this.controller.displayFrameOf(element);
+    return this.draggedFrame(element.withFrame(placed)) ?? placed;
+  }
+
+  /**
+   * 끌고 있는 동안의 자리를 준다. 끌고 있지 않으면 `undefined`다.
+   *
+   * 진행 중 좌표는 **저장된 좌표를 기준으로** 만들어진다. 그래서 배치가 옮겨 놓은
+   * 요소는 그 차이만큼 더해 줘야 눈에 보이는 자리에서 따라 움직인다.
+   */
+  private draggedFrame(element: Element): Frame | undefined {
+    const preview = this.controller.getPreview().frameFor(element.id);
+    if (preview === undefined) return undefined;
+    const authored = this.controller.getElement(element.id)?.frame;
+    if (authored === undefined) return preview;
+    return element.frame.moveBy(preview.x - authored.x, preview.y - authored.y);
   }
 
   /** Stage의 포인터 이벤트를 현재 도구의 mm 입력으로 전달한다. */

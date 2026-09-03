@@ -49,6 +49,7 @@ export { BoxElement } from "./domain/element/BoxElement.js";
 export type { BoxElementOptions } from "./domain/element/BoxElement.js";
 export type { Content } from "./domain/element/Content.js";
 export { ContentResolver } from "./domain/element/ContentResolver.js";
+export { ContentText } from "./domain/element/ContentText.js";
 export { Element } from "./domain/element/Element.js";
 export type {
   ElementCommonChanges,
@@ -120,6 +121,7 @@ export type {
 export { PageNumbering } from "./domain/layout/PageNumbering.js";
 export { DocumentLayout } from "./domain/layout/DocumentLayout.js";
 export type { PageLayout, PlacedElement } from "./domain/layout/DocumentLayout.js";
+export { PageOverflow } from "./domain/layout/PageOverflow.js";
 export { TableCellText } from "./domain/layout/TableCellText.js";
 export { TableLayout } from "./domain/layout/TableLayout.js";
 export { TableRowHeights } from "./domain/layout/TableRowHeights.js";

@@ -14,6 +14,7 @@ import { PaletteDrag } from "./controller/PaletteDrag.js";
 import type { PaletteEntry } from "./controller/PaletteEntry.js";
 import { FieldTool } from "./tool/FieldTool.js";
 import { CanvasStage } from "./view/CanvasStage.js";
+import { CanvasTextMeasurer } from "./view/CanvasTextMeasurer.js";
 import { DesignerShell } from "./view/DesignerShell.js";
 import { DesignerStyles } from "./view/DesignerStyles.js";
 import { FontLibrary } from "./view/FontLibrary.js";
@@ -49,7 +50,14 @@ export class Designer {
 
   /** Shadow DOM 안에 편집 UI를 마운트하고 도메인 변경 통지를 연결한다. */
   constructor(private readonly options: DesignerOptions) {
-    this.controller = new EditorController(options.template, options.sampleData ?? {});
+    // 쪽 나눔은 줄 수가 정하고 줄 수는 글자 폭이 정한다. 호스트가 준 글꼴 파일로
+    // 재는 측정기를 넘겨야 편집 화면의 쪽 나눔이 발행본과 같아진다.
+    const measurer = new CanvasTextMeasurer(this.fonts);
+    this.controller = new EditorController(
+      options.template,
+      options.sampleData ?? {},
+      (style) => measurer.forStyle(style),
+    );
     this.actions = new EditorActions(this.controller);
     this.mountElement = this.createMountElement(options.container);
     this.reactRoot = createRoot(this.mountElement);

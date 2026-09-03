@@ -97,11 +97,22 @@ describe("TableLayout", () => {
     expect(result.remainingRowCount).toBe(0);
   });
 
-  it("설계와 발행이 같은 데이터에서 같은 줄 수를 만든다", () => {
+  it("설계 화면의 데이터 표 줄 수는 샘플 데이터에 흔들리지 않는다", () => {
+    // 양식이 정하는 것은 "한 줄이 어떻게 생겼는가"이고, 몇 번 반복될지는 발행
+    // 데이터가 정한다. 예전에는 연결 줄을 데이터 행 수만큼 복사해, 같은 양식이
+    // 23건 데이터에서는 23줄, 7건 데이터에서는 7줄로 보였다.
     const element = boundTable();
 
     expect(designed.compute(element, threeRows()).rows.length)
-      .toBe(published.compute(element, threeRows()).rows.length);
+      .toBe(designed.compute(element, {}).rows.length);
+  });
+
+  it("정적 표는 설계와 발행이 같은 줄 수를 만든다", () => {
+    // 정적 표는 값이 곧 양식이므로 줄 수도 양식이 정한다.
+    const element = staticTable([{ item: "기본급", amount: "1" }, { item: "식대", amount: "2" }]);
+
+    expect(designed.compute(element, {}).rows.length)
+      .toBe(published.compute(element, {}).rows.length);
   });
 
   it("발행은 셀에 적은 표현식을 문서 데이터로 채운다", () => {
@@ -129,14 +140,13 @@ describe("TableLayout", () => {
     ]);
   });
 
-  it("설계 화면은 데이터 표의 값 대신 무엇에 연결됐는지를 보여 준다", () => {
-    // 값을 보여 주면 고칠 수 없는 칸이 고칠 수 있는 것처럼 보인다.
+  it("설계 화면은 데이터 표를 반복 단위 한 줄로 보여 준다", () => {
+    // 값을 보여 주면 고칠 수 없는 칸이 고칠 수 있는 것처럼 보인다. 그리고 같은
+    // 줄을 데이터 수만큼 반복해도 첫 줄보다 더 알려 주는 것이 없다.
     const result = designed.compute(boundTable(), threeRows());
 
     expect(result.rows.map((row) => row.cells)).toEqual([
       ["항목", "금액"],
-      ["row.item", "row.amount"],
-      ["row.item", "row.amount"],
       ["row.item", "row.amount"],
     ]);
   });

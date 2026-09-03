@@ -86,19 +86,22 @@ class SourceTableCellText extends TableCellText {
   }
 
   /**
-   * 데이터 표는 값 대신 **무엇에 연결됐는지**를 칸마다 보여 준다.
+   * 데이터 표는 값 대신 **무엇에 연결됐는지**를 칸마다 한 줄로 보여 준다.
    *
    * 값을 보여 주면 두 가지가 틀어진다. 첫째, 고칠 수 없는 값이 고칠 수 있는 것처럼
    * 보인다 — 실제로 담당자가 그 칸을 눌러 보고 아무 일도 일어나지 않아 막혔다.
    * 둘째, 호스트가 샘플 데이터를 줬는지에 따라 같은 양식이 전혀 다르게 보인다.
-   * 설계 화면이 답할 물음은 "이 칸에 무엇이 들어오는가"이고, "이번 달에 무엇이
-   * 들어왔는가"는 미리보기가 답한다.
    *
-   * 행 수는 데이터를 그대로 따른다. 설계·미리보기·발행의 행 수가 갈리면 담당자가
-   * 화면에서 여유가 있어 보이는 표를 만들고 발행본에서 행이 말없이 사라진다.
-   * 데이터가 아직 없을 때만 한 줄을 만들어 표의 형태를 보여 준다.
+   * **한 줄만 보여 주는 이유도 두 번째와 같다.** 전에는 연결 줄을 데이터 행 수만큼
+   * 복사했다. 그래서 같은 양식이 7월 데이터(23건)에서는 스물세 줄, 8월 데이터
+   * (7건)에서는 일곱 줄로 보였다 — 양식은 한 글자도 바뀌지 않았는데도. 같은 내용을
+   * 스물세 번 반복해도 첫 줄보다 더 알려 주는 것이 없다.
    *
-   * 정적 표는 값이 곧 양식이므로 써 넣은 것을 그대로 보여 준다.
+   * 양식이 정하는 것은 "한 줄이 어떻게 생겼는가"이고, 그 줄이 몇 번 반복되는지는
+   * 발행 데이터가 정한다. 그러므로 설계 화면은 반복 단위 한 줄을 보여 준다. 실제
+   * 행 수와 쪽 나눔은 미리보기가 답한다.
+   *
+   * 정적 표는 값이 곧 양식이므로 써 넣은 것을 그대로, 줄 수까지 보여 준다.
    */
   bodyCells(
     columns: readonly TableColumn[],
@@ -107,7 +110,6 @@ class SourceTableCellText extends TableCellText {
     deferred: boolean,
   ): readonly (readonly string[])[] {
     if (!deferred) return rows.map((row) => this.resolver.resolveRowSource(columns, row));
-    const connection = this.connectionRow(columns);
-    return rows.length > 0 ? rows.map(() => connection) : [connection];
+    return [this.connectionRow(columns)];
   }
 }

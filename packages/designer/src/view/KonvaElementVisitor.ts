@@ -1,6 +1,7 @@
 import Konva from "konva";
 import {
-  ContentResolver,
+  ContentText,
+  type TableLayoutResult,
   PageNumbering,
   TableCellText,
   type Binding,
@@ -51,6 +52,9 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   private readonly textLayout = new TextLayout();
   private readonly measurer: CanvasTextMeasurer;
 
+  /** 설계·미리보기가 문구를 다르게 보여 주는 유일한 지점이다. */
+  private readonly contentText: ContentText;
+
   /** 화면 배율·샘플 데이터·표시 모드를 주입해 도메인과 브라우저 표현을 분리한다. */
   constructor(
     private readonly mmToPx: number,
@@ -59,15 +63,30 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
     private readonly mode: EditorMode = "design",
     private readonly numbering: PageNumbering = new PageNumbering(1, 1),
     private readonly fonts: FontLibrary = new FontLibrary(),
+    /**
+     * 이 쪽에서 각 표가 그릴 줄이다.
+     *
+     * 표가 쪽을 넘으면 어느 줄이 이 쪽 몫인지는 문서 전체 배치가 정한다. 방문자가
+     * 다시 계산하면 이어지는 쪽에 앞 쪽에 그린 줄을 또 그린다.
+     */
+    private readonly tableResults: ReadonlyMap<string, TableLayoutResult> = new Map(),
   ) {
     this.measurer = new CanvasTextMeasurer(fonts);
+    this.contentText = mode === "design" ? ContentText.source() : ContentText.resolved();
   }
 
-  /** 고정·템플릿 문구를 배치 영역과 스타일이 반영된 편집 텍스트로 만든다. */
+  /**
+   * 고정·템플릿 문구를 배치 영역과 스타일이 반영된 편집 텍스트로 만든다.
+   *
+   * 설계 화면에서는 써 넣은 표현식을 그대로 보여 준다. 표가 이미 그렇게 하고 있는데
+   * 문구만 값을 보여 주면, 같은 화면이 `row.requester`와 `2026년 07월`을 나란히
+   * 내놓는다 — 어느 쪽이 고칠 수 있는 것인지 알 수 없다.
+   *
+   * 쪽 번호는 두 모드 모두 채운다. `{{page}}`는 데이터가 아니라 쪽이 정하는 값이라
+   * 설계 화면에서 그대로 두면 몇 쪽짜리 문서인지 볼 수 없다.
+   */
   visitText(element: TextElement): Konva.Node {
-    // 쪽 번호를 먼저 채운다. 데이터 치환과 순서가 바뀌면 `{{page}}`가 데이터에 없는
-    // 경로로 읽혀 빈칸이 된다.
-    const text = ContentResolver.resolve(
+    const text = this.contentText.textOf(
       { kind: element.content.kind, value: this.numbering.apply(element.content.value) },
       this.data,
     );
@@ -92,7 +111,9 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   /** 헤더와 본문을 같은 배치 규칙으로 그리고 모드에 따라 본문 내용만 바꾼다. */
   visitTable(element: TableElement): Konva.Node {
     const group = this.createFrameGroup(element);
-    for (const row of this.tableLayout().compute(element, this.data).rows) {
+    const computed = this.tableResults.get(element.id)
+      ?? this.tableLayout().compute(element, this.data);
+    for (const row of computed.rows) {
       this.addTableRow(group, element, row);
     }
     return this.mark(group, element);

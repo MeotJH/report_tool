@@ -5,6 +5,7 @@ import type { Template } from "../template/Template.js";
 import { Frame } from "../value/Frame.js";
 import type { PageSpec } from "../value/PageSpec.js";
 import { PageNumbering } from "./PageNumbering.js";
+import { PageOverflow } from "./PageOverflow.js";
 import { TableCellText } from "./TableCellText.js";
 import { TableGroup } from "./TableGroup.js";
 import { TableLayout, type TableLayoutResult } from "./TableLayout.js";
@@ -49,10 +50,16 @@ interface PendingTable {
 export class DocumentLayout {
   private readonly tableLayout: TableLayout;
 
-  /** 셀 표현과 행 높이 방식을 표 계산과 그대로 공유한다. */
+  /**
+   * 셀 표현과 행 높이 방식을 표 계산과 그대로 공유한다.
+   *
+   * 넘침 정책도 함께 받는다. 설계 화면은 저작한 쪽만 보여 주고, 발행본은 넘친 줄을
+   * 다음 쪽에 이어 그린다 — 그 차이를 호출부가 `if`로 나누면 한쪽만 고치게 된다.
+   */
   constructor(
     cellText: TableCellText = TableCellText.resolved(),
     rowHeights: TableRowHeights = TableRowHeights.fixed(),
+    private readonly overflow: PageOverflow = PageOverflow.paged(),
   ) {
     this.tableLayout = new TableLayout(cellText, rowHeights);
   }
@@ -70,6 +77,7 @@ export class DocumentLayout {
       const elements = this.byStackOrder(this.elementsOn(template, authored));
       const placements = this.placeAuthoredPage(elements, data);
       pages.push({ index: pages.length, placements });
+      if (!this.overflow.continuesToNextPage()) continue;
       let pending = this.pendingFrom(placements, elements);
       while (pending.length > 0) {
         const page = this.continuationPage(pages.length, pending, template.page, data);
@@ -77,7 +85,35 @@ export class DocumentLayout {
         pending = page.pending;
       }
     }
-    return this.withRepeatedElements(pages, template, data);
+    return this.fittedToContent(this.withRepeatedElements(pages, template, data));
+  }
+
+  /**
+   * 표의 자리를 **실제로 그려진 높이**로 줄인다. 설계 화면에서만 한다.
+   *
+   * 반드시 `flow` 배치가 끝난 뒤에 해야 한다. 뒤따라오는 구역의 위치는 표의 배정
+   * 높이를 기준으로 계산되므로, 먼저 줄이면 그 기준이 사라져 구역이 제자리에
+   * 머문다 — 쪽 밖에 저장된 채로.
+   */
+  private fittedToContent(pages: readonly PageLayout[]): readonly PageLayout[] {
+    if (!this.overflow.fitsToContent()) return pages;
+    return pages.map((page) => ({
+      index: page.index,
+      placements: page.placements.map((placement) => this.fittedPlacement(placement)),
+    }));
+  }
+
+  /** 표 하나의 자리를 그려진 줄이 차지한 높이로 바꾼다. */
+  private fittedPlacement(placement: PlacedElement): PlacedElement {
+    const table = placement.table;
+    if (table === null) return placement;
+    const frame = placement.element.frame;
+    return {
+      element: placement.element.withFrame(
+        frame.resizeTo(frame.width, this.consumedHeight(table)),
+      ),
+      table,
+    };
   }
 
   /**
@@ -189,7 +225,12 @@ export class DocumentLayout {
   /** 첫 쪽에서는 모든 요소가 자기 자리에 그대로 놓인다. */
   private placeAtOwnFrame(element: Element, data: unknown): PlacedElement {
     if (!(element instanceof TableElement)) return { element, table: null };
-    return { element, table: this.tableLayout.compute(element, data) };
+    return {
+      element,
+      table: this.tableLayout.compute(element, data, {
+        frameHeightMm: this.overflow.availableHeightMm(element.frame.height),
+      }),
+    };
   }
 
   /**
