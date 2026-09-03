@@ -1,0 +1,14 @@
+{
+  "name": "@report-tool/viewer",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "dependencies": {
+    "@report-tool/core": "*",
+    "pdfjs-dist": "6.3.289",
+    "perfect-freehand": "1.2.3"
+  }
+}

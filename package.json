@@ -13,17 +13,21 @@
     "poc:pdf": "node apps/poc/font-poc.mjs",
     "dev:designer": "npm run build && npm run dev --workspace @report-tool/designer",
     "test": "vitest run",
-    "build": "npm run build:core && npm run build:renderer",
+    "build": "npm run build:core && npm run build:renderer && npm run build:viewer",
     "build:core": "tsc -p packages/core/tsconfig.build.json",
     "build:renderer": "tsc -p packages/renderer/tsconfig.build.json",
+    "build:viewer": "tsc -p packages/viewer/tsconfig.build.json",
     "typecheck:core": "tsc -p packages/core",
     "typecheck:renderer": "tsc -p packages/renderer",
     "typecheck:designer": "tsc -p packages/designer --noEmit && tsc -p packages/designer/playground",
-    "typecheck:server": "tsc -p packages/server --noEmit"
+    "typecheck:server": "tsc -p packages/server --noEmit",
+    "typecheck:viewer": "tsc -p packages/viewer"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "6.3.289",
+    "perfect-freehand": "1.2.3",
     "pretendard": "^1.3.9",
     "subset-font": "^2.5.0"
   },
