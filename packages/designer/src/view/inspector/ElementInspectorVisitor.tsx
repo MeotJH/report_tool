@@ -8,6 +8,7 @@ import {
   type Element,
   type ElementVisitor,
   type FieldElement,
+  type FormatSpec,
   type ImageElement,
   type ImageFit,
   type LineElement,
@@ -31,6 +32,7 @@ import {
   ToggleHeaderColumnCommand,
   ToggleHeaderRowCommand,
   UpdateTableHeaderCommand,
+  PasteTableGridCommand,
 } from "../../command/TableCommands.js";
 import type { EditorActions } from "../../controller/EditorActions.js";
 import type { EditorController } from "../../controller/EditorController.js";
@@ -46,6 +48,8 @@ import {
   TextField,
   ToggleField,
 } from "./InspectorFields.js";
+import { FormatSpecEditor } from "./FormatSpecEditor.js";
+import { GridPasteField } from "./GridPasteField.js";
 import { TextStyleEditor } from "./TextStyleEditor.js";
 
 /**
@@ -139,6 +143,10 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
             label="필수 값"
             value={element.binding.required}
             onCommit={(required) => this.commitBinding(element, { required })}
+          />
+          <FormatSpecEditor
+            spec={element.binding.formatSpec}
+            onCommit={(formatSpec) => this.commitBinding(element, { formatSpec })}
           />
         </InspectorSection>
         <InspectorSection title="글자">
@@ -366,6 +374,25 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
             onCommit={() => undefined}
           />
         </InspectorRow>
+        <NumberField
+          label="칸 여백"
+          value={element.cellPadding}
+          step={0.1}
+          min={0}
+          suffix="mm"
+          onCommit={(cellPadding) => this.actions.changeElement(
+            element, element.withCellPadding(cellPadding),
+          )}
+        />
+        <p className="rt-inspector-note">
+          칸 테두리와 글자 사이 여백입니다. 그리는 자리뿐 아니라 <strong>줄을 재는 폭</strong>에도
+          쓰이므로, 0으로 두면 한 줄에 글자가 더 들어가 행 높이와 쪽 나눔이 달라집니다.
+        </p>
+        <GridPasteField
+          onApply={(grid, firstRowIsHeader) => this.controller.execute(
+            new PasteTableGridCommand(element.id, grid, firstRowIsHeader),
+          )}
+        />
       </InspectorSection>
     );
   }
@@ -544,7 +571,7 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
                 )}
               />
               <ChoiceField<TableColumnAlign>
-                label="정렬"
+                label="본문 정렬"
                 value={column.align}
                 options={[
                   { value: "left", label: "좌" },
@@ -554,6 +581,16 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
                 onCommit={(align) => this.changeColumnAlign(element, index, align)}
               />
             </InspectorRow>
+            <ChoiceField<TableColumnAlign>
+              label="머리글 정렬"
+              value={column.headerAlign}
+              options={[
+                { value: "left", label: "좌" },
+                { value: "center", label: "중" },
+                { value: "right", label: "우" },
+              ]}
+              onCommit={(headerAlign) => this.changeColumnHeaderAlign(element, index, headerAlign)}
+            />
             <InspectorRow>
               <NumberField
                 label="머리글 병합"
@@ -577,6 +614,12 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
               )}
             </InspectorRow>
             {this.columnDataField(element, column, index)}
+            <FormatSpecEditor
+              spec={column.formatSpec}
+              onCommit={(formatSpec) => this.replaceColumn(
+                element, index, (target) => target.withFormatSpec(formatSpec),
+              )}
+            />
             <div className="rt-column-card-foot">
               <span className="rt-token-chip rt-token-chip--muted">{column.cellTemplate}</span>
               <button
@@ -698,21 +741,41 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
     ));
   }
 
-  /** 열 정렬 변경이 열의 다른 설정을 유지하게 한다. */
+  /**
+   * 열 정렬 변경이 열의 다른 설정을 유지하게 한다.
+   *
+   * 열을 새로 만들어 갈아 끼우면 생성자에 넘기지 않은 설정이 조용히 기본값으로
+   * 돌아간다. 실제로 머리글 병합과 "비면 앞 칸이 덮음"이 그렇게 풀렸다 — 정렬만
+   * 바꿨는데 `처리시간(시간/%)`이 한 칸으로 줄고 합계 행 병합이 사라진다.
+   * 무엇을 지켜야 하는지는 열 자신이 안다.
+   */
   private changeColumnAlign(
     element: TableElement,
     index: number,
     align: TableColumnAlign,
   ): void {
-    const column = element.columns[index];
-    if (column === undefined) return;
-    const columns = element.columns.map((candidate, candidateIndex) => (
-      candidateIndex === index
-        ? new TableColumn(
-          column.key, column.header, column.cellTemplate,
-          column.width, align, column.formatSpec,
-        )
-        : candidate
+    this.replaceColumn(element, index, (column) => column.withAlign(align));
+  }
+
+  /** 머리글 줄만의 정렬을 본문과 따로 정하게 한다. */
+  private changeColumnHeaderAlign(
+    element: TableElement,
+    index: number,
+    headerAlign: TableColumnAlign,
+  ): void {
+    this.replaceColumn(element, index, (column) => column.withHeaderAlign(headerAlign));
+  }
+
+  /** 한 열만 바꾸는 모든 편집이 같은 교체 규칙을 쓰게 한다. */
+  private replaceColumn(
+    element: TableElement,
+    index: number,
+    change: (column: TableColumn) => TableColumn,
+  ): void {
+    const target = element.columns[index];
+    if (target === undefined) return;
+    const columns = element.columns.map((column, candidateIndex) => (
+      candidateIndex === index ? change(column) : column
     ));
     this.actions.changeElement(element, element.withColumns(columns));
   }
@@ -720,12 +783,21 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
   /** 바인딩의 나머지 설정을 유지하며 일부 값만 교체해 반영한다. */
   private commitBinding(
     element: FieldElement,
-    changes: Readonly<{ fallback?: string; required?: boolean }>,
+    changes: Readonly<{
+      fallback?: string;
+      required?: boolean;
+      formatSpec?: FormatSpec | null;
+    }>,
   ): void {
     const binding = element.binding;
     const fallback = changes.fallback ?? binding.fallback ?? "";
+    // `formatSpec`은 null이 "형식 없음"이라는 뜻이므로 `??`로 합칠 수 없다.
+    // 그렇게 하면 형식을 "그대로"로 되돌릴 방법이 사라진다.
+    const formatSpec = changes.formatSpec === undefined
+      ? binding.formatSpec
+      : changes.formatSpec;
     const next = new Binding(binding.path.toString(), {
-      formatSpec: binding.formatSpec ?? undefined,
+      formatSpec: formatSpec ?? undefined,
       fallback: fallback === "" ? undefined : fallback,
       required: changes.required ?? binding.required,
     });

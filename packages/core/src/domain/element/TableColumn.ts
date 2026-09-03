@@ -65,9 +65,26 @@ export class TableColumn {
     return this.copy({ headerSpan });
   }
 
+  /**
+   * 본문 칸의 정렬을 교체한다. 머리글이 본문과 같은 정렬이었다면 함께 따라간다.
+   *
+   * 둘을 항상 따로 두면 정렬 하나 바꾸는 데 두 번 손대야 하고, 항상 붙여 두면
+   * 원본처럼 **머리글은 가운데·본문은 왼쪽**인 열을 만들 수 없다. 그래서 "일부러
+   * 다르게 해 둔 것만 지킨다"로 정한다.
+   */
+  withAlign(align: TableColumnAlign): TableColumn {
+    const headerAlign = this.headerAlign === this.align ? align : this.headerAlign;
+    return this.copy({ align, headerAlign });
+  }
+
   /** 열 이름 줄만의 정렬을 교체한다. */
   withHeaderAlign(headerAlign: TableColumnAlign): TableColumn {
     return this.copy({ headerAlign });
+  }
+
+  /** 이 열의 값을 어떻게 찍을지만 교체한다. */
+  withFormatSpec(formatSpec: FormatSpec | null): TableColumn {
+    return this.copy({ formatSpec });
   }
 
   /** 빈 칸일 때 앞 칸에 흡수될지만 교체한다. */
@@ -105,6 +122,8 @@ export class TableColumn {
     header?: string;
     cellTemplate?: string;
     width?: number;
+    align?: TableColumnAlign;
+    formatSpec?: FormatSpec | null;
     headerSpan?: number;
     mergesWhenEmpty?: boolean;
     headerAlign?: TableColumnAlign;
@@ -114,8 +133,8 @@ export class TableColumn {
       changes.header ?? this.header,
       changes.cellTemplate ?? this.cellTemplate,
       changes.width ?? this.width,
-      this.align,
-      this.formatSpec,
+      changes.align ?? this.align,
+      changes.formatSpec === undefined ? this.formatSpec : changes.formatSpec,
       changes.headerSpan ?? this.headerSpan,
       changes.mergesWhenEmpty ?? this.mergesWhenEmpty,
       changes.headerAlign ?? this.headerAlign,
