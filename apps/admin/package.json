@@ -1,0 +1,13 @@
+{
+  "name": "@report-tool/admin",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@report-tool/core": "*",
+    "@report-tool/renderer": "*",
+    "@report-tool/server": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43"
+  }
+}

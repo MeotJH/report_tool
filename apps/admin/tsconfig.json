@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // 데모 앱은 배포물이 아니다. 검사만 한다.
+    "noEmit": true
+  },
+  "include": ["adapters/**/*.ts", "*.ts"]
+}
