@@ -45,6 +45,21 @@ describe("DocumentPreview", () => {
     expect(preview.state().documentUrl()).toBe("blob:1");
   });
 
+  it("한 번도 열지 않았으면 열어 본 적 없다고 답한다", () => {
+    const { preview } = createPreview();
+
+    expect(preview.hasEverOpened()).toBe(false);
+  });
+
+  it("한 번 열고 나면 닫아도 열어 본 적 있다고 답한다", async () => {
+    const { preview } = createPreview();
+
+    await preview.open();
+    preview.close();
+
+    expect(preview.hasEverOpened()).toBe(true);
+  });
+
   it("그리지 못하면 이유를 보여 준다", async () => {
     const { preview, renderer } = createPreview();
     renderer.failWith = new Error("서버가 응답하지 않는다");

@@ -28,6 +28,9 @@ export class DocumentPreview {
   /** 반납해야 하는 주소를 따로 들고 있는다. 상태만으로는 실패로 바뀐 뒤 잃는다. */
   private issuedUrl: string | null = null;
 
+  /** 한 번이라도 열어 봤는지. 처음 쓰는 사람에게 안내할 때 쓴다. */
+  private everOpened = false;
+
   private readonly listeners = new Set<() => void>();
 
   /** 편집 세션·렌더 경로·주소 발급기를 주입받아 브라우저 없이도 규칙을 검증하게 한다. */
@@ -68,10 +71,21 @@ export class DocumentPreview {
         "preview",
       );
       this.issuedUrl = this.links.create(bytes);
+      this.everOpened = true;
       this.moveTo(PreviewState.ready(this.issuedUrl));
     } catch (error) {
       this.moveTo(PreviewState.failed(DocumentPreview.describe(error)));
     }
+  }
+
+  /**
+   * 이 편집 세션에서 한 번이라도 PDF를 열어 봤는지 알려 준다.
+   *
+   * 지금 창이 떠 있는지(`state().isOpen()`)와 다른 물음이다. 닫고 나서도 본 것은
+   * 본 것이다.
+   */
+  hasEverOpened(): boolean {
+    return this.everOpened;
   }
 
   /** 창을 닫고 임시 주소를 반납한다. */

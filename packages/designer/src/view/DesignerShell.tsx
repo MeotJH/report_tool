@@ -18,6 +18,7 @@ import { FontLibrary } from "./FontLibrary.js";
 import { InspectorPanel } from "./InspectorPanel.js";
 import type { DocumentPreview } from "../controller/DocumentPreview.js";
 import { ImageStore } from "./ImageStore.js";
+import { OnboardingPanel } from "./OnboardingPanel.js";
 import { PdfPreviewOverlay } from "./PdfPreviewOverlay.js";
 import { LayersPanel } from "./LayersPanel.js";
 import { TemplateFilingBar } from "./TemplateFilingBar.js";
@@ -200,6 +201,11 @@ function CanvasWorkspace(props: DesignerShellProps) {
   const dropHint = controller.getPaletteDropHint();
   return (
     <section className="rt-canvas-panel" aria-label="문서 캔버스">
+      <OnboardingPanel
+        controller={props.controller}
+        filing={props.filing}
+        preview={props.preview}
+      />
       <div className="rt-canvas-topbar">
         <span>{page.widthMm()} × {page.heightMm()} mm</span>
         <PageControls controller={controller} />

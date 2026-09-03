@@ -21,6 +21,9 @@ export class TemplateFiling {
   /** 저장 진행과 실패는 문서를 바꾸지 않으므로 여기서 따로 들고 있는다. */
   private transientState: SaveState | null = null;
 
+  /** 한 번이라도 보관소에 넣었는지. 처음 쓰는 사람에게 안내할 때 쓴다. */
+  private everSaved = false;
+
   private readonly listeners = new Set<() => void>();
 
   /** 편집 세션과 호스트 보관소를 이어 둔다. 보관소는 없을 수도 있다. */
@@ -59,10 +62,21 @@ export class TemplateFiling {
     try {
       await library.save(target);
       this.savedTemplate = target;
+      this.everSaved = true;
       this.setTransientState(null);
     } catch (error) {
       this.setTransientState(SaveState.failed(TemplateFiling.describe(error)));
     }
+  }
+
+  /**
+   * 이 편집 세션에서 한 번이라도 저장했는지 알려 준다.
+   *
+   * 지금 저장되어 있는지(`state()`)와 다른 물음이다. 방금 연 문서는 저장된
+   * 상태지만 이 사람이 저장을 해 본 적은 없다.
+   */
+  hasEverSaved(): boolean {
+    return this.everSaved;
   }
 
   /** 열 수 있는 문서 목록을 준다. 보관소가 없으면 빈 목록이다. */

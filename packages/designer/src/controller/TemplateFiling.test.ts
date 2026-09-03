@@ -98,6 +98,21 @@ describe("TemplateFiling", () => {
     expect(library.saved).toHaveLength(1);
   });
 
+  it("한 번도 저장하지 않았으면 저장한 적 없다고 답한다", () => {
+    const { filing } = createFiling();
+
+    expect(filing.hasEverSaved()).toBe(false);
+  });
+
+  it("한 번 저장하고 나면 저장한 적 있다고 답한다", async () => {
+    const { controller, filing } = createFiling();
+    controller.execute(new RenameTemplateCommand("테스트", "8월 리포트"));
+
+    await filing.save();
+
+    expect(filing.hasEverSaved()).toBe(true);
+  });
+
   it("보관소에 있는 문서를 목록으로 보여 준다", async () => {
     const { filing, library } = createFiling();
     await library.save(createTemplate().rename("7월 리포트"));

@@ -322,6 +322,24 @@ const DESIGNER_CSS = `
   }
   .rt-empty { color: var(--rt-muted); font-size: 11px; padding: 12px; text-align: center; }
 
+  /* 처음 쓰는 사람에게 다음 할 일 하나를 캔버스 바로 위에 둔다. */
+  .rt-onboarding {
+    align-items: center; background: var(--rt-primary-soft); border-bottom: 1px solid #c7d2fe;
+    display: flex; font-size: 12px; gap: 10px; padding: 7px 14px;
+  }
+  .rt-onboarding-marks { display: flex; gap: 4px; }
+  .rt-onboarding-mark {
+    align-items: center; background: var(--rt-panel); border: 1px solid var(--rt-border);
+    border-radius: 999px; color: var(--rt-muted); display: flex; font-size: 10px;
+    height: 18px; justify-content: center; width: 18px;
+  }
+  .rt-onboarding-mark--now { background: var(--rt-primary); border-color: var(--rt-primary); color: #fff; }
+  .rt-onboarding-mark--done { color: var(--rt-primary); }
+  .rt-onboarding-now { color: var(--rt-text); flex: 1; }
+  .rt-onboarding-close {
+    background: none; border: 0; color: var(--rt-muted); cursor: pointer; padding: 2px 6px;
+  }
+
   .rt-canvas-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
   .rt-canvas-topbar {
     align-items: center; background: var(--rt-panel); border-bottom: 1px solid var(--rt-border);
