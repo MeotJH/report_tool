@@ -63,23 +63,23 @@
 
 ## 전체 목차 (78개 작업)
 
-| Phase | 범위 | 작업 번호 | 실행 환경 |
-|---|---|---|---|
-| 0 | 프로젝트 기반 설정 | T01~T02 | - |
-| 1 | Domain: 값 객체 | T03~T07 | isomorphic |
-| 2 | Domain: 값 포맷터 (Strategy) | T08~T13 | isomorphic |
-| 3 | Domain: 요소 (Element + Visitor) | T14~T22 | isomorphic |
-| 4 | Domain: 템플릿 엔티티 | T23~T25 | isomorphic |
-| 5 | Domain: 발행 문서 엔티티 | T26~T28 | isomorphic |
-| 6 | Application: 포트 | T29~T32 | isomorphic |
-| 7 | Application: 서비스 | T33~T37 | isomorphic |
-| 8 | Renderer: PDF 생성 | T38~T43 | node |
-| 9 | Designer: 캔버스 에디터 | T44~T57 | browser |
-| 10 | Viewer: 열람 + 서명 | T58~T63 | browser |
-| 11 | Server: HTTP 계층 | T64~T68 | node |
-| 12 | 참조 어댑터 (데모용) | T69~T73 | node |
-| 13 | 데모 앱 연결 | T74~T77 | node + browser |
-| 14 | 통합 검증 | T78 | - |
+| Phase | 범위 | 작업 번호 | 실행 환경 | 상태 |
+|---|---|---|---|---|
+| 0 | 프로젝트 기반 설정 | T01~T02 | - | ✅ |
+| 1 | Domain: 값 객체 | T03~T07 | isomorphic | ✅ |
+| 2 | Domain: 값 포맷터 (Strategy) | T08~T13 | isomorphic | ✅ |
+| 3 | Domain: 요소 (Element + Visitor) | T14~T22 | isomorphic | ✅ |
+| 4 | Domain: 템플릿 엔티티 | T23~T25 | isomorphic | ✅ |
+| 5 | Domain: 발행 문서 엔티티 | T26~T28 | isomorphic | ✅ |
+| 6 | Application: 포트 | T29~T32 | isomorphic | ✅ |
+| 7 | Application: 서비스 | T33~T37 | isomorphic | ✅ |
+| 8 | Renderer: PDF 생성 | T38~T43 | node | ✅ |
+| 9 | Designer: 캔버스 에디터 | T44~T57 | browser | ✅ (+ 리포트 로드맵 1~13단계) |
+| 10 | Viewer: 열람 + 서명 | T58~T63 | browser | ⬅ **다음** |
+| 11 | Server: HTTP 계층 | T64~T68 | node | ✅ |
+| 12 | 참조 어댑터 (데모용) | T69~T73 | node | |
+| 13 | 데모 앱 연결 | T74~T77 | node + browser | |
+| 14 | 통합 검증 | T78 | - | |
 
 Phase 0~7(T01~T37)은 `domain`/`application`뿐이라 브라우저도 서버도 없이 순수 로직만
 Vitest로 검증한다. Phase 8부터 비로소 pdf-lib·Konva·pdf.js 같은 실제 기술이 등장한다.
