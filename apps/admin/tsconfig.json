@@ -5,5 +5,5 @@
     // 데모 앱은 배포물이 아니다. 검사만 한다.
     "noEmit": true
   },
-  "include": ["adapters/**/*.ts", "*.ts"]
+  "include": ["adapters/**/*.ts", "demo/**/*.ts", "*.ts"]
 }
