@@ -21,6 +21,7 @@ export type { TemplateStore } from "./application/port/TemplateStore.js";
 export { DistributionService } from "./application/service/DistributionService.js";
 export { IssuanceService } from "./application/service/IssuanceService.js";
 export { PreviewService } from "./application/service/PreviewService.js";
+export { InvalidTokenError } from "./application/service/InvalidTokenError.js";
 export { SigningService } from "./application/service/SigningService.js";
 export type { SignaturePayload } from "./application/service/SigningService.js";
 export { TemplateService } from "./application/service/TemplateService.js";

@@ -4,6 +4,7 @@ import type { DocumentStore } from "../port/DocumentStore";
 import type { StorageAdapter } from "../port/StorageAdapter";
 import { DocumentHash } from "../../domain/document/DocumentHash";
 import { IssuedDocument } from "../../domain/document/IssuedDocument";
+import { InvalidTokenError } from "./InvalidTokenError";
 import { SigningService } from "./SigningService";
 
 describe("SigningService", () => {
@@ -33,7 +34,47 @@ describe("SigningService", () => {
     expect(signed.getSignatures()[0]?.documentHash).toBe(signed.pdf.sha256);
     expect(fixture.update).toHaveBeenCalledExactlyOnceWith(signed);
   });
+
+  it("호스트가 토큰 검증에서 무엇을 던지든 InvalidTokenError로 바꾼다", async () => {
+    const service = createFixtureWithBrokenToken();
+
+    await expect(service.view("bad")).rejects.toBeInstanceOf(InvalidTokenError);
+  });
+
+  it("서명도 같은 오류로 알린다", async () => {
+    const service = createFixtureWithBrokenToken();
+
+    await expect(service.sign("bad", {
+      strokes: [{ points: [[1, 2]] }],
+      imagePng: "",
+      authMethod: "email_link",
+    })).rejects.toBeInstanceOf(InvalidTokenError);
+  });
+
+  it("호스트가 남긴 이유를 그대로 들고 간다", async () => {
+    const service = createFixtureWithBrokenToken();
+
+    await expect(service.view("bad")).rejects.toThrow("jwt expired");
+  });
 });
+
+/** 호스트 인증이 자기 방식으로 실패하는 상황을 만든다. */
+function createFixtureWithBrokenToken(): SigningService {
+  const store: DocumentStore = {
+    create: vi.fn(async () => undefined),
+    get: vi.fn(async () => createDocument()),
+    update: vi.fn(async () => undefined),
+  };
+  const auth: AuthAdapter = {
+    issueToken: vi.fn(async () => "token"),
+    verifyToken: vi.fn(async () => { throw new Error("jwt expired"); }),
+  };
+  const storage: StorageAdapter = {
+    put: vi.fn(async () => undefined),
+    get: vi.fn(async () => new Uint8Array()),
+  };
+  return new SigningService(store, auth, storage);
+}
 
 /** 인증·저장 기술을 스텁으로 바꿔 조회와 서명 유스케이스만 검증한다. */
 function createFixture(): {

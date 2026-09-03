@@ -2,6 +2,7 @@ import type { AuthAdapter } from "../port/AuthAdapter.js";
 import type { DocumentStore } from "../port/DocumentStore.js";
 import type { StorageAdapter } from "../port/StorageAdapter.js";
 import { IssuedDocument } from "../../domain/document/IssuedDocument.js";
+import { InvalidTokenError } from "./InvalidTokenError.js";
 import {
   SignatureRecord,
   type SignatureRecordOptions,
@@ -32,7 +33,7 @@ export class SigningService {
     ip?: string,
     userAgent?: string,
   ): Promise<{ document: IssuedDocument; pdfBytes: Uint8Array }> {
-    const { documentId } = await this.auth.verifyToken(token);
+    const { documentId } = await this.verify(token);
     const original = await this.documentStore.get(documentId);
     const document = original.markViewed(original.recipientId, ip, userAgent);
     await this.documentStore.update(document);
@@ -45,12 +46,26 @@ export class SigningService {
     token: string,
     payload: SignaturePayload,
   ): Promise<IssuedDocument> {
-    const { documentId, recipientId } = await this.auth.verifyToken(token);
+    const { documentId, recipientId } = await this.verify(token);
     const document = await this.documentStore.get(documentId);
     const record = this.createSignature(document, recipientId, payload);
     const signed = document.addSignature(record);
     await this.documentStore.update(signed);
     return signed;
+  }
+
+  /**
+   * 호스트 인증이 어떻게 실패하든 한 가지 종류로 알린다.
+   *
+   * 호출하는 쪽이 메시지를 뜯어보지 않고도 "토큰 문제"와 "그 밖의 문제"를 나눌 수
+   * 있어야 한다. 그래야 만료된 링크에 401을, 내용 문제에 422를 정확히 답한다.
+   */
+  private async verify(token: string): Promise<{ documentId: string; recipientId: string }> {
+    try {
+      return await this.auth.verifyToken(token);
+    } catch (error) {
+      throw InvalidTokenError.from(error);
+    }
   }
 
   /** 서명 대상 해시는 서버 문서에서만 가져오도록 기록 생성을 한곳에 제한한다. */
