@@ -49,6 +49,8 @@ import {
   ToggleField,
 } from "./InspectorFields.js";
 import { FormatSpecEditor } from "./FormatSpecEditor.js";
+import { ImagePickField } from "./ImagePickField.js";
+import { ImageStore } from "../ImageStore.js";
 import { GridPasteField } from "./GridPasteField.js";
 import { TextStyleEditor } from "./TextStyleEditor.js";
 
@@ -75,6 +77,7 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
     private readonly actions: EditorActions,
     private readonly controller: EditorController,
     private readonly entries: readonly PaletteEntry[] = [],
+    private readonly images: ImageStore = new ImageStore(null),
   ) {}
 
   /** 화면이 요소 종류를 모른 채 속성 편집 영역을 얻게 한다. */
@@ -203,11 +206,17 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
   visitImage(element: ImageElement): ReactNode {
     return (
       <InspectorSection title="이미지">
+        <ImagePickField
+          images={this.images}
+          onPicked={(assetId) => this.actions.changeElement(
+            element, element.withSource({ assetId }),
+          )}
+        />
         <TextField
           label="자산 ID"
           value={element.assetId ?? ""}
           placeholder="호스트가 해석할 식별자"
-          warning={this.isEmptyAsset(element) ? "출처가 없으면 발행 시 비어 있게 나옵니다" : undefined}
+          warning={this.assetWarning(element)}
           onCommit={(assetId) => this.actions.changeElement(
             element, element.withSource({ assetId }),
           )}
@@ -224,6 +233,20 @@ export class ElementInspectorVisitor implements ElementVisitor<ReactNode> {
         />
       </InspectorSection>
     );
+  }
+
+  /**
+   * 이 그림이 발행본에서 비어 나올 상태인지 알린다.
+   *
+   * 출처가 없는 것과, 적어 두었지만 호스트가 그 식별자를 모르는 것은 다른 문제다.
+   * 둘을 같은 말로 묶으면 담당자는 오타를 찾을지 파일을 올릴지 정할 수 없다.
+   */
+  private assetWarning(element: ImageElement): string | undefined {
+    if (this.isEmptyAsset(element)) return "출처가 없으면 발행 시 비어 있게 나옵니다";
+    if (this.images.isMissing(element.assetId ?? "")) {
+      return "이 식별자로 그림을 받지 못했습니다. 파일을 다시 고르거나 식별자를 확인하세요";
+    }
+    return undefined;
   }
 
   /** 상자의 채움과 테두리 표현을 편집하게 한다. */

@@ -4,6 +4,7 @@ import type { EditorController } from "../controller/EditorController.js";
 import type { PaletteEntry } from "../controller/PaletteEntry.js";
 import type { TemplateIssue } from "../controller/TemplateIssueFinder.js";
 import { ElementInspectorVisitor } from "./inspector/ElementInspectorVisitor.js";
+import type { ImageStore } from "./ImageStore.js";
 import {
   ChoiceField,
   InspectorRow,
@@ -22,6 +23,9 @@ export interface InspectorPanelProps {
   readonly issues: readonly TemplateIssue[];
   /** 표를 어떤 데이터에 연결할 수 있는지 고르게 하려면 선언 목록이 필요하다. */
   readonly entries: readonly PaletteEntry[];
+
+  /** 그림을 올리고 화면에 보여 주는 일은 저장소가 맡는다. */
+  readonly images: ImageStore;
 }
 
 /**
@@ -59,7 +63,7 @@ export function InspectorPanel(props: InspectorPanelProps) {
 function SingleElementInspector(props: InspectorPanelProps & { element: Element }) {
   const { element, actions, controller } = props;
   const issues = props.issues.filter((issue) => issue.elementId === element.id);
-  const visitor = new ElementInspectorVisitor(actions, controller, props.entries);
+  const visitor = new ElementInspectorVisitor(actions, controller, props.entries, props.images);
   return (
     <>
       <div className="rt-inspector-target">

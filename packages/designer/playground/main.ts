@@ -16,6 +16,8 @@ import {
   TableHeaderCells,
   Template,
   TemplateFactory,
+  type ImageAsset,
+  type ImageLibrary,
   type TemplateLibrary,
   type TemplateSummary,
   TemplateVariable,
@@ -126,8 +128,86 @@ class LocalStorageTemplateLibrary implements TemplateLibrary {
   }
 }
 
+/**
+ * 로고·직인을 브라우저에 보관한다. 호스트가 해야 할 일의 전부를 보여 준다.
+ *
+ * 편집기와 발행 렌더러가 **같은 포트**를 쓰므로, 실제 호스트라면 이 자리에 사내
+ * 파일 서버가 오고 서버 쪽 발행도 같은 객체로 그림을 받는다.
+ *
+ * `localStorage`는 문자열만 담으므로 바이트를 base64로 바꿔 넣는다. 그래서 용량이
+ * 4/3으로 늘고 브라우저 한도(대개 5MB)에 금방 닿는다 — 데모라서 그대로 두되,
+ * 넘치면 조용히 넘어가지 않고 사람이 읽을 수 있는 말로 알린다.
+ */
+class LocalStorageImageLibrary implements ImageLibrary {
+  /** 보관한 그림을 한 자리에 모아 둔다. */
+  private static readonly KEY = "report-tool.images";
+
+  /** 저장된 그림을 발행 렌더러가 쓰는 형태 그대로 돌려준다. */
+  async load(assetId: string): Promise<ImageAsset> {
+    const saved = this.read()[assetId];
+    if (saved === undefined) throw new Error(`보관소에 그림 ${assetId}가 없다`);
+    return { bytes: LocalStorageImageLibrary.decode(saved.base64), mediaType: saved.mediaType };
+  }
+
+  /**
+   * 파일 이름을 그대로 식별자로 쓴다.
+   *
+   * 같은 이름을 다시 올리면 덮어쓴다. 무작위 식별자를 붙이면 같은 로고를 두 번
+   * 올린 사람이 보관소에서 어느 것이 쓰이는지 구별할 수 없다.
+   */
+  async upload(asset: ImageAsset, fileName: string): Promise<string> {
+    const all = this.read();
+    all[fileName] = {
+      base64: LocalStorageImageLibrary.encode(asset.bytes),
+      mediaType: asset.mediaType,
+    };
+    try {
+      localStorage.setItem(LocalStorageImageLibrary.KEY, JSON.stringify(all));
+    } catch {
+      throw new Error("브라우저 저장 공간이 가득 찼습니다. 더 작은 그림을 쓰세요");
+    }
+    return fileName;
+  }
+
+  /** 처음부터 다시 시작할 수 있게 비운다. */
+  clear(): void {
+    localStorage.removeItem(LocalStorageImageLibrary.KEY);
+  }
+
+  /** 저장된 것이 없거나 깨졌으면 빈 보관소로 다룬다. */
+  private read(): Record<string, { base64: string; mediaType: ImageAsset["mediaType"] }> {
+    const saved = localStorage.getItem(LocalStorageImageLibrary.KEY);
+    if (saved === null) return {};
+    try {
+      return JSON.parse(saved) as Record<string, { base64: string; mediaType: ImageAsset["mediaType"] }>;
+    } catch {
+      return {};
+    }
+  }
+
+  /** 한 번에 넘기면 인자 수 한도에 걸리므로 나눠 담는다. */
+  private static encode(bytes: Uint8Array): string {
+    const CHUNK = 0x8000;
+    let binary = "";
+    for (let index = 0; index < bytes.length; index += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + CHUNK));
+    }
+    return btoa(binary);
+  }
+
+  /** 저장할 때와 정확히 반대로 되돌린다. */
+  private static decode(base64: string): Uint8Array {
+    const binary = atob(base64);
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  }
+}
+
 const templateLibrary = new LocalStorageTemplateLibrary();
-if (new URLSearchParams(location.search).get("fresh") === "1") templateLibrary.clear();
+const imageLibrary = new LocalStorageImageLibrary();
+if (new URLSearchParams(location.search).get("fresh") === "1") {
+  templateLibrary.clear();
+  imageLibrary.clear();
+}
 
 new Designer({
   container,
@@ -135,6 +215,7 @@ new Designer({
   sampleData: documentKind === "payslip" ? createSampleData() : createServiceReportData(),
   fontProvider: new PlaygroundFontProvider(),
   templateLibrary,
+  imageLibrary,
   onChange: (template) => showSavedJson(template),
 });
 

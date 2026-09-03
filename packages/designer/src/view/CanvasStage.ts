@@ -1,6 +1,7 @@
 import Konva from "konva";
 import {
   BindingResolver,
+  ImageElement,
   PageNumbering,
   TableElement,
   TemplateReferences,
@@ -16,6 +17,7 @@ import { CanvasEditSession } from "../controller/CanvasEditSession.js";
 import { CanvasMetrics } from "./CanvasMetrics.js";
 import { CanvasOverlay } from "./CanvasOverlay.js";
 import { FontLibrary } from "./FontLibrary.js";
+import { ImageStore } from "./ImageStore.js";
 import { KonvaElementVisitor } from "./KonvaElementVisitor.js";
 
 /** 캔버스가 호스트 동작을 호출할 지점을 최소한으로 제한한다. */
@@ -55,6 +57,7 @@ export class CanvasStage {
     private readonly controller: EditorController,
     private readonly callbacks: CanvasStageCallbacks = {},
     private readonly fonts: FontLibrary = new FontLibrary(),
+    private readonly images: ImageStore = new ImageStore(null),
   ) {
     this.lastZoom = this.controller.getViewport().getZoom();
     this.stage = new Konva.Stage({ container: stageElement, width: 1, height: 1 });
@@ -153,6 +156,7 @@ export class CanvasStage {
 
   /** 숨김 요소를 제외하고 진행 중인 배치를 반영해 요소를 그린다. */
   private addElements(): void {
+    this.requestImages();
     const placements = this.controller.composition()
       .placementsOn(this.controller.getActivePageIndex());
     const visitor = new KonvaElementVisitor(
@@ -168,6 +172,7 @@ export class CanvasStage {
       new Map(placements
         .filter((placement) => placement.table !== null)
         .map((placement) => [placement.element.id, placement.table!])),
+      this.images,
     );
     for (const element of this.displayedElements()) {
       const node = element.accept(visitor);
@@ -239,6 +244,18 @@ export class CanvasStage {
     if (marquee !== null) this.layer.add(overlay.marquee(marquee));
     const draft = preview.getDraftFrame();
     if (draft !== null) this.layer.add(overlay.draft(draft));
+  }
+
+  /**
+   * 이 쪽에 그릴 그림을 미리 받아 둔다.
+   *
+   * 방문자가 그리는 도중에 받아 오게 두면, 그리는 일이 기다리는 일이 되어 캔버스가
+   * 한 박자씩 늦게 나타난다. 이미 받았거나 받지 못한 자산은 저장소가 걸러 낸다.
+   */
+  private requestImages(): void {
+    for (const element of this.displayedElements()) {
+      if (element instanceof ImageElement) void this.images.request(element.assetId ?? "");
+    }
   }
 
   /** 화면에 그릴 요소를 z 순서대로 정렬해 한 번만 계산한다. */

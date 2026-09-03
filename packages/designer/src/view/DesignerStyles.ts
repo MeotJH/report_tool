@@ -111,6 +111,14 @@ const DESIGNER_CSS = `
   .rt-filing-item-name { color: var(--rt-text); }
   .rt-filing-item-time { color: var(--rt-muted); font-size: 11px; }
 
+  /* 파일 고르기는 input을 감춘 라벨로 만든다. 브라우저 기본 모양은 패널과 맞지 않는다. */
+  .rt-image-pick { display: flex; flex-direction: column; gap: 4px; }
+  .rt-image-pick-button {
+    background: var(--rt-primary-soft); border: 1px solid var(--rt-border); border-radius: 6px;
+    color: var(--rt-primary); cursor: pointer; padding: 6px 10px; text-align: center;
+  }
+  .rt-image-pick-button input { display: none; }
+
   .rt-toolbar {
     align-items: center; background: var(--rt-panel); border-bottom: 1px solid var(--rt-border);
     display: flex; gap: 12px; justify-content: space-between; padding: 8px 16px;

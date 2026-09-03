@@ -2,6 +2,7 @@ import {
   Binding,
   FieldElement,
   type FontProvider,
+  type ImageLibrary,
   type Template,
   type TemplateLibrary,
 } from "@report-tool/core";
@@ -20,6 +21,7 @@ import { CanvasTextMeasurer } from "./view/CanvasTextMeasurer.js";
 import { DesignerShell } from "./view/DesignerShell.js";
 import { DesignerStyles } from "./view/DesignerStyles.js";
 import { FontLibrary } from "./view/FontLibrary.js";
+import { ImageStore } from "./view/ImageStore.js";
 import { KeyboardShortcutAdapter } from "./view/KeyboardShortcutAdapter.js";
 
 /** 호스트가 디자이너를 마운트할 때 제공해야 하는 경계 값을 정의한다. */
@@ -44,6 +46,15 @@ export interface DesignerOptions {
    * 시늉을 하면, 담당자는 저장했다고 믿고 창을 닫는다.
    */
   readonly templateLibrary?: TemplateLibrary;
+
+  /**
+   * 로고·직인 같은 그림을 어디에 보관할지 정한다.
+   *
+   * 발행 렌더러가 쓰는 `ImageProvider`를 물려받으므로, 호스트는 같은 객체 하나로
+   * 편집 화면과 발행본에 같은 파일을 준다. 주지 않으면 그림을 올릴 수 없고
+   * 식별자를 손으로 적는 지금까지의 방식만 남는다.
+   */
+  readonly imageLibrary?: ImageLibrary;
 }
 
 /** React와 Konva 내부 구조를 숨기고 호스트에 안정적인 편집기 API만 제공한다. */
@@ -53,10 +64,14 @@ export class Designer {
   private readonly filing: TemplateFiling;
   private readonly reactRoot: Root;
   private readonly canvasStage: CanvasStage;
+
+  /** 캔버스가 준비되기 전에 도착한 그림이 아직 없는 캔버스를 건드리지 않게 한다. */
+  private stageReady = false;
   private readonly mountElement: HTMLDivElement;
   private readonly unsubscribeChange: () => void;
   private readonly keyboardShortcutAdapter: KeyboardShortcutAdapter;
   private readonly fonts = new FontLibrary();
+  private readonly images: ImageStore;
   private draggedItem: PaletteDrag | null = null;
 
   /** Shadow DOM 안에 편집 UI를 마운트하고 도메인 변경 통지를 연결한다. */
@@ -71,10 +86,18 @@ export class Designer {
     );
     this.actions = new EditorActions(this.controller);
     this.filing = new TemplateFiling(this.controller, options.templateLibrary ?? null);
+    // 그림은 받아 온 뒤에야 그릴 수 있다. 받으면 캔버스를 다시 그려야 자리표시자가
+    // 실제 로고로 바뀐다.
+    this.images = new ImageStore(
+      options.imageLibrary ?? null,
+      undefined,
+      () => this.onImagesChanged(),
+    );
     this.mountElement = this.createMountElement(options.container);
     this.reactRoot = createRoot(this.mountElement);
     this.renderApplication();
     this.canvasStage = this.createCanvasStage();
+    this.stageReady = true;
     this.keyboardShortcutAdapter = new KeyboardShortcutAdapter(
       this.mountElement,
       this.controller,
@@ -146,6 +169,7 @@ export class Designer {
       controller: this.controller,
       actions: this.actions,
       filing: this.filing,
+      images: this.images,
       onFieldPick: (item) => this.pickField(item),
       onFieldDragStart: (item) => this.startFieldDrag(item),
       onFieldDragEnd: () => this.endFieldDrag(),
@@ -162,7 +186,20 @@ export class Designer {
       this.controller,
       { onFieldDrop: (x, y) => this.dropPaletteItem(x, y) },
       this.fonts,
+      this.images,
     );
+  }
+
+  /**
+   * 그림을 받아 온 뒤 화면을 다시 그린다.
+   *
+   * 캔버스를 만들기 전에도 불릴 수 있다(첫 그리기 도중에 도착한 경우). 그때는
+   * 곧 그려지므로 아무것도 하지 않는다.
+   */
+  private onImagesChanged(): void {
+    if (!this.stageReady) return;
+    this.controller.notifyPreviewChange();
+    this.canvasStage.render();
   }
 
   /** 셸 구조가 바뀌어 필요한 컨테이너가 사라진 경우를 즉시 드러낸다. */

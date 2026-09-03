@@ -1,6 +1,7 @@
 import Konva from "konva";
 import {
   ContentText,
+  ImagePlacement,
   type TableLayoutResult,
   PageNumbering,
   TableCellText,
@@ -26,6 +27,7 @@ import {
 import type { EditorMode } from "../controller/EditorController.js";
 import { CanvasTextMeasurer } from "./CanvasTextMeasurer.js";
 import { FontLibrary } from "./FontLibrary.js";
+import { ImageStore } from "./ImageStore.js";
 
 /** 화면 안에서 배치되는 사각 영역을 픽셀 단위로 전달한다. */
 interface PixelFrame {
@@ -70,6 +72,13 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
      * 다시 계산하면 이어지는 쪽에 앞 쪽에 그린 줄을 또 그린다.
      */
     private readonly tableResults: ReadonlyMap<string, TableLayoutResult> = new Map(),
+    /**
+     * 호스트에게 받아 둔 그림들이다.
+     *
+     * 캔버스는 그리는 순간 그림을 이미 갖고 있어야 하므로, 없으면 자리표시자를
+     * 그리고 받아 온 뒤 다시 그린다. 여기서 기다릴 수는 없다.
+     */
+    private readonly images: ImageStore = new ImageStore(null),
   ) {
     this.measurer = new CanvasTextMeasurer(fonts);
     this.contentText = mode === "design" ? ContentText.source() : ContentText.resolved();
@@ -136,6 +145,46 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
   visitImage(element: ImageElement): Konva.Node {
     const group = this.createFrameGroup(element);
     const frame = this.localFrame(element);
+    const image = this.images.imageFor(element.assetId ?? "");
+    group.add(image === undefined
+      ? this.createImagePlaceholder(element, frame)
+      : this.createImageNode(image, element, frame));
+    return this.mark(group, element);
+  }
+
+  /**
+   * 받아 둔 그림을 배정된 자리에 맞춰 그린다.
+   *
+   * 어디에 얼마나 크게 그릴지는 발행본과 **같은** `ImagePlacement`가 정한다.
+   * 여기서 따로 계산하면 화면에서 맞춰 놓은 로고가 발행본에서 다른 크기로 나오고,
+   * 그 사실은 PDF를 열어 보기 전에는 드러나지 않는다.
+   *
+   * 자리 밖으로 넘치는 부분은 잘라 낸다. `cover`는 넘치도록 키우는 방식이므로,
+   * 자르지 않으면 옆 요소 위에 그림이 얹힌다.
+   */
+  private createImageNode(
+    image: HTMLImageElement,
+    element: ImageElement,
+    frame: PixelFrame,
+  ): Konva.Group {
+    const box = ImagePlacement.of(element.fit).place(
+      { width: image.naturalWidth, height: image.naturalHeight },
+      frame,
+    );
+    const clip = new Konva.Group({ ...frame, clip: frame });
+    clip.add(new Konva.Image({ image, ...box }));
+    return clip;
+  }
+
+  /**
+   * 아직 그림이 없는 자리를 눈에 보이게 남긴다.
+   *
+   * 아무것도 그리지 않으면 담당자는 그 자리에 요소가 있다는 것조차 모른다.
+   * 받지 못한 자산은 그 사실을 글자로 밝힌다 — 조용히 빈칸으로 두면 발행본에서야
+   * 로고가 빠진 것을 알게 된다.
+   */
+  private createImagePlaceholder(element: ImageElement, frame: PixelFrame): Konva.Group {
+    const group = new Konva.Group({ ...frame });
     group.add(new Konva.Rect({
       ...frame,
       fill: "#f1f5f9",
@@ -153,7 +202,7 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
       strokeWidth: 0.7,
     }));
     group.add(this.createLabel(this.imageLabel(element), frame));
-    return this.mark(group, element);
+    return group;
   }
 
   /** 문서 장식 상자를 mm 배치와 표현 속성이 반영된 사각형으로 만든다. */
@@ -273,7 +322,9 @@ export class KonvaElementVisitor implements ElementVisitor<Konva.Node> {
 
   /** 이미지 출처 상태를 화면에서 바로 구분할 수 있게 한다. */
   private imageLabel(element: ImageElement): string {
-    if (element.assetId !== undefined && element.assetId.length > 0) return element.assetId;
+    const assetId = element.assetId ?? "";
+    if (this.images.isMissing(assetId)) return `${assetId} — 그림을 받지 못했습니다`;
+    if (assetId.length > 0) return assetId;
     if (element.binding !== undefined) return element.binding.path.toString();
     return "이미지 출처 없음";
   }

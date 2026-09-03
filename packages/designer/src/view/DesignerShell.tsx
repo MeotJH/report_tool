@@ -16,6 +16,7 @@ import { CanvasTextMeasurer } from "./CanvasTextMeasurer.js";
 import { FieldPalette } from "./FieldPalette.js";
 import { FontLibrary } from "./FontLibrary.js";
 import { InspectorPanel } from "./InspectorPanel.js";
+import { ImageStore } from "./ImageStore.js";
 import { LayersPanel } from "./LayersPanel.js";
 import { TemplateFilingBar } from "./TemplateFilingBar.js";
 import { CanvasEditOverlay } from "./CanvasEditOverlay.js";
@@ -25,6 +26,7 @@ export interface DesignerShellProps {
   readonly controller: EditorController;
   readonly actions: EditorActions;
   readonly filing: TemplateFiling;
+  readonly images: ImageStore;
   readonly onFieldPick: (entry: PaletteEntry) => void;
   readonly onFieldDragStart: (entry: PaletteEntry) => void;
   readonly onFieldDragEnd: () => void;
@@ -78,6 +80,7 @@ export function DesignerShell(props: DesignerShellProps) {
         <InspectorPanel
           controller={props.controller}
           actions={props.actions}
+          images={props.images}
           issues={issues}
           entries={entries}
         />
