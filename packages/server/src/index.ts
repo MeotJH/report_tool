@@ -1,6 +1,8 @@
 export { createMiddleware } from "./infrastructure/createMiddleware.js";
 export type { MiddlewareDeps, MiddlewareOptions } from "./infrastructure/createMiddleware.js";
 export { Router } from "./infrastructure/Router.js";
+export { toNodeHandler } from "./infrastructure/toNodeHandler.js";
+export type { NodeHandler } from "./infrastructure/toNodeHandler.js";
 export type { Handler } from "./infrastructure/Router.js";
 
 // 호스트가 Node가 아닐 때(Spring·Flask 등) 쓰는 어댑터다. 사이드카가 이것들로
