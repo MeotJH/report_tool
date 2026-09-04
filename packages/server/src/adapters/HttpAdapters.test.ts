@@ -28,12 +28,19 @@ describe("HostApi", () => {
     const api = new HostApi({
       baseUrl: "https://host",
       fetch: calls.fetch,
-      headers: { Authorization: "Bearer 사이드카열쇠" },
+      headers: { Authorization: "Bearer sidecar-key-1234" },
     });
 
     await api.json("GET", "/templates/payslip");
 
-    expect(calls.headers[0]?.["Authorization"]).toBe("Bearer 사이드카열쇠");
+    expect(calls.headers[0]?.["Authorization"]).toBe("Bearer sidecar-key-1234");
+  });
+
+  it("헤더 값에 ASCII가 아닌 글자가 있으면 시작 시점에 막는다", () => {
+    expect(() => new HostApi({
+      baseUrl: "https://host",
+      headers: { Authorization: "Bearer 한글열쇠" },
+    })).toThrow("호스트 인증 헤더에 ASCII가 아닌 글자가 있다: Authorization");
   });
 
   it("호스트가 거절하면 상태 코드와 이유를 함께 올린다", async () => {
