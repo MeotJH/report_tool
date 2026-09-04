@@ -92,6 +92,26 @@ describe("SigningController.handleSign", () => {
     expect(response.status).toBe(400);
   });
 
+  it("획 모양이 어긋나면 무엇이 어긋났는지 말한다", async () => {
+    const { world, token } = await issuedWorld();
+    const controller = new SigningController(world.signingService());
+
+    // 뷰어가 아닌 곳에서 온 요청이다. 점 목록을 획으로 착각해 보낸 모양인데,
+    // 이것을 그대로 도메인까지 흘려보내면 내부 오류 문구가 수신자 화면에 뜬다.
+    const response = await controller.handleSign(new Request("http://host/documents/sign", {
+      method: "POST",
+      body: JSON.stringify({
+        token,
+        authMethod: "email_link",
+        strokes: [[{ x: 1, y: 1 }]],
+        imagePng: "",
+      }),
+    }));
+
+    expect(response.status).toBe(400);
+    expect((await response.json() as { error: string }).error).toBe("서명은 획 목록이어야 한다");
+  });
+
   it("토큰이 유효하지 않으면 401로 답한다", async () => {
     const { world } = await issuedWorld();
     const controller = new SigningController(world.signingService());

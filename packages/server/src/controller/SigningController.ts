@@ -1,4 +1,9 @@
-import { InvalidTokenError, type SigningService, type SignaturePayload } from "@report-tool/core";
+import {
+  InvalidTokenError,
+  SignatureStrokeReader,
+  type SignaturePayload,
+  type SigningService,
+} from "@report-tool/core";
 import { JsonRequest } from "../infrastructure/JsonRequest.js";
 import { JsonResponse } from "../infrastructure/JsonResponse.js";
 
@@ -51,6 +56,13 @@ export class SigningController {
     if (missing.length > 0) {
       return JsonResponse.badRequest(`필수 값이 없다: ${missing.join(", ")}`);
     }
+    // 획 모양은 여기서 확인한다. 그대로 흘려보내면 도메인 안쪽에서 터지고,
+    // 수신자는 "Cannot read properties of undefined" 같은 문구를 보게 된다.
+    try {
+      SignatureStrokeReader.read(body["strokes"] ?? []);
+    } catch (error) {
+      return JsonResponse.badRequest(error instanceof Error ? error.message : String(error));
+    }
     return this.sign(String(body["token"]), body, request);
   }
 
@@ -77,9 +89,7 @@ export class SigningController {
     request: Request,
   ): SignaturePayload {
     return {
-      strokes: Array.isArray(body["strokes"])
-        ? body["strokes"] as SignaturePayload["strokes"]
-        : [],
+      strokes: SignatureStrokeReader.read(body["strokes"] ?? []),
       imagePng: typeof body["imagePng"] === "string" ? body["imagePng"] : "",
       authMethod: body["authMethod"] as SignaturePayload["authMethod"],
       ip: request.headers.get("x-forwarded-for") ?? undefined,
