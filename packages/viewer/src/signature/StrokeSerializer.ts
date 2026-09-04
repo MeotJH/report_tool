@@ -1,7 +1,4 @@
-import type { SignatureStroke } from "@report-tool/core";
-
-/** 서명 한 점이다. x·y와, 기기가 주면 필압까지. */
-type SignaturePoint = readonly [number, number, number?];
+import { SignatureStrokeReader, type SignatureStroke } from "@report-tool/core";
 
 /**
  * 서명 획을 서버로 보낼 문자열과 다시 그릴 배열 사이에서 옮긴다.
@@ -21,11 +18,15 @@ export class StrokeSerializer {
     return JSON.stringify(strokes);
   }
 
-  /** 저장해 둔 문자열을 다시 그릴 수 있는 획으로 되돌린다. */
+  /**
+   * 저장해 둔 문자열을 다시 그릴 수 있는 획으로 되돌린다.
+   *
+   * 모양을 판단하는 일은 도메인(`SignatureStrokeReader`)이 한다. 여기서 또 판단하면
+   * 서버로 보낼 때와 저장소에서 되살릴 때의 규칙이 갈리고, 그때는 **한쪽에서 저장한
+   * 서명을 다른 쪽이 빈 것으로 읽는다.**
+   */
   static fromJSON(json: string): readonly SignatureStroke[] {
-    const parsed = StrokeSerializer.parse(json);
-    if (!Array.isArray(parsed)) throw new Error("서명은 획 목록이어야 한다");
-    return parsed.map((stroke) => StrokeSerializer.toStroke(stroke));
+    return SignatureStrokeReader.read(StrokeSerializer.parse(json));
   }
 
   /** 깨진 문자열을 만났다는 사실을 그대로 알린다. */
@@ -35,32 +36,6 @@ export class StrokeSerializer {
     } catch {
       throw new Error("서명을 읽을 수 없다: JSON 형식이 아니다");
     }
-  }
-
-  /** 획 하나가 우리가 아는 모양인지 확인하고 그 모양으로 돌려준다. */
-  private static toStroke(value: unknown): SignatureStroke {
-    if (typeof value !== "object" || value === null || !("points" in value)) {
-      throw new Error("서명은 획 목록이어야 한다");
-    }
-    const points = (value as { points: unknown }).points;
-    if (!Array.isArray(points)) throw new Error("서명은 획 목록이어야 한다");
-    const stroke: SignatureStroke = { points: points.map((point) => StrokeSerializer.toPoint(point)) };
-    StrokeSerializer.assertStroke(stroke);
-    return stroke;
-  }
-
-  /** 점 하나가 x·y(그리고 필압)인지 확인한다. */
-  private static toPoint(value: unknown): SignaturePoint {
-    if (!Array.isArray(value) || value.length < 2 || value.length > 3) {
-      throw new Error("좌표는 x·y와 선택적 필압으로 이루어진다");
-    }
-    for (const part of value) {
-      if (typeof part !== "number" || !Number.isFinite(part)) {
-        throw new Error("좌표는 숫자여야 한다");
-      }
-    }
-    const [x, y, pressure] = value as [number, number, number?];
-    return pressure === undefined ? [x, y] : [x, y, pressure];
   }
 
   /**

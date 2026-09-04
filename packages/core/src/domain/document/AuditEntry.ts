@@ -35,4 +35,21 @@ export class AuditEntry {
     this.userAgent = options.userAgent;
     this.meta = options.meta === undefined ? undefined : { ...options.meta };
   }
+
+  /**
+   * 저장소에 남길 형태로 바꾼다.
+   *
+   * 감사 기록은 "언제 누가 무엇을 했는가"의 유일한 근거다. 되살릴 수 없으면
+   * 발행 문서를 DB에서 읽어 올 때 그 근거만 사라진다.
+   */
+  toJSON(): Record<string, unknown> {
+    return {
+      at: this.at,
+      actor: this.actor,
+      action: this.action,
+      ...(this.ip === undefined ? {} : { ip: this.ip }),
+      ...(this.userAgent === undefined ? {} : { userAgent: this.userAgent }),
+      ...(this.meta === undefined ? {} : { meta: this.meta }),
+    };
+  }
 }

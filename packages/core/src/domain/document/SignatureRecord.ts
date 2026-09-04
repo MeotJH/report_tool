@@ -48,4 +48,19 @@ export class SignatureRecord {
     this.ip = options.ip;
     this.userAgent = options.userAgent;
   }
+
+  /** 저장소에 남길 형태로 바꾼다. 해시는 검증된 hex 문자열로 나간다. */
+  toJSON(): Record<string, unknown> {
+    return {
+      signer: this.signer,
+      signerId: this.signerId,
+      signedAt: this.signedAt,
+      documentHash: this.documentHash.toHex(),
+      strokes: this.strokes.map((stroke) => ({ points: stroke.points.map((point) => [...point]) })),
+      imagePng: this.imagePng,
+      authMethod: this.authMethod,
+      ...(this.ip === undefined ? {} : { ip: this.ip }),
+      ...(this.userAgent === undefined ? {} : { userAgent: this.userAgent }),
+    };
+  }
 }

@@ -24,8 +24,15 @@ export interface IssueDocumentOptions {
   readonly issuedBy: string;
 }
 
-/** 내부 복사 과정에서만 상태와 누적 기록을 함께 전달한다. */
-interface IssuedDocumentOptions extends IssueDocumentOptions {
+/**
+ * 저장소에서 문서를 통째로 되살릴 때 쓰는 값이다.
+ *
+ * `issue()`는 언제나 `issued` 상태의 새 문서를 만든다. 그래서 이것이 없으면
+ * **서명된 문서를 DB에서 읽어 올 수 없다** — 상태도 서명도 감사 기록도 되돌릴
+ * 방법이 없기 때문이다. 인메모리 저장소는 객체를 그대로 들고 있어서 이 구멍이
+ * 가려져 있었다.
+ */
+export interface IssuedDocumentOptions extends IssueDocumentOptions {
   readonly status: IssuedDocumentStatus;
   readonly signatures: readonly SignatureRecord[];
   readonly auditLog: readonly AuditEntry[];
@@ -73,6 +80,44 @@ export class IssuedDocument {
       signatures: [],
       auditLog: [issueEntry],
     });
+  }
+
+  /**
+   * 저장소에 있던 문서를 상태·서명·감사 기록까지 그대로 되살린다.
+   *
+   * **저장소 어댑터만 쓴다.** 여기로 임의의 상태를 만들 수 있으므로, 업무 흐름에서
+   * 상태를 바꿀 때는 반드시 `markViewed`·`addSignature`·`void`를 거쳐야 한다.
+   * 그 전이들이 "취소된 문서는 서명할 수 없다" 같은 규칙을 지키는 자리다.
+   */
+  static restore(options: IssuedDocumentOptions): IssuedDocument {
+    return new IssuedDocument(options);
+  }
+
+  /**
+   * 저장소에 남길 형태로 바꾼다.
+   *
+   * `schemaVersion`을 함께 적는다. 발행 문서는 몇 년 뒤에도 읽어야 하는 자료이고,
+   * 그때 형식이 바뀌어 있다면 무엇으로 저장된 것인지 알아야 옮길 수 있다.
+   */
+  toJSON(): Record<string, unknown> {
+    return {
+      schemaVersion: 1,
+      id: this.id,
+      templateId: this.templateId,
+      templateVersion: this.templateVersion,
+      recipientId: this.recipientId,
+      status: this.status,
+      dataSnapshot: this.dataSnapshot,
+      pdf: {
+        storageKey: this.pdf.storageKey,
+        sha256: this.pdf.sha256.toHex(),
+        bytes: this.pdf.bytes,
+      },
+      issuedAt: this.issuedAt,
+      issuedBy: this.issuedBy,
+      signatures: this.signatures.map((record) => record.toJSON()),
+      auditLog: this.auditLog.map((entry) => entry.toJSON()),
+    };
   }
 
   /** 조회 횟수는 모두 기록하되 최초 조회에서만 문서 상태를 변경한다. */

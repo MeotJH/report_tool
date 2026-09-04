@@ -41,7 +41,10 @@ export type {
 } from "./domain/document/AuditEntry.js";
 export { DocumentHash } from "./domain/document/DocumentHash.js";
 export { IssuedDocument } from "./domain/document/IssuedDocument.js";
+export { IssuedDocumentFactory } from "./domain/document/IssuedDocumentFactory.js";
+export { SignatureStrokeReader } from "./domain/document/SignatureStrokeReader.js";
 export type {
+  IssuedDocumentOptions,
   IssuedDocumentStatus,
   IssuedPdf,
   IssueDocumentOptions,
