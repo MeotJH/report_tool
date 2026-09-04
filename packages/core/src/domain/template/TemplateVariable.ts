@@ -23,6 +23,16 @@ export interface TemplateVariableOptions {
    * **발행에는 절대 쓰이지 않는다** — 발행 데이터는 호스트가 준 것뿐이다.
    */
   readonly sample?: string;
+
+  /**
+   * 이 값이 밖으로 나가면 안 되는 종류인지 표시한다.
+   *
+   * 주민등록번호·계좌번호가 평문으로 발행되는 경로를 막으려고 둔다. 표시 자체가
+   * 값을 가리지는 않는다 — 배치할 때 마스킹을 기본으로 걸고, 팔레트에 자물쇠를
+   * 보여 담당자가 알아채게 한다. **가리는 판단은 양식이 하고, 데이터는 호스트
+   * 안에 그대로 남는다.**
+   */
+  readonly sensitive?: boolean;
 }
 
 /**
@@ -47,6 +57,9 @@ export class TemplateVariable {
    */
   public readonly sample: string | null;
 
+  /** 민감한 값인지 여부다. 적지 않았으면 아니다. */
+  public readonly sensitive: boolean;
+
   /** 경로로 쓸 수 없는 이름을 생성 시점에 막는다. */
   constructor(
     public readonly name: string,
@@ -57,6 +70,7 @@ export class TemplateVariable {
   ) {
     TemplateVariable.assertUsableName(name);
     this.sample = options.sample ?? null;
+    this.sensitive = options.sensitive ?? false;
   }
 
   /** 이 선언이 다른 선언의 하위 경로인지 판단한다. */
@@ -75,13 +89,14 @@ export class TemplateVariable {
     type?: VariableValueType;
     required?: boolean;
     sample?: string | null;
+    sensitive?: boolean;
   }>): TemplateVariable {
     return new TemplateVariable(
       this.name,
       changes.label ?? this.label,
       changes.type ?? this.type,
       changes.required ?? this.required,
-      this.optionsWith(changes.sample),
+      this.optionsWith(changes.sample, changes.sensitive),
     );
   }
 
@@ -95,9 +110,16 @@ export class TemplateVariable {
    *
    * `undefined`(안 바꿈)와 `null`(지움)을 구분해야 해서 `??`로는 부족하다.
    */
-  private optionsWith(sample?: string | null): TemplateVariableOptions {
-    const next = sample === undefined ? this.sample : sample;
-    return next === null ? {} : { sample: next };
+  private optionsWith(
+    sample?: string | null,
+    sensitive?: boolean,
+  ): TemplateVariableOptions {
+    const nextSample = sample === undefined ? this.sample : sample;
+    const nextSensitive = sensitive ?? this.sensitive;
+    return {
+      ...(nextSample === null ? {} : { sample: nextSample }),
+      ...(nextSensitive ? { sensitive: true } : {}),
+    };
   }
 
   /**
@@ -114,6 +136,7 @@ export class TemplateVariable {
       type: this.type,
       required: this.required,
       ...(this.sample === null ? {} : { sample: this.sample }),
+      ...(this.sensitive ? { sensitive: true } : {}),
     };
   }
 

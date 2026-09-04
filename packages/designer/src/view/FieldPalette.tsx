@@ -168,6 +168,17 @@ function EntryRow(props: EntryListProps & { entry: PaletteEntry }) {
         <span className="rt-field-copy">
           <span className="rt-field-label">
             {isArray ? "▾ " : ""}{entry.label}
+            {entry.sensitive
+              ? (
+                <span
+                  className="rt-sensitive-mark"
+                  title="민감한 값입니다. 문서에 넣으면 기본으로 가려집니다."
+                  aria-label="민감한 값"
+                >
+                  🔒
+                </span>
+              )
+              : null}
           </span>
           <span className="rt-field-path">{entry.path}</span>
         </span>

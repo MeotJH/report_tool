@@ -44,6 +44,7 @@ export function VariableEditor(props: {
   const [type, setType] = useState<VariableValueType>("string");
   const [required, setRequired] = useState(false);
   const [sample, setSample] = useState("");
+  const [sensitive, setSensitive] = useState(false);
   const [children, setChildren] = useState<readonly ChildDraft[]>([
     { name: "item", label: "항목", type: "string" },
     { name: "amount", label: "금액", type: "currency" },
@@ -53,7 +54,7 @@ export function VariableEditor(props: {
   /** 입력을 도메인 변수로 만들고, 도메인이 거부하면 원인을 그대로 보여준다. */
   const submit = (): void => {
     try {
-      props.onAdd(createVariable({ kind, name, label, type, required, sample, children }));
+      props.onAdd(createVariable({ kind, name, label, type, required, sample, sensitive, children }));
       props.onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "변수를 만들 수 없다");
@@ -131,6 +132,22 @@ export function VariableEditor(props: {
               />
               발행 시 반드시 채워져야 함
             </label>
+            <label className="rt-variable-check">
+              <input
+                type="checkbox"
+                checked={sensitive}
+                onChange={(event) => setSensitive(event.currentTarget.checked)}
+              />
+              민감한 값 (주민등록번호·계좌번호 등)
+            </label>
+            {sensitive
+              ? (
+                <p className="rt-field-help">
+                  문서에 넣으면 앞 6자리와 끝 1자리만 남기고 가려집니다.
+                  넣은 뒤 Inspector에서 바꿀 수 있습니다.
+                </p>
+              )
+              : null}
           </>
         )
         : null}
@@ -231,6 +248,7 @@ function createVariable(draft: Readonly<{
   type: VariableValueType;
   required: boolean;
   sample: string;
+  sensitive: boolean;
   children: readonly ChildDraft[];
 }>): readonly TemplateVariable[] {
   const name = draft.name.trim();
@@ -239,9 +257,10 @@ function createVariable(draft: Readonly<{
     // 아무것도 적지 않은 것과 빈 값을 예시로 정한 것을 구분한다. 빈 칸을 예시로
     // 저장하면 미리보기가 빈칸을 보여 주는데, 그것은 "예시가 없다"와 같아 보인다.
     const sample = draft.sample.trim();
-    return [new TemplateVariable(
-      name, label, draft.type, draft.required, sample === "" ? {} : { sample },
-    )];
+    return [new TemplateVariable(name, label, draft.type, draft.required, {
+      ...(sample === "" ? {} : { sample }),
+      ...(draft.sensitive ? { sensitive: true } : {}),
+    })];
   }
   return [
     new TemplateVariable(name, label, "array", draft.required),

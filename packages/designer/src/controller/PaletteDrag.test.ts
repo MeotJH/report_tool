@@ -29,6 +29,9 @@ const variables: readonly TemplateVariable[] = [
   new TemplateVariable("deductionItems.item", "항목", "string"),
   new TemplateVariable("deductionItems.amount", "금액", "currency"),
   new TemplateVariable("netPay", "실지급액", "currency"),
+  new TemplateVariable(
+    "employee.residentNumber", "주민등록번호", "string", true, { sensitive: true },
+  ),
 ];
 
 const entries = new PaletteEntryBuilder().build(variables);
@@ -291,5 +294,35 @@ describe("단일 필드를 놓기", () => {
     const created = controller.getTemplate().getElements()[0] as FieldElement;
     expect(created).toBeInstanceOf(FieldElement);
     expect(created.binding.path.toString()).toBe("netPay");
+  });
+
+  it("민감한 값은 놓는 순간부터 가려진다", () => {
+    // 놓고 나서 담당자가 따로 설정해야 한다면, 잊은 한 번이 주민등록번호가
+    // 평문으로 찍힌 발행본이 된다. 되돌릴 수 없는 사고다.
+    const controller = createController();
+
+    PaletteDrag.create(find("employee.residentNumber")).dropAt(40, 80, controller);
+
+    const created = controller.getTemplate().getElements()[0] as FieldElement;
+    expect(created.binding.formatSpec).toEqual({ kind: "mask", keepHead: 6, keepTail: 1 });
+  });
+
+  it("민감하지 않은 값에는 마스킹을 걸지 않는다", () => {
+    const controller = createController();
+
+    PaletteDrag.create(find("netPay")).dropAt(40, 80, controller);
+
+    const created = controller.getTemplate().getElements()[0] as FieldElement;
+    expect(created.binding.formatSpec).toBeNull();
+  });
+
+  it("클릭으로 놓아도 마스킹이 걸린다", () => {
+    // 끌어 놓기와 클릭이 다르게 동작하면, 어느 쪽으로 놓았는지가 안전을 가른다.
+    const controller = createController();
+
+    PaletteDrag.create(find("employee.residentNumber")).place(controller);
+
+    const created = controller.getTemplate().getElements()[0] as FieldElement;
+    expect(created.binding.formatSpec).toEqual({ kind: "mask", keepHead: 6, keepTail: 1 });
   });
 });

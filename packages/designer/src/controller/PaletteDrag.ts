@@ -1,3 +1,4 @@
+import type { FormatSpec } from "@report-tool/core";
 import {
   Binding,
   BoundTableSource,
@@ -119,10 +120,24 @@ class FieldDrag extends PaletteDrag {
       frame,
       this.nextZIndex(controller),
       false,
-      new Binding(this.entry.path),
+      new Binding(this.entry.path, this.defaultOptions()),
       this.documentFont(controller).style(10),
     );
     controller.placeNewElement(element);
+  }
+
+  /**
+   * 민감한 값은 놓는 순간부터 가린다.
+   *
+   * 놓고 나서 담당자가 따로 설정해야 한다면, 잊은 한 번이 주민등록번호가 평문으로
+   * 찍힌 발행본이 된다. 발행본은 되돌릴 수 없다.
+   *
+   * 기본값은 주민등록번호 기준이다 — 앞 6자리(생년월일)와 성별 한 자리를 남긴다.
+   * 담당자가 Inspector에서 바꿀 수 있다. 우리는 **켜진 상태로 시작하는 것**만 정한다.
+   */
+  private defaultOptions(): { formatSpec: FormatSpec } | Record<string, never> {
+    if (!this.entry.sensitive) return {};
+    return { formatSpec: { kind: "mask", keepHead: 6, keepTail: 1 } };
   }
 }
 

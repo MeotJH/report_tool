@@ -5,12 +5,18 @@ import { TableColumnPlanner } from "./TableColumnPlanner.js";
 
 /** 배열 하나를 선언해 그 자식 팔레트 항목만 꺼낸다. */
 function childrenOf(
-  children: readonly Readonly<{ key: string; label: string; type: VariableValueType }>[],
+  children: readonly Readonly<{
+    key: string;
+    label: string;
+    type: VariableValueType;
+    sensitive?: boolean;
+  }>[],
 ): readonly PaletteEntry[] {
   const entries = new PaletteEntryBuilder().build([
     new TemplateVariable("rows", "행", "array"),
     ...children.map((child) => new TemplateVariable(
-      `rows.${child.key}`, child.label, child.type,
+      `rows.${child.key}`, child.label, child.type, false,
+      child.sensitive === true ? { sensitive: true } : {},
     )),
   ]);
   return entries[0]!.children;
@@ -82,5 +88,19 @@ describe("TableColumnPlanner", () => {
     const columns = planner.fromArrayChildrenKeepingWidth(children, [60, 40]);
 
     expect(columns.reduce((sum, column) => sum + column.width, 0)).toBe(100);
+  });
+});
+
+describe("TableColumnPlanner 민감 열", () => {
+  it("민감한 자식 필드로 만든 열은 가려진 채로 시작한다", () => {
+    // 표 안이라고 다르지 않다. 급여명세서의 주민등록번호 열 하나가 그대로 나가면
+    // 단일 필드에서 새는 것과 같은 사고다.
+    const columns = new TableColumnPlanner().fromArrayChildren(childrenOf([
+      { key: "name", label: "성명", type: "string" },
+      { key: "rrn", label: "주민등록번호", type: "string", sensitive: true },
+    ]), 100);
+
+    expect(columns[0]?.formatSpec).toBeNull();
+    expect(columns[1]?.formatSpec).toEqual({ kind: "mask", keepHead: 6, keepTail: 1 });
   });
 });

@@ -11,6 +11,8 @@ export interface PaletteEntry {
   readonly label: string;
   readonly type: VariableValueType;
   readonly children: readonly PaletteEntry[];
+  /** 밖으로 나가면 안 되는 값인지. 배치할 때 마스킹을 기본으로 걸 근거다. */
+  readonly sensitive: boolean;
   /** 배열 자식이면 소속 배열의 경로. 최상위 항목은 null이다. */
   readonly arrayPath: string | null;
 }
@@ -100,6 +102,7 @@ export class PaletteEntryBuilder {
       label: variable.label,
       type: variable.type,
       children: [],
+      sensitive: variable.sensitive,
       arrayPath: null,
     };
   }

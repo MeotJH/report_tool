@@ -275,6 +275,7 @@ const DESIGNER_CSS = `
   .rt-field-count { color: var(--rt-muted); font-size: 11px; }
   .rt-palette-help { color: var(--rt-muted); font-size: 11px; line-height: 1.5; margin: 2px 0 8px; }
   .rt-field-help { color: var(--rt-muted); font-size: 11px; line-height: 1.4; }
+  .rt-sensitive-mark { font-size: 10px; margin-left: 4px; }
   .rt-mode-switch {
     background: var(--rt-primary-soft); border: 1px solid #c7d2fe; border-radius: 7px;
     color: var(--rt-primary); cursor: pointer; margin-bottom: 8px; padding: 6px;

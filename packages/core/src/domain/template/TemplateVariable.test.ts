@@ -170,3 +170,49 @@ describe("TemplateVariable 미리보기 값", () => {
     expect(variable.withDefinition({ sample: "2000000" }).label).toBe("상여금");
   });
 });
+
+describe("TemplateVariable 민감 표시", () => {
+  it("민감한 값이라고 선언에 적어 둔다", () => {
+    const variable = new TemplateVariable(
+      "employee.residentNumber", "주민등록번호", "string", true, { sensitive: true },
+    );
+
+    expect(variable.sensitive).toBe(true);
+  });
+
+  it("표시하지 않은 선언은 민감하지 않다", () => {
+    expect(new TemplateVariable("employee.name", "성명", "string").sensitive).toBe(false);
+  });
+
+  it("민감 표시는 저장했다 되살려도 남는다", () => {
+    const variable = new TemplateVariable(
+      "employee.residentNumber", "주민등록번호", "string", true, { sensitive: true },
+    );
+
+    expect(variable.toJSON()["sensitive"]).toBe(true);
+  });
+
+  it("민감하지 않은 선언은 저장본에 적지 않는다", () => {
+    // `sample`과 같은 이유다. 기존 저장본이 열었다 닫기만 해도 달라지면 안 된다.
+    expect("sensitive" in new TemplateVariable("employee.name", "성명", "string").toJSON())
+      .toBe(false);
+  });
+
+  it("이름을 바꿔도 민감 표시는 따라간다", () => {
+    const variable = new TemplateVariable(
+      "employee.residentNumber", "주민등록번호", "string", true,
+      { sensitive: true, sample: "900101-1234567" },
+    );
+
+    const renamed = variable.withName("staff.rrn");
+
+    expect(renamed.sensitive).toBe(true);
+    expect(renamed.sample).toBe("900101-1234567");
+  });
+
+  it("민감 표시만 바꾼 선언을 만든다", () => {
+    const variable = new TemplateVariable("employee.number", "사번", "string");
+
+    expect(variable.withDefinition({ sensitive: true }).sensitive).toBe(true);
+  });
+});

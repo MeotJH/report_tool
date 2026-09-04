@@ -42,7 +42,7 @@ export class TableColumnPlanner {
     const width = totalWidthMm / columns.length;
     return columns.map((child) => {
       const key = this.rowKeyOf(child);
-      const presentation = this.presentationFor(child.type);
+      const presentation = this.presentationFor(child.type, child.sensitive);
       return new TableColumn(
         key,
         child.label,
@@ -70,7 +70,15 @@ export class TableColumnPlanner {
   }
 
   /** 숫자와 금액은 오른쪽에 붙어야 자릿수를 비교할 수 있다. */
-  private presentationFor(type: VariableValueType): ColumnPresentation {
+  private presentationFor(
+    type: VariableValueType,
+    sensitive: boolean,
+  ): ColumnPresentation {
+    // 민감한 값은 종류별 표기보다 가리는 것이 먼저다. 표 안이라고 다르지 않다 —
+    // 급여명세서의 주민등록번호 열 하나가 그대로 나가면 단일 필드와 같은 사고다.
+    if (sensitive) {
+      return { align: "left", formatSpec: { kind: "mask", keepHead: 6, keepTail: 1 } };
+    }
     const presentations: Partial<Record<VariableValueType, ColumnPresentation>> = {
       currency: {
         align: "right",
