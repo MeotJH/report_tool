@@ -1,3 +1,4 @@
+import type { TemplateStatus } from "@report-tool/core";
 import { useSyncExternalStore } from "react";
 import type { EditorActions } from "../controller/EditorActions.js";
 import type { EditorController, EditorMode } from "../controller/EditorController.js";
@@ -137,7 +138,9 @@ function DesignerHeader(props: {
           actions={props.actions}
           filing={props.filing}
         />
-        <span className="rt-meta-pill">Draft · v{template.version}</span>
+        <span className={template.isEditable() ? "rt-meta-pill" : "rt-meta-pill rt-meta-pill--locked"}>
+          {statusLabel(template.status)} · v{template.version}
+        </span>
         {props.preview.isAvailable() ? (
           <button
             className="rt-filing-button"
@@ -376,4 +379,16 @@ function toolMessage(kind: ToolKind): string {
 /** 현재 선택이 데이터 필드인지 타입 판별 값으로 안전하게 확인한다. */
 function isFieldSelected(controller: EditorController): boolean {
   return controller.getSingleSelectedElement()?.type === "field";
+}
+
+/**
+ * 문서 상태를 사람의 말로 바꾼다.
+ *
+ * 지금까지 상태와 무관하게 "Draft"라고 적고 있었다. 발행된 양식을 열어도 초안이라고
+ * 말하니, 담당자는 고칠 수 있는 줄 알고 입력을 다 한 뒤에야 막혔다.
+ */
+function statusLabel(status: TemplateStatus): string {
+  if (status === "published") return "발행됨";
+  if (status === "archived") return "보관됨";
+  return "초안";
 }

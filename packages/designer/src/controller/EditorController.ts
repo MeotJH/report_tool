@@ -298,8 +298,31 @@ export class EditorController {
     return this.editTarget.elementId;
   }
 
-  /** 명령 실행 결과를 현재 상태로 채택하고 모든 구독자에게 알린다. */
+  /**
+   * 지금 이 문서를 고칠 수 있는지 화면이 물어볼 수 있게 한다.
+   *
+   * 고칠 수 없는 문서에서 편집 도구를 평소처럼 보여 주면, 담당자는 입력을 다 한
+   * 뒤에야 막힌다.
+   */
+  isEditable(): boolean {
+    return this.template.isEditable();
+  }
+
+  /**
+   * 명령 실행 결과를 현재 상태로 채택하고 모든 구독자에게 알린다.
+   *
+   * **발행본이면 실행하지 않고 이유를 알린다.** 도메인은 발행본 변경을 막으며
+   * 예외를 던지는데, 그 문구는 개발자에게 하는 말이다("createNextVersion()으로
+   * 새 버전을 만들어라"). 그것이 담당자 화면에 그대로 뜨면 무엇을 하라는 말인지
+   * 알 수 없다. 여기서 걸러 사람의 말로 바꾼다.
+   *
+   * 이력에도 남기지 않는다. 남기면 되돌리기가 일어나지 않은 일을 되돌린다.
+   */
   execute(command: EditorCommand): void {
+    if (!this.isEditable()) {
+      this.setNotice("발행된 양식은 고칠 수 없습니다. 새 버전을 만든 뒤 편집하세요.");
+      return;
+    }
     this.template = this.commandStack.execute(command, this.template);
     this.afterTemplateChange();
   }

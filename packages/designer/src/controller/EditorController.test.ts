@@ -203,6 +203,51 @@ describe("EditorController 미리보기 자료", () => {
   });
 });
 
+describe("EditorController 발행본 편집", () => {
+  it("발행된 양식은 고쳐지지 않는다", () => {
+    const controller = new EditorController(createTemplate().publish());
+
+    controller.execute(new AddElementCommand(createText("text")));
+
+    expect(controller.getTemplate().getElements()).toEqual([]);
+  });
+
+  it("왜 안 되는지와 무엇을 하면 되는지 알려 준다", () => {
+    // 도메인이 던지는 문구는 개발자에게 하는 말이다("createNextVersion()으로
+    // 새 버전을 만들어라"). 그것이 담당자 화면에 그대로 뜨면 무엇을 하라는
+    // 말인지 알 수 없다.
+    const controller = new EditorController(createTemplate().publish());
+
+    controller.execute(new AddElementCommand(createText("text")));
+
+    expect(controller.getNotice())
+      .toBe("발행된 양식은 고칠 수 없습니다. 새 버전을 만든 뒤 편집하세요.");
+  });
+
+  it("막힌 편집은 실행 취소 이력에도 남지 않는다", () => {
+    // 남으면 되돌리기를 눌렀을 때 일어나지 않은 일이 되돌려진다.
+    const controller = new EditorController(createTemplate().publish());
+
+    controller.execute(new AddElementCommand(createText("text")));
+
+    expect(controller.canUndo()).toBe(false);
+  });
+
+  it("초안은 그대로 고쳐진다", () => {
+    const controller = new EditorController(createTemplate());
+
+    controller.execute(new AddElementCommand(createText("text")));
+
+    expect(controller.getTemplate().getElements()).toHaveLength(1);
+    expect(controller.getNotice()).toBeNull();
+  });
+
+  it("고칠 수 있는 문서인지 화면이 물어볼 수 있다", () => {
+    expect(new EditorController(createTemplate()).isEditable()).toBe(true);
+    expect(new EditorController(createTemplate().publish()).isEditable()).toBe(false);
+  });
+});
+
 describe("EditorController.openTemplate", () => {
   it("연 문서를 지금 편집 대상으로 삼는다", () => {
     const controller = new EditorController(createTemplate());

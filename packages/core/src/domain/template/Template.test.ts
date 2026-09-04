@@ -131,3 +131,33 @@ function createTextElement(id: string): TextElement {
     style,
   );
 }
+
+describe("Template 편집 가능 여부", () => {
+  it("초안은 편집할 수 있다", () => {
+    expect(draft().isEditable()).toBe(true);
+  });
+
+  it("발행본은 편집할 수 없다", () => {
+    // 화면이 `status === "draft"`를 직접 비교하면 상태가 하나 늘 때마다
+    // 비교하는 자리를 전부 찾아야 한다. 판단은 문서 자신이 한다.
+    expect(draft().publish().isEditable()).toBe(false);
+  });
+
+  it("다음 버전을 시작하면 다시 편집할 수 있다", () => {
+    const next = draft().publish().createNextVersion();
+
+    expect(next.isEditable()).toBe(true);
+    expect(next.version).toBe(2);
+  });
+});
+
+/** 편집 가능 여부 시험에 쓸 빈 초안이다. */
+function draft(): Template {
+  return new Template({
+    id: "t", name: "시험", version: 1, status: "draft",
+    page: new PageSpec("A4", "portrait", [10, 10, 10, 10]),
+    fonts: ["Pretendard"], elements: [],
+    createdAt: "2026-09-04T00:00:00.000Z",
+    updatedAt: "2026-09-04T00:00:00.000Z",
+  });
+}

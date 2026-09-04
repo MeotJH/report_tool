@@ -124,6 +124,17 @@ export class Template {
     return this.copy({ name: newName });
   }
 
+  /**
+   * 지금 이 문서를 고칠 수 있는지 스스로 답한다.
+   *
+   * 화면이 `status === "draft"`를 직접 비교하면 상태가 하나 늘 때마다 비교하는
+   * 자리를 전부 찾아야 하고, 하나만 놓쳐도 담당자는 고칠 수 있는 것처럼 보이는
+   * 화면에서 입력을 다 한 뒤에야 막힌다.
+   */
+  isEditable(): boolean {
+    return this.status === "draft";
+  }
+
   /** 발행된 내용을 보존하면서 편집 가능한 다음 버전을 시작한다. */
   createNextVersion(): Template {
     return this.copy({
@@ -174,7 +185,7 @@ export class Template {
 
   /** 발행·보관된 버전이 편집 연산으로 변경되는 것을 한곳에서 차단한다. */
   private assertDraft(): void {
-    if (this.status !== "draft") {
+    if (!this.isEditable()) {
       throw new Error(
         "발행된 템플릿은 수정할 수 없다. createNextVersion()으로 새 버전을 만들어라",
       );
