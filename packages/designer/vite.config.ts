@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { defineConfig, type Plugin } from "vite";
 
@@ -167,7 +168,9 @@ export default defineConfig({
   server: { port: Number(process.env.PORT) || 5173 },
   build: {
     lib: {
-      entry: new URL("./src/index.ts", import.meta.url).pathname,
+      // `URL.pathname`을 그대로 쓰면 Windows에서 `/C:/…`가 되어 진입점을 찾지
+      // 못한다. 이 저장소는 Windows에서 개발되므로 라이브러리 빌드 자체가 막힌다.
+      entry: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
       formats: ["es"],
       fileName: () => "designer.esm.js",
     },
