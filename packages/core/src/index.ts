@@ -107,9 +107,13 @@ export { KoreanParticle } from "./domain/template/KoreanParticle.js";
 export { TemplateReferences } from "./domain/template/TemplateReferences.js";
 export type { DataReference } from "./domain/template/TemplateReferences.js";
 export { TemplateFactory } from "./domain/template/TemplateFactory.js";
+export { PreviewSampleFiller } from "./domain/template/PreviewSampleFiller.js";
 export { TemplateVariable } from "./domain/template/TemplateVariable.js";
 export { VariableInference } from "./domain/template/VariableInference.js";
-export type { VariableValueType } from "./domain/template/TemplateVariable.js";
+export type {
+  TemplateVariableOptions,
+  VariableValueType,
+} from "./domain/template/TemplateVariable.js";
 export type {
   TemplateOptions,
   TemplateStatus,

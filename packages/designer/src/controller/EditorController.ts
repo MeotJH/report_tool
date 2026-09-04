@@ -1,8 +1,10 @@
+import { PreviewSampleFiller } from "@report-tool/core";
 import type {
   Element,
   Frame,
   StyleMeasurerFactory,
   Template,
+  TemplateVariable,
 } from "@report-tool/core";
 import type { CanvasEditTarget } from "./CanvasEditTarget.js";
 import { AddElementCommand } from "../command/AddElementCommand.js";
@@ -46,6 +48,17 @@ export class EditorController {
   private cachedComposition: Readonly<{ key: string; value: EditorComposition }> | null = null;
 
   /**
+   * 미리보기 자료도 다시 만들지 않는다.
+   *
+   * 선언 목록 자체를 열쇠로 쓴다. 템플릿은 불변이라 선언이 바뀌면 목록도 다른
+   * 것이 되고, 요소만 움직인 편집에서는 같은 목록이 그대로 온다.
+   */
+  private cachedPreviewData: Readonly<{
+    key: readonly TemplateVariable[];
+    value: unknown;
+  }> | null = null;
+
+  /**
    * 호스트가 제공한 초안과 샘플 데이터로 독립적인 편집 세션을 시작한다.
    *
    * 글자 폭 측정기를 받는 이유는 쪽 나눔이 줄 수에 달려 있기 때문이다. 폭을 모르면
@@ -72,7 +85,7 @@ export class EditorController {
     const key = `${this.revision}|${this.mode}`;
     if (this.cachedComposition?.key === key) return this.cachedComposition.value;
     const value = EditorComposition.of(
-      this.template, this.sampleData, this.mode, this.measurerFactory,
+      this.template, this.getSampleData(), this.mode, this.measurerFactory,
     );
     this.cachedComposition = { key, value };
     return value;
@@ -83,9 +96,23 @@ export class EditorController {
     return this.template;
   }
 
-  /** 미리보기 모드가 호스트 주입 데이터를 그대로 사용하게 한다. */
+  /**
+   * 미리보기가 읽을 자료다. 호스트가 준 샘플에 선언의 예시를 얹은 것이다.
+   *
+   * 호스트 값이 항상 이긴다. 예시로 덮으면 담당자는 실제 데이터가 아닌 것을
+   * 보면서 양식을 맞추게 된다. 선언이 바뀌면 다시 만든다.
+   *
+   * **발행에는 쓰이지 않는다.** 발행 데이터는 호스트가 준 것뿐이다.
+   */
   getSampleData(): unknown {
-    return this.sampleData;
+    const key = this.template.variables;
+    if (this.cachedPreviewData?.key !== key) {
+      this.cachedPreviewData = {
+        key,
+        value: PreviewSampleFiller.fill(this.sampleData, key),
+      };
+    }
+    return this.cachedPreviewData.value;
   }
 
   /** 도구와 화면 강조가 같은 선택 상태를 공유하게 한다. */

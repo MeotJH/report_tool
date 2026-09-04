@@ -124,3 +124,49 @@ describe("변수 검증", () => {
     expect(validator.validate(template)).toEqual([]);
   });
 });
+
+describe("TemplateVariable 미리보기 값", () => {
+  it("선언에 예시값을 붙여 둔다", () => {
+    const variable = new TemplateVariable("pay.bonus", "상여금", "currency", false, {
+      sample: "1500000",
+    });
+
+    expect(variable.sample).toBe("1500000");
+  });
+
+  it("예시값이 없으면 없다고 말한다. 빈 문자열과 구분해야 한다", () => {
+    // 빈 문자열은 "예시가 비어 있다"는 뜻이고, 없음은 "정하지 않았다"는 뜻이다.
+    // 둘을 섞으면 채울 자리와 비워 둘 자리를 구분할 수 없다.
+    expect(new TemplateVariable("pay.bonus", "상여금", "currency").sample).toBeNull();
+  });
+
+  it("예시값은 저장했다 되살려도 남는다", () => {
+    const variable = new TemplateVariable("pay.bonus", "상여금", "currency", false, {
+      sample: "1500000",
+    });
+
+    expect(variable.toJSON()["sample"]).toBe("1500000");
+  });
+
+  it("정하지 않은 예시는 저장본에 적지 않는다", () => {
+    // 적어 두면 예시 기능이 생기기 전에 저장된 문서가 열었다 닫기만 해도
+    // 달라진다. 변경 이력에서 실제 편집과 형식 변화를 구분할 수 없게 된다.
+    expect("sample" in new TemplateVariable("pay.bonus", "상여금", "currency").toJSON())
+      .toBe(false);
+  });
+
+  it("이름을 바꿔도 예시값은 따라간다", () => {
+    const variable = new TemplateVariable("pay.bonus", "상여금", "currency", false, {
+      sample: "1500000",
+    });
+
+    expect(variable.withName("pay.incentive").sample).toBe("1500000");
+  });
+
+  it("예시값만 바꾼 선언을 만든다", () => {
+    const variable = new TemplateVariable("pay.bonus", "상여금", "currency");
+
+    expect(variable.withDefinition({ sample: "2000000" }).sample).toBe("2000000");
+    expect(variable.withDefinition({ sample: "2000000" }).label).toBe("상여금");
+  });
+});

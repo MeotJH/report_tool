@@ -9,6 +9,23 @@ export type VariableValueType =
   | "image";
 
 /**
+ * 선언에 덧붙는 것들이다.
+ *
+ * 위치 인자로 계속 늘리지 않는다. `new TemplateVariable(name, label, type, true, "1500000")`
+ * 같은 호출은 다섯 번째 값이 무엇인지 읽는 사람이 알 수 없다.
+ */
+export interface TemplateVariableOptions {
+  /**
+   * 편집기 미리보기에서 이 자리에 보여 줄 예시다.
+   *
+   * 호스트가 준 샘플 데이터에 이 경로가 없을 때만 쓴다. 방금 선언한 변수를
+   * 배치하면 미리보기가 빈칸이 되는데, 그러면 글자 크기도 넘침도 확인할 수 없다.
+   * **발행에는 절대 쓰이지 않는다** — 발행 데이터는 호스트가 준 것뿐이다.
+   */
+  readonly sample?: string;
+}
+
+/**
  * 이 문서가 발행 시 요구하는 데이터 하나를 템플릿이 직접 선언한다.
  *
  * 이 선언이 문서가 필요로 하는 값의 유일한 근거다. 문서가 필요한 값을
@@ -22,14 +39,24 @@ export type VariableValueType =
  * 배열에 필드를 더하는 일이 최상위에 필드를 더하는 일과 같은 연산이 된다.
  */
 export class TemplateVariable {
+  /**
+   * 미리보기에 쓸 예시다. 정하지 않았으면 `null`이다.
+   *
+   * 빈 문자열과 `null`을 구분한다. 빈 문자열은 "예시가 비어 있다", `null`은
+   * "정하지 않았다"는 뜻이고, 채울 자리와 비워 둘 자리가 갈린다.
+   */
+  public readonly sample: string | null;
+
   /** 경로로 쓸 수 없는 이름을 생성 시점에 막는다. */
   constructor(
     public readonly name: string,
     public readonly label: string,
     public readonly type: VariableValueType,
     public readonly required: boolean = false,
+    options: TemplateVariableOptions = {},
   ) {
     TemplateVariable.assertUsableName(name);
+    this.sample = options.sample ?? null;
   }
 
   /** 이 선언이 다른 선언의 하위 경로인지 판단한다. */
@@ -47,27 +74,46 @@ export class TemplateVariable {
     label?: string;
     type?: VariableValueType;
     required?: boolean;
+    sample?: string | null;
   }>): TemplateVariable {
     return new TemplateVariable(
       this.name,
       changes.label ?? this.label,
       changes.type ?? this.type,
       changes.required ?? this.required,
+      this.optionsWith(changes.sample),
     );
   }
 
   /** 이름을 바꾸면 이 선언을 참조하던 경로도 함께 바뀐다. */
   withName(name: string): TemplateVariable {
-    return new TemplateVariable(name, this.label, this.type, this.required);
+    return new TemplateVariable(name, this.label, this.type, this.required, this.optionsWith());
   }
 
-  /** 선언을 클래스 구현과 무관한 저장 데이터로 변환한다. */
+  /**
+   * 덧붙은 것들을 그대로 옮긴다. 바꿀 것만 인자로 받는다.
+   *
+   * `undefined`(안 바꿈)와 `null`(지움)을 구분해야 해서 `??`로는 부족하다.
+   */
+  private optionsWith(sample?: string | null): TemplateVariableOptions {
+    const next = sample === undefined ? this.sample : sample;
+    return next === null ? {} : { sample: next };
+  }
+
+  /**
+   * 선언을 클래스 구현과 무관한 저장 데이터로 변환한다.
+   *
+   * 정하지 않은 예시는 아예 적지 않는다. `"sample": null`을 남기면 예시 기능이
+   * 생기기 전에 저장된 문서가 열었다 닫기만 해도 달라진다 — 그러면 변경 이력에서
+   * 실제 편집과 형식 변화를 구분할 수 없다.
+   */
   toJSON(): Record<string, unknown> {
     return {
       name: this.name,
       label: this.label,
       type: this.type,
       required: this.required,
+      ...(this.sample === null ? {} : { sample: this.sample }),
     };
   }
 

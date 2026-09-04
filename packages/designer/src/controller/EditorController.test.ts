@@ -1,4 +1,7 @@
-import { BoxElement, Frame, PageSpec, Template, TextElement, TextStyle, type Element } from "@report-tool/core";
+import {
+  BoxElement, Frame, PageSpec, Template, TemplateVariable, TextElement, TextStyle,
+  type Element,
+} from "@report-tool/core";
 import { describe, expect, it, vi } from "vitest";
 import { AddElementCommand } from "../command/AddElementCommand.js";
 import { RemoveElementCommand } from "../command/RemoveElementCommand.js";
@@ -146,13 +149,57 @@ describe("EditorController", () => {
     expect(controller.getFramesExcept(["moving"])).toHaveLength(1);
   });
 
-  it("호스트가 준 샘플 데이터를 미리보기 렌더에 그대로 제공한다", () => {
+  it("호스트가 준 샘플 데이터를 값 그대로 미리보기 렌더에 제공한다", () => {
+    // 같은 객체를 돌려주지는 않는다. 선언의 예시를 얹어야 하므로 사본을 만든다.
+    // 대신 호스트가 준 것을 고치지 않는다 — 호스트의 자료는 우리 것이 아니다.
     const sample = { employee: { name: "홍길동" } };
 
     const controller = new EditorController(createTemplate(), sample);
 
-    expect(controller.getSampleData()).toBe(sample);
+    expect(controller.getSampleData()).toEqual({ employee: { name: "홍길동" } });
+    expect(sample).toEqual({ employee: { name: "홍길동" } });
     expect(controller.getMode()).toBe("design");
+  });
+});
+
+describe("EditorController 미리보기 자료", () => {
+  it("선언에 적어 둔 예시로 빈 자리를 채운다", () => {
+    // 방금 선언한 변수를 놓으면 미리보기가 빈칸이 된다. 그러면 넘침도 크기도
+    // 확인할 수 없어 편집기를 보면서 양식을 맞출 수가 없다.
+    const controller = new EditorController(
+      createTemplate().withVariables([
+        new TemplateVariable("pay.bonus", "상여금", "currency", false, { sample: "1500000" }),
+      ]),
+      { employee: { name: "홍길동" } },
+    );
+
+    expect(controller.getSampleData()).toEqual({
+      employee: { name: "홍길동" },
+      pay: { bonus: "1500000" },
+    });
+  });
+
+  it("호스트가 준 값을 예시가 덮지 않는다", () => {
+    const controller = new EditorController(
+      createTemplate().withVariables([
+        new TemplateVariable("employee.name", "성명", "string", false, { sample: "예시이름" }),
+      ]),
+      { employee: { name: "홍길동" } },
+    );
+
+    expect(controller.getSampleData()).toEqual({ employee: { name: "홍길동" } });
+  });
+
+  it("선언이 바뀌면 미리보기 자료도 따라 바뀐다", () => {
+    const controller = new EditorController(createTemplate(), {});
+    const before = controller.getSampleData();
+
+    controller.openTemplate(controller.getTemplate().withVariables([
+      new TemplateVariable("pay.bonus", "상여금", "currency", false, { sample: "1500000" }),
+    ]));
+
+    expect(before).toEqual({});
+    expect(controller.getSampleData()).toEqual({ pay: { bonus: "1500000" } });
   });
 });
 

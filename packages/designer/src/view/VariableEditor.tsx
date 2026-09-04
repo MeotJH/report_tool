@@ -43,6 +43,7 @@ export function VariableEditor(props: {
   const [label, setLabel] = useState("");
   const [type, setType] = useState<VariableValueType>("string");
   const [required, setRequired] = useState(false);
+  const [sample, setSample] = useState("");
   const [children, setChildren] = useState<readonly ChildDraft[]>([
     { name: "item", label: "항목", type: "string" },
     { name: "amount", label: "금액", type: "currency" },
@@ -52,7 +53,7 @@ export function VariableEditor(props: {
   /** 입력을 도메인 변수로 만들고, 도메인이 거부하면 원인을 그대로 보여준다. */
   const submit = (): void => {
     try {
-      props.onAdd(createVariable({ kind, name, label, type, required, children }));
+      props.onAdd(createVariable({ kind, name, label, type, required, sample, children }));
       props.onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "변수를 만들 수 없다");
@@ -109,6 +110,18 @@ export function VariableEditor(props: {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
+            </label>
+            <label className="rt-variable-field">
+              <span className="rt-field-name">미리보기 값</span>
+              <input
+                type="text"
+                value={sample}
+                placeholder={type === "currency" ? "1500000" : "예시"}
+                onChange={(event) => setSample(event.currentTarget.value)}
+              />
+              <span className="rt-field-help">
+                편집기 미리보기에서만 쓰입니다. 발행본에는 호스트가 준 값만 들어갑니다.
+              </span>
             </label>
             <label className="rt-variable-check">
               <input
@@ -217,12 +230,18 @@ function createVariable(draft: Readonly<{
   label: string;
   type: VariableValueType;
   required: boolean;
+  sample: string;
   children: readonly ChildDraft[];
 }>): readonly TemplateVariable[] {
   const name = draft.name.trim();
   const label = draft.label.trim() === "" ? name : draft.label.trim();
   if (draft.kind === "data") {
-    return [new TemplateVariable(name, label, draft.type, draft.required)];
+    // 아무것도 적지 않은 것과 빈 값을 예시로 정한 것을 구분한다. 빈 칸을 예시로
+    // 저장하면 미리보기가 빈칸을 보여 주는데, 그것은 "예시가 없다"와 같아 보인다.
+    const sample = draft.sample.trim();
+    return [new TemplateVariable(
+      name, label, draft.type, draft.required, sample === "" ? {} : { sample },
+    )];
   }
   return [
     new TemplateVariable(name, label, "array", draft.required),

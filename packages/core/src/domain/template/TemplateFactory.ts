@@ -90,6 +90,7 @@ export class TemplateFactory {
       json.label as string,
       json.type as VariableValueType,
       json.required === true,
+      typeof json.sample === "string" ? { sample: json.sample } : {},
     );
   }
 
