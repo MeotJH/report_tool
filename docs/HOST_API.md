@@ -144,8 +144,18 @@ GET {base}/images/{assetId}
 
 ## 사이드카 세우기
 
+**만들어 둔 실행본이 있다** — [apps/sidecar](../apps/sidecar/README.md).
+도커 이미지로 띄우면 되고, 환경 변수 두 개(`HOST_API_URL`·`LINK_TOKEN_SECRET`)가
+필수다.
+
+```bash
+docker build -f apps/sidecar/Dockerfile -t report-tool-sidecar .
+docker run -p 8787:8787 \n  -e HOST_API_URL=https://hr.example.com/report-api \n  -e LINK_TOKEN_SECRET=... \n  -v /srv/fonts:/app/fonts  report-tool-sidecar
+```
+
+직접 조립하고 싶다면 이게 전부다:
+
 ```ts
-// sidecar.mjs — 실제로 이게 전부다
 import { createMiddleware, createSidecarParts } from "@report-tool/server";
 import { PdfDocumentRenderer } from "@report-tool/renderer";
 import { createServer } from "node:http";
