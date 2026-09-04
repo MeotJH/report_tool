@@ -8,7 +8,6 @@ import {
   type TemplateLibrary,
 } from "@report-tool/core";
 import { createElement } from "react";
-import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { BindFieldCommand } from "./command/BindFieldCommand.js";
 import { EditorActions } from "./controller/EditorActions.js";
@@ -72,17 +71,23 @@ export interface DesignerOptions {
 
 /** React와 Konva 내부 구조를 숨기고 호스트에 안정적인 편집기 API만 제공한다. */
 export class Designer {
+  /** 캔버스가 붙을 자리를 기다리는 최대 프레임 수다. 60프레임이면 1초 남짓이다. */
+  private static readonly MOUNT_ATTEMPTS = 60;
+
   private readonly controller: EditorController;
   private readonly actions: EditorActions;
   private readonly filing: TemplateFiling;
   private readonly reactRoot: Root;
-  private readonly canvasStage: CanvasStage;
+  private canvasStage: CanvasStage | null = null;
 
   /** 캔버스가 준비되기 전에 도착한 그림이 아직 없는 캔버스를 건드리지 않게 한다. */
   private stageReady = false;
   private readonly mountElement: HTMLDivElement;
   private readonly unsubscribeChange: () => void;
-  private readonly keyboardShortcutAdapter: KeyboardShortcutAdapter;
+  private keyboardShortcutAdapter: KeyboardShortcutAdapter | null = null;
+
+  /** 마운트가 끝나기 전에 걷어냈는지. 그러면 캔버스를 만들지 않는다. */
+  private destroyed = false;
   private readonly fonts = new FontLibrary();
   private readonly images: ImageStore;
   private readonly preview: DocumentPreview;
@@ -115,6 +120,24 @@ export class Designer {
     this.mountElement = this.createMountElement(options.container);
     this.reactRoot = createRoot(this.mountElement);
     this.renderApplication();
+    this.unsubscribeChange = this.subscribeTemplateChanges();
+    void this.finishMount();
+  }
+
+  /**
+   * React가 실제로 DOM을 그린 뒤에 캔버스를 얹는다.
+   *
+   * 예전에는 `flushSync`로 렌더를 강제해 같은 줄에서 캔버스를 만들었다. 그런데
+   * **호스트가 React 앱이면 그 방법이 통하지 않는다** — `useEffect` 안에서 편집기를
+   * 만드는 순간 React가 "이미 렌더 중"이라며 `flushSync`를 무시하고, 캔버스가 붙을
+   * 자리를 찾지 못해 편집기가 통째로 뜨지 않는다. React 호스트에 붙이는 것이 이
+   * 라이브러리의 주된 쓰임인데 그 길이 막혀 있었다.
+   *
+   * 그래서 강제하지 않고 기다린다. 한 프레임 늦게 나타나지만 어디에 붙이든 뜬다.
+   */
+  private async finishMount(): Promise<void> {
+    const viewport = await this.waitForElement("[data-designer-viewport]");
+    if (this.destroyed || viewport === null) return;
     this.canvasStage = this.createCanvasStage();
     this.stageReady = true;
     this.keyboardShortcutAdapter = new KeyboardShortcutAdapter(
@@ -122,12 +145,27 @@ export class Designer {
       this.controller,
       this.actions,
       {
-        fitToViewport: () => this.canvasStage.fitToViewport(),
-        setSpacePanning: (active) => this.canvasStage.setSpacePanning(active),
+        fitToViewport: () => this.canvasStage?.fitToViewport(),
+        setSpacePanning: (active) => this.canvasStage?.setSpacePanning(active),
       },
     );
-    this.unsubscribeChange = this.subscribeTemplateChanges();
     this.loadFonts();
+  }
+
+  /**
+   * 그 요소가 나타날 때까지 프레임 단위로 기다린다.
+   *
+   * 무한정 기다리지 않는다. 호스트가 컨테이너를 곧바로 화면에서 빼는 경우가 있고,
+   * 그때 조용히 매달려 있으면 왜 편집기가 안 뜨는지 알 수 없다.
+   */
+  private async waitForElement(selector: string): Promise<HTMLDivElement | null> {
+    for (let attempt = 0; attempt < Designer.MOUNT_ATTEMPTS; attempt += 1) {
+      const found = this.mountElement.querySelector<HTMLDivElement>(selector);
+      if (found !== null) return found;
+      if (this.destroyed) return null;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    throw new Error(`디자이너 요소 ${selector}를 만들지 못했다`);
   }
 
   /**
@@ -143,7 +181,7 @@ export class Designer {
       .load(provider, this.controller.getTemplate().fonts)
       .then(() => {
         this.controller.notifyPreviewChange();
-        this.canvasStage.render();
+        this.canvasStage?.render();
       });
   }
 
@@ -159,9 +197,10 @@ export class Designer {
 
   /** 라우팅 해제 시 React·Konva·구독 자원을 누수 없이 정리한다. */
   destroy(): void {
+    this.destroyed = true;
     this.unsubscribeChange();
-    this.keyboardShortcutAdapter.destroy();
-    this.canvasStage.destroy();
+    this.keyboardShortcutAdapter?.destroy();
+    this.canvasStage?.destroy();
     this.reactRoot.unmount();
     this.mountElement.remove();
   }
@@ -184,7 +223,7 @@ export class Designer {
 
   /** CanvasStage 생성 전에 React 셸의 DOM이 확정되도록 동기 렌더한다. */
   private renderApplication(): void {
-    flushSync(() => this.reactRoot.render(createElement(DesignerShell, {
+    this.reactRoot.render(createElement(DesignerShell, {
       controller: this.controller,
       actions: this.actions,
       filing: this.filing,
@@ -193,9 +232,9 @@ export class Designer {
       onFieldPick: (item) => this.pickField(item),
       onFieldDragStart: (item) => this.startFieldDrag(item),
       onFieldDragEnd: () => this.endFieldDrag(),
-      onFitToViewport: () => this.canvasStage.fitToViewport(),
+      onFitToViewport: () => this.canvasStage?.fitToViewport(),
       fonts: this.fonts,
-    })));
+    }));
   }
 
   /** React 셸이 만든 두 컨테이너를 검증해 Konva 캔버스를 만든다. */
@@ -219,7 +258,7 @@ export class Designer {
   private onImagesChanged(): void {
     if (!this.stageReady) return;
     this.controller.notifyPreviewChange();
-    this.canvasStage.render();
+    this.canvasStage?.render();
   }
 
   /** 셸 구조가 바뀌어 필요한 컨테이너가 사라진 경우를 즉시 드러낸다. */
@@ -252,14 +291,14 @@ export class Designer {
     if (entry.type !== "array") {
       this.controller.setTool(new FieldTool(entry.path, null));
     }
-    this.canvasStage.setFieldDragActive(true);
+    this.canvasStage?.setFieldDragActive(true);
   }
 
   /** 문서 밖에서 드래그가 끝나도 배치 안내와 임시 정보를 남기지 않는다. */
   private endFieldDrag(): void {
     this.draggedItem = null;
     this.controller.setPaletteDropHint(null);
-    this.canvasStage.setFieldDragActive(false);
+    this.canvasStage?.setFieldDragActive(false);
     if (this.controller.getCurrentToolKind() === "field") {
       this.controller.activateSelectTool();
     }
