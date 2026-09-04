@@ -11,9 +11,11 @@
   실행본은 [apps/sidecar](apps/sidecar/README.md)
 - 전체 요약: [docs/SUMMARY.md](docs/SUMMARY.md)
 - **구현 작업 목록 (T01~T78)**: [docs/TASKS.md](docs/TASKS.md) — 항상 번호가 낮은 작업부터 진행한다.
-  Phase 0~12·14 완료, Phase 13(데모 앱)만 Next.js 검증이 남았다
+  Phase 0~14 완료. 데모 호스트는 [apps/demo-host](apps/demo-host/README.md)에서
+  저장→발행 표시→발행→링크→열람→서명까지 실제로 걸어 확인했다
 - 문서 유형별 기능 공백(임금명세서·비밀유지서약서): [docs/PAYSLIP_GAP_ANALYSIS.md](docs/PAYSLIP_GAP_ANALYSIS.md)
-- **공백을 메우는 다음 작업 (N00~N19)**: [docs/TASKS_NEXT.md](docs/TASKS_NEXT.md) — T78 이후 진행 순서
+- **공백을 메우는 다음 작업 (N00~N19)**: [docs/TASKS_NEXT.md](docs/TASKS_NEXT.md) — T78 이후 진행 순서.
+  N00~N07·N10·N16~N18 완료. 다음은 **N08(계산식) → N09(합계 행)**
 - **리포트형 문서 로드맵 (완료)**: [docs/REPORT_ROADMAP.md](docs/REPORT_ROADMAP.md) — 월간 서비스 리포트 기준. 1~13단계 전부 끝났다.
   이후는 [docs/TASKS.md](docs/TASKS.md)의 Phase 10~14(T58~T78)로 돌아간다
 - **기능별 클론코딩 색인**: [docs/CLONE_GUIDE.md](docs/CLONE_GUIDE.md) — 커밋 하나 = 학습 단위 하나

@@ -141,7 +141,7 @@
   비어 있거나 자동 이름(`열 3`)일 때만 자식의 표시 이름으로 바꾼다.
   전환으로 행이나 열이 사라지면 `KoreanParticle`로 조사를 맞춰 알린다.
 
-### N05. 값 표시 형식을 지정한다
+### ~~N05. 값 표시 형식을 지정한다~~ ✅ 완료 (2026-09-04 확인)
 - 파일: `ElementInspectorVisitor.tsx`, `KonvaElementVisitor.ts`, `PdfElementVisitor.ts`
 - 근거: P0-4, P0-5
 - 목표: `4200000`이 `4,200,000원`으로 나온다.
@@ -150,8 +150,10 @@
   - 열 카드에도 같은 입력을 둔다.
   - **두 렌더러가 `TableColumn.formatSpec`을 실제로 적용한다** (지금은 무시된다).
 - 완료 조건: 표의 금액 열과 단일 금액 필드가 캔버스·PDF 양쪽에서 통화로 나온다.
+- **결과**: `FormatSpecEditor`가 필드 Inspector와 열 카드 양쪽에 붙어 있고, 두 렌더러는
+  `TableCellResolver`·`BindingResolver`를 통해 같은 `formatSpec`을 적용한다.
 
-### N06. 선언한 변수에 미리보기 값을 준다
+### ~~N06. 선언한 변수에 미리보기 값을 준다~~ ✅ 완료 (2026-09-04)
 - 파일: `packages/core/src/domain/template/TemplateVariable.ts`, `VariableEditor.tsx`,
   `EditorController.ts`
 - 근거: P0-6
@@ -159,8 +161,11 @@
 - 구현: `TemplateVariable`에 `sample` 추가(JSON 왕복 포함). 미리보기 데이터는
   호스트 `sampleData`를 기본으로 하고, 없는 경로는 선언의 `sample`로 채운다.
 - 완료 조건: `pay.bonus`를 선언하고 배치하면 미리보기에 예시값이 보인다.
+- **결과**: `PreviewSampleFiller`(core)가 호스트 샘플에 **없는 경로만** 채운다. 호스트 값이
+  항상 이긴다. 배열 아래로는 들어가지 않는다 — 몇 번째 행인지 정할 근거가 없다.
+  정하지 않은 예시는 저장본에 적지 않아, 기존 문서가 열었다 닫기만 해도 달라지지 않는다.
 
-### N07. 민감 변수를 표시하고 마스킹을 제안한다
+### ~~N07. 민감 변수를 표시하고 마스킹을 제안한다~~ ✅ 완료 (2026-09-04)
 - 파일: `TemplateVariable.ts`, `VariableEditor.tsx`, `PaletteDrag.ts`, `Designer.ts`
 - 선행: N05
 - 근거: P1-2 — 호스트 스키마를 걷어내면서 사라진 기능이다
@@ -168,6 +173,11 @@
 - 구현: `TemplateVariable`에 `sensitive` 추가. 배치 시 `{ kind: "mask", keepHead: 6,
   keepTail: 1 }`을 기본 제안하고, 팔레트에 자물쇠 표시를 되살린다.
 - 완료 조건: 민감 변수를 놓으면 마스킹이 기본으로 걸리고 미리보기에서 가려진다.
+- **계기**: 데모 호스트를 끝까지 걸어 보다가 주민등록번호가 평문으로 발행본 PDF에 찍히는
+  것을 봤다. 막는 자리가 어디에도 없었다.
+- **결과**: 끌어 놓기·클릭·표 열 세 경로 모두 `{ kind: "mask", keepHead: 6, keepTail: 1 }`로
+  시작한다. 셋 중 하나만 빠져도 어느 쪽으로 놓았는지가 안전을 가른다. 팔레트에 자물쇠를
+  보여 담당자가 무엇이 민감한지 알아채게 한다.
 
 ---
 
@@ -192,7 +202,7 @@
 
 ## 4단계 — 문서 구조
 
-### N10. 다중 페이지
+### ~~N10. 다중 페이지~~ ✅ 완료
 - 파일: `Template.ts`, `PageSpec.ts`, `ElementFactory.ts`(마이그레이션), 두 렌더러, `CanvasStage.ts`
 - 근거: P1-11 — 계약서류의 차단 요인
 - 구현: 요소에 `pageIndex` 추가(없으면 0). `schemaVersion` 2 + 마이그레이션.
@@ -227,14 +237,17 @@
 ### N15. 요소 → 팔레트 역방향 강조
 - 근거: P1-10
 
-### N16. 이미지 업로드와 미리보기
+### ~~N16. 이미지 업로드와 미리보기~~ ✅ 완료
 - 근거: P1-6 — 지금은 `assetId`를 손으로 타이핑한다. 직인이 맞는지 발행 전까지 모른다.
+- **결과**: `ImagePickField`와 `ImageStore`. 호스트가 `imageLibrary`를 주면 올리고 고른다.
 
-### N17. 템플릿 이름 변경·저장·열기
+### ~~N17. 템플릿 이름 변경·저장·열기~~ ✅ 완료
 - 근거: P1-7 — `Template.rename`이 UI에 없다.
+- **결과**: `TemplateFilingBar` + `RenameTemplateCommand`. 호스트가 `templateLibrary`를 준다.
 
-### N18. PDF 미리보기
+### ~~N18. PDF 미리보기~~ ✅ 완료
 - 근거: P1-8 (`TASKS.md` T57-V) — N02가 끝나면 캔버스 신뢰도가 올라가므로 우선순위가 내려간다.
+- **결과**: `DocumentPreview` + `PdfPreviewOverlay`. 호스트가 `documentRenderer`를 준다.
 
 ---
 
