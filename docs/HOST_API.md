@@ -150,7 +150,11 @@ GET {base}/images/{assetId}
 
 ```bash
 docker build -f apps/sidecar/Dockerfile -t report-tool-sidecar .
-docker run -p 8787:8787 \n  -e HOST_API_URL=https://hr.example.com/report-api \n  -e LINK_TOKEN_SECRET=... \n  -v /srv/fonts:/app/fonts  report-tool-sidecar
+docker run -p 8787:8787 \
+  -e HOST_API_URL=https://hr.example.com/report-api \
+  -e LINK_TOKEN_SECRET=... \
+  -v /srv/fonts:/app/fonts \
+  report-tool-sidecar
 ```
 
 직접 조립하고 싶다면 이게 전부다:
