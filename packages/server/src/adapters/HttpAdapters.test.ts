@@ -50,6 +50,17 @@ describe("HostApi", () => {
       .rejects.toThrow("호스트가 요청을 거절했다 (503): DB 점검 중");
   });
 
+  it("호스트에 닿지 못하면 어디에 닿으려 했는지 말한다", async () => {
+    const api = new HostApi({
+      baseUrl: "https://hr.example.com/report-api",
+      fetch: (async () => { throw new TypeError("fetch failed"); }) as typeof fetch,
+    });
+
+    await expect(api.json("GET", "/templates/payslip")).rejects.toThrow(
+      "호스트에 닿지 못했다 (GET https://hr.example.com/report-api/templates/payslip): fetch failed",
+    );
+  });
+
   it("찾지 못한 것은 찾지 못했다고 말한다", async () => {
     const api = new HostApi({ baseUrl: "https://host", fetch: failing(404, "") });
 
