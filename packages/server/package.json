@@ -11,5 +11,8 @@
   },
   "dependencies": {
     "@report-tool/core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43"
   }
 }

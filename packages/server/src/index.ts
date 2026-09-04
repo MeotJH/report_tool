@@ -12,3 +12,10 @@ export { HttpDocumentStore } from "./adapters/HttpDocumentStore.js";
 export { HttpImageProvider } from "./adapters/HttpImageProvider.js";
 export { HttpStorageAdapter } from "./adapters/HttpStorageAdapter.js";
 export { HttpTemplateStore } from "./adapters/HttpTemplateStore.js";
+export { NodeCryptoHashProvider } from "./adapters/NodeCryptoHashProvider.js";
+export { NodeFontProvider } from "./adapters/NodeFontProvider.js";
+export { TokenAuthAdapter } from "./adapters/TokenAuthAdapter.js";
+
+// 호스트가 Node가 아닐 때 사이드카 한 대를 세우는 조립부다.
+export { createSidecarParts } from "./sidecar/createSidecarParts.js";
+export type { SidecarConfig, SidecarParts } from "./sidecar/createSidecarParts.js";

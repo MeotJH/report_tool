@@ -7,6 +7,7 @@
 
 - 제품 상세: [docs/PRODUCT.md](docs/PRODUCT.md)
 - 코드 구조: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **호스트가 Node가 아닐 때(Spring·Flask)**: [docs/HOST_API.md](docs/HOST_API.md) — Node 사이드카와 REST 계약
 - 전체 요약: [docs/SUMMARY.md](docs/SUMMARY.md)
 - **구현 작업 목록 (T01~T78)**: [docs/TASKS.md](docs/TASKS.md) — 항상 번호가 낮은 작업부터 진행한다.
   Phase 0~12·14 완료, Phase 13(데모 앱)만 Next.js 검증이 남았다

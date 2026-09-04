@@ -2,7 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // 이 패키지는 Node에서 돈다. 토큰 서명·해시·글꼴 읽기가 Node API를 쓴다.
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   // 스텁 어댑터는 HTTP 계층 검증용이다. 배포물에 들어가면 프로덕션에서
