@@ -34,6 +34,25 @@ export async function POST(
 }
 
 /**
+ * 수신자가 누구인지 알려 주는 헤더를 함께 넘긴다.
+ *
+ * 사이드카는 서명을 받을 때 요청의 브라우저와 주소를 감사 로그에 남긴다. 프록시가
+ * 이 둘을 떨어뜨리면 **모든 서명 기록이 프록시를 가리킨다** — "누가 서명했는가"의
+ * 증거로 쓸 수 없는 로그가 된다. 실제로 그렇게 남았다.
+ */
+function forwardedHeaders(request: Request): HeadersInit {
+  const headers: Record<string, string> = {
+    "Content-Type": request.headers.get("Content-Type") ?? "application/json",
+  };
+  const userAgent = request.headers.get("user-agent");
+  if (userAgent !== null) headers["user-agent"] = userAgent;
+  // 앞에 다른 프록시가 있었다면 그 기록을 지우지 않고 뒤에 잇는다.
+  const forwarded = request.headers.get("x-forwarded-for");
+  headers["x-forwarded-for"] = forwarded === null ? "127.0.0.1" : `${forwarded}, 127.0.0.1`;
+  return headers;
+}
+
+/**
  * 요청을 사이드카로 그대로 넘기고 답을 그대로 돌려준다.
  *
  * 본문을 손대지 않는다. 열람 응답에는 PDF가 base64로 들어 있어, 한 글자만 달라져도
@@ -45,7 +64,7 @@ async function relay(request: Request, params: { path: string[] }): Promise<Resp
   try {
     const answer = await fetch(target, {
       method: request.method,
-      headers: { "Content-Type": request.headers.get("Content-Type") ?? "application/json" },
+      headers: forwardedHeaders(request),
       ...(request.method === "GET" ? {} : { body: await request.arrayBuffer() }),
     });
     return new Response(await answer.arrayBuffer(), {
