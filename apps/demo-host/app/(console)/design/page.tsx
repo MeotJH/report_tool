@@ -79,21 +79,18 @@ export default function DesignPage() {
   };
 
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ alignItems: "center", display: "flex", gap: 12, marginBottom: 12 }}>
-        <button type="button" onClick={() => { void seed(); }}>
+    <div className="designer-page">
+      <div className="designer-bar">
+        <h1>양식 설계</h1>
+        <button type="button" className="button" onClick={() => { void seed(); }}>
           데모 양식 넣기
         </button>
-        <button type="button" onClick={() => { void publish(); }}>
+        <button type="button" className="button button--primary" onClick={() => { void publish(); }}>
           이 양식을 발행 가능으로 표시
         </button>
-        <span style={{ color: "#64748b", fontSize: 13 }}>
-          편집기의 <strong>저장</strong>을 먼저 누른 뒤 표시하세요. 저장은 호스트
-          API(<code>{API}</code>)로 갑니다.
-        </span>
+        {log === "" ? null : <p className="notice">{log}</p>}
       </div>
-      {log === "" ? null : <p style={{ color: "#4f46e5", fontSize: 13 }}>{log}</p>}
-      <div ref={container} style={{ height: "78vh" }} />
+      <div ref={container} className="designer-stage" />
     </div>
   );
 }

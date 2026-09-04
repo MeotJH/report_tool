@@ -41,30 +41,42 @@ export default function IssuePage() {
   };
 
   return (
-    <div style={{ margin: "0 auto", maxWidth: 640, padding: 24 }}>
-      <h1 style={{ fontSize: 20 }}>급여명세서 발행</h1>
-      <p style={{ color: "#64748b", fontSize: 13 }}>
-        <a href="/design">양식 설계</a>에서 저장하고 <strong>발행 가능으로 표시</strong>한
-        뒤에 눌러야 합니다. 표시하지 않으면 사이드카가 거절합니다.
-      </p>
+    <div className="page">
+      <div className="page-head">
+        <h1>급여명세서 발행</h1>
+        <p>
+          양식 설계에서 저장하고 <strong>발행 가능으로 표시</strong>한 뒤에 눌러야
+          합니다. 표시하지 않으면 사이드카가 거절합니다.
+        </p>
+      </div>
 
-      <div style={{ alignItems: "center", display: "flex", gap: 8, margin: "16px 0" }}>
-        <select value={recipient} onChange={(event) => setRecipient(event.target.value)}>
+      <div className="card" style={{ alignItems: "center", display: "flex", gap: 10 }}>
+        <select
+          className="button"
+          value={recipient}
+          onChange={(event) => setRecipient(event.target.value)}
+        >
           <option value="emp-1">홍길동 (개발지원팀)</option>
           <option value="emp-2">김서연 (인사팀)</option>
           <option value="emp-3">박준호 (영업팀)</option>
         </select>
-        <button type="button" disabled={busy} onClick={() => { void issue(); }}>
+        <button
+          type="button"
+          className="button button--primary"
+          disabled={busy}
+          onClick={() => { void issue(); }}
+        >
           발행하고 링크 만들기
         </button>
       </div>
 
       {link === "" ? null : (
-        <p>
-          수신자 링크: <a href={link}>{link}</a>
-        </p>
+        <div className="card">
+          <p style={{ margin: "0 0 6px" }}><strong>수신자 링크</strong></p>
+          <a href={link} style={{ fontSize: 13, wordBreak: "break-all" }}>{link}</a>
+        </div>
       )}
-      <p style={{ color: "#64748b", fontSize: 13, whiteSpace: "pre-wrap" }}>{log}</p>
+      {log === "" ? null : <p className="notice" style={{ whiteSpace: "pre-wrap" }}>{log}</p>}
     </div>
   );
 }

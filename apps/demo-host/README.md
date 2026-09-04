@@ -13,7 +13,8 @@ Next.js를 쓴 이유는 하나다 — 브라우저와 서버를 한 프로세�
 |---|---|---|
 | `app/api/report-api/[...path]` | 양식·데이터·파일·문서를 내주고 받는다 | 자기 DB와 파일 서버. 계약은 [docs/HOST_API.md](../../docs/HOST_API.md) |
 | `app/api/report/[...path]` | 사이드카로 넘긴다 | 리버스 프록시. **`user-agent`와 `x-forwarded-for`를 반드시 함께 넘긴다** |
-| `app/design`·`app/issue`·`app/sign` | 편집기와 뷰어를 화면에 붙인다 | 자기 화면 |
+| `app/(console)/*` | 로그인 뒤 관리 화면. 왼쪽 메뉴 안에 편집기를 넣는다 | 자기 사내 화면 |
+| `app/sign` | 수신자 화면. **메뉴도 로그인도 없다** | 자기 수신자 화면 |
 
 **편집기와 사이드카가 같은 자리(`/api/report-api/templates/…`)를 본다.** 담당자가
 저장한 양식이 그대로 발행되는 근거다. 두 자리를 따로 두면 어긋남이 "발행만 안
@@ -27,29 +28,57 @@ Next.js를 쓴 이유는 하나다 — 브라우저와 서버를 한 프로세�
 
 ## 띄우기
 
-사이드카부터 띄운다([apps/sidecar](../sidecar/README.md) 참고).
+저장소 뿌리에서 한 줄이면 된다. 사이드카와 호스트를 함께 띄운다.
 
 ```bash
-HOST_API_URL=http://127.0.0.1:3100/api/report-api LINK_TOKEN_SECRET=demo-secret PORT=8787 node apps/sidecar/dist/main.js
+npm run demo
 ```
 
-```bash
-npm run dev --workspace @report-tool/demo-host
-```
+처음이라면 그 앞에 `npm install && npm run build`. 끝낼 때는 Ctrl+C 한 번이면
+둘 다 꺼진다. 두 프로세스를 따로 띄우고 싶으면
+[scripts/demo.mjs](../../scripts/demo.mjs)가 무엇을 넘기는지 보면 된다.
 
 ## 걸어 보기
 
-1. `http://localhost:3100/design` — **데모 양식 넣기**를 누르고 새로고침하면
-   급여명세서가 열린다. 고친 뒤 편집기의 **저장**을 누른다.
+`http://localhost:3100` — 로그인 `admin` / `admin`.
+
+1. **양식 설계** — **데모 양식 넣기**를 누르고 새로고침하면 급여명세서가 열린다.
+   고친 뒤 편집기의 **저장**을 누른다.
 2. 같은 화면에서 **이 양식을 발행 가능으로 표시**를 누른다.
    사이드카는 `published`가 아닌 양식의 발행을 거절한다 — 만들다 만 양식이
    직원에게 나가는 것을 막는 자리다.
-3. `/issue` — 받는 사람을 고르고 발행하면 서명 링크가 나온다.
-4. 그 링크를 열면 `/sign`에서 발행본을 보고 서명할 수 있다.
+3. **발행** — 받는 사람을 고르고 발행하면 서명 링크가 나온다.
+4. 그 링크를 열면 수신자 화면에서 발행본을 보고 서명할 수 있다.
+
+## 편집기를 어디에 넣는가
+
+이 데모가 답하려는 질문이다. 답은 **`<div>` 하나**다.
+
+```tsx
+<div ref={container} className="designer-stage" />   // 자리만 내준다
+```
+
+```tsx
+new Designer({ container, template, sampleData, templateLibrary, imageLibrary })
+```
+
+툴바·팔레트·캔버스·Inspector는 전부 `Designer`가 그 안에 만든다. Shadow DOM을
+쓰므로 호스트 CSS와 서로 침범하지 않는다. **편집기는 앱이 아니라 사내 시스템의
+한 메뉴다** — 왼쪽 메뉴·로그인·머리줄은 전부 호스트가 그린 것이다.
+
+라이브러리는 `fetch`를 직접 하지 않는다. `templateLibrary`·`imageLibrary`가
+호스트 API로 가는 어댑터이고, 호스트가 주지 않으면 저장 버튼 자체가 나오지 않는다.
 
 ## 데모라서 다른 점
 
-- **인증이 없다.** 실제로는 `/api/report-api`로 오는 요청의 신원을 확인해야 한다.
-  이 자리로 오는 요청 하나가 남의 급여 데이터를 꺼낸다.
+- **로그인이 진짜가 아니다.** 아이디·비밀번호가 코드에 적혀 있고 쿠키에는 서명도
+  만료도 없다(`lib/session.ts`). 그대로 옮겨 쓰면 쿠키 한 줄을 손으로 만드는
+  사람에게 남의 급여 데이터가 열린다.
+- **API에는 인증이 아예 없다.** `/api/report-api`는 사이드카가 서버끼리 부르는
+  자리라 브라우저 쿠키를 가질 수 없다. 실제 호스트는 여기에 로그인 대신 서버 간
+  인증(사이드카가 보내는 인증 헤더 확인)을 둔다. 이 자리로 오는 요청 하나가
+  남의 급여 데이터를 꺼낸다.
+- 수신자 화면은 일부러 로그인 밖에 둔다. 문서를 받는 직원은 이 시스템의 계정이
+  없고, 링크에 든 서명 토큰이 그 사람의 자격이다.
 - 저장소가 메모리다. 프로세스를 다시 띄우면 사라진다.
 - `app/api/demo/seed`는 호스트 계약이 아니다. 열자마자 볼 것이 있게 하려고 둔 자리다.

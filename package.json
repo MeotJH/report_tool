@@ -10,6 +10,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "demo": "node scripts/demo.mjs",
     "poc:pdf": "node apps/poc/font-poc.mjs",
     "dev:designer": "npm run build && npm run dev --workspace @report-tool/designer",
     "test": "vitest run",

@@ -36,11 +36,13 @@ export default function SignPage() {
   }, []);
 
   return (
-    <div style={{ margin: "0 auto", maxWidth: 760 }}>
-      {message === "" ? null : (
-        <p style={{ color: "#64748b", padding: 16, textAlign: "center" }}>{message}</p>
-      )}
-      <div ref={container} />
+    <div className="recipient">
+      <div className="recipient-bar">
+        <strong>ISU 인사 시스템</strong>
+        <span>급여명세서 확인 및 서명</span>
+      </div>
+      {message === "" ? null : <p className="notice" style={{ padding: "10px 20px" }}>{message}</p>}
+      <div ref={container} className="recipient-stage" />
     </div>
   );
 }
