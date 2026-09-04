@@ -6,9 +6,22 @@ import { usePathname } from "next/navigation";
 /** 왼쪽 메뉴에 놓을 자리들이다. */
 const MENU = [
   { href: "/", label: "홈", icon: "◎" },
-  { href: "/design", label: "양식 설계", icon: "✎" },
+  { href: "/templates", label: "양식", icon: "✎" },
   { href: "/issue", label: "발행", icon: "▤" },
 ] as const;
+
+/**
+ * 지금 보고 있는 화면이 이 메뉴에 속하는지 본다.
+ *
+ * 정확히 같은 주소만 볼 수 없다. 양식 하나를 편집할 때(`/design/{id}`)나 명세를
+ * 볼 때(`/templates/{id}/contract`)도 "양식" 메뉴 안이다. 그것이 꺼져 있으면
+ * 담당자는 자기가 어디 있는지 알 수 없다.
+ */
+function isOn(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  if (href === "/templates") return pathname.startsWith("/templates") || pathname.startsWith("/design");
+  return pathname.startsWith(href);
+}
 
 /**
  * 왼쪽 메뉴다. 지금 보고 있는 자리를 표시한다.
@@ -33,7 +46,7 @@ export function ConsoleNav(props: { userName: string }) {
           <li key={item.href}>
             <Link
               href={item.href}
-              className={pathname === item.href ? "console-link console-link--on" : "console-link"}
+              className={isOn(pathname, item.href) ? "console-link console-link--on" : "console-link"}
             >
               <span className="console-icon">{item.icon}</span>
               {item.label}

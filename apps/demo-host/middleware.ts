@@ -22,5 +22,5 @@ export function middleware(request: NextRequest): NextResponse {
 
 /** 관리 화면만 검사한다. 나머지는 미들웨어를 아예 거치지 않는다. */
 export const config = {
-  matcher: ["/", "/design", "/issue"],
+  matcher: ["/", "/templates/:path*", "/design/:path*", "/issue"],
 };

@@ -13,7 +13,9 @@ Next.js를 쓴 이유는 하나다 — 브라우저와 서버를 한 프로세�
 |---|---|---|
 | `app/api/report-api/[...path]` | 양식·데이터·파일·문서를 내주고 받는다 | 자기 DB와 파일 서버. 계약은 [docs/HOST_API.md](../../docs/HOST_API.md) |
 | `app/api/report/[...path]` | 사이드카로 넘긴다 | 리버스 프록시. **`user-agent`와 `x-forwarded-for`를 반드시 함께 넘긴다** |
-| `app/(console)/*` | 로그인 뒤 관리 화면. 왼쪽 메뉴 안에 편집기를 넣는다 | 자기 사내 화면 |
+| `app/(console)/templates` | 양식 목록·발행 표시·삭제·버전 | 자기 DB. **포트에 없는 기능이다** — 발행에 필요 없어서다 |
+| `app/(console)/templates/[id]/contract` | 이 양식이 요구하는 데이터 | 호스트 백엔드가 읽는 자리 |
+| `app/(console)/design/[id]` | 편집기를 화면 한 자리에 붙인다 | 자기 사내 화면 |
 | `app/sign` | 수신자 화면. **메뉴도 로그인도 없다** | 자기 수신자 화면 |
 
 **편집기와 사이드카가 같은 자리(`/api/report-api/templates/…`)를 본다.** 담당자가
@@ -68,6 +70,19 @@ new Designer({ container, template, sampleData, templateLibrary, imageLibrary })
 
 라이브러리는 `fetch`를 직접 하지 않는다. `templateLibrary`·`imageLibrary`가
 호스트 API로 가는 어댑터이고, 호스트가 주지 않으면 저장 버튼 자체가 나오지 않는다.
+
+## 걸려 넘어지기 쉬운 자리
+
+- **개발 서버가 도는 중에 `npm run build`를 돌리면 안 된다.** 둘이 같은 `.next`를
+  쓰기 때문에 청크가 어긋나 모든 페이지가 500이 된다(`Cannot find module './819.js'`).
+  개발 서버를 끄고 `.next`를 지운 뒤 다시 띄운다.
+- **`lib/hostStore.ts`를 고치면 개발 서버를 다시 띄워야 한다.** 저장소를
+  `globalThis`에 붙여 HMR을 견디게 해 두었는데, 그 대가로 **옛 클래스의 인스턴스가
+  살아남는다.** 증상은 `store.xxx is not a function`이다.
+- **`@report-tool/core`는 `serverExternalPackages`에 있어야 한다.** 빼면 Next가
+  라우트마다 core를 따로 번들해서 `element instanceof FieldElement`가 조용히
+  거짓이 된다. 라이브러리는 Visitor로 요소 종류를 가르므로 요소를 하나도
+  알아보지 못하고, 예외도 로그도 없이 빈 결과가 나온다.
 
 ## 데모라서 다른 점
 

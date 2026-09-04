@@ -14,8 +14,7 @@ import { HostStore } from "../../../../lib/hostStore";
 export async function POST(): Promise<Response> {
   const store = HostStore.shared();
   const template = createDemoTemplate();
-  await store.templates.save(template);
-  store.templateIds.add(template.id);
+  store.saveTemplate(template.toJSON());
   return new Response(
     JSON.stringify({ id: template.id, name: template.name, elements: template.getElements().length }),
     { headers: { "Content-Type": "application/json" } },

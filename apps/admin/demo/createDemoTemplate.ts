@@ -8,6 +8,7 @@ import {
   TableColumn,
   TableElement,
   Template,
+  TemplateVariable,
   TextElement,
   TextStyle,
 } from "@report-tool/core";
@@ -31,10 +32,37 @@ export function createDemoTemplate(): Template {
     status: "draft",
     page: new PageSpec("A4", "portrait", [15, 15, 15, 15]),
     fonts: ["Pretendard"],
+    variables: declaredVariables(),
     elements: [...headerElements(), paymentTable(), deductionTable()],
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
   });
+}
+
+/**
+ * 이 양식이 발행 때 요구하는 데이터를 스스로 선언한다.
+ *
+ * 선언이 없어도 발행은 된다. 그런데 그러면 **호스트 백엔드가 무슨 JSON을 만들어야
+ * 하는지 알 방법이 없다** — 양식 JSON을 직접 뜯어 경로를 찾는 수밖에 없고, 양식에
+ * 칸이 하나 늘어도 아무도 알려 주지 않는다. 그 칸은 빈칸으로 발행되고 오류도
+ * 나지 않는다.
+ *
+ * 데모 양식이 선언을 빠뜨리면 데이터 명세 화면이 "선언되지 않음"만 늘어놓게 되어,
+ * 그 화면이 무엇을 위한 것인지 보여 주지 못한다.
+ */
+function declaredVariables(): readonly TemplateVariable[] {
+  return [
+    new TemplateVariable("employee.name", "성명", "string", true),
+    new TemplateVariable("employee.number", "사원번호", "string", true),
+    new TemplateVariable("employee.department", "부서", "string", true),
+    new TemplateVariable("employee.position", "직위", "string"),
+    new TemplateVariable("payments", "지급 항목", "array", true),
+    new TemplateVariable("payments.name", "항목", "string"),
+    new TemplateVariable("payments.amount", "금액", "currency"),
+    new TemplateVariable("deductions", "공제 항목", "array", true),
+    new TemplateVariable("deductions.name", "항목", "string"),
+    new TemplateVariable("deductions.amount", "금액", "currency"),
+  ];
 }
 
 /** 제목과 인적사항 네 줄이다. */

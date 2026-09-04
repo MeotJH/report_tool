@@ -1,4 +1,5 @@
-import { TemplateFactory } from "@report-tool/core";
+import { TemplateFactory, type Template } from "@report-tool/core";
+import { TemplateContractReader } from "../../../../lib/templateContract";
 import { StaticJsonDataProvider } from "@report-tool/admin";
 // 별칭(`@/…`) 대신 상대 경로를 쓴다. Next가 이 저장소의 TypeScript 7로는
 // tsconfig의 `paths`를 읽지 못한다.
@@ -31,7 +32,12 @@ export async function GET(
   const [area, first, second] = path;
 
   if (area === "templates" && first === undefined) return listTemplates(store);
-  if (area === "templates" && first !== undefined) return getTemplate(store, first);
+  if (area === "templates" && first !== undefined && second === "contract") {
+    return getContract(store, first);
+  }
+  if (area === "templates" && first !== undefined) {
+    return getTemplate(store, first, new URL(request.url).searchParams.get("version") ?? undefined);
+  }
   if (area === "data" && first !== undefined && second !== undefined) {
     return getData(first, second);
   }
@@ -69,40 +75,67 @@ export async function POST(
   if (area === "templates" && first !== undefined && second === "publish") {
     return publishTemplate(store, first);
   }
+  if (area === "templates" && first !== undefined && second === "unpublish") {
+    return unpublishTemplate(store, first);
+  }
+  if (area === "templates" && first !== undefined && second === "next-version") {
+    return nextVersion(store, first);
+  }
   return notFound();
 }
 
+/** 담당자가 양식을 지운다. 포트에 없는 기능이라 호스트가 자기 방식으로 둔다. */
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ path: string[] }> },
+): Promise<Response> {
+  const store = HostStore.shared();
+  const [area, first] = (await context.params).path;
+  if (area !== "templates" || first === undefined) return notFound();
+  const id = decodeURIComponent(first);
+  // 조용히 성공하지 않는다. 없는 것을 지웠다고 답하면 화면은 목록에서 없애고,
+  // 다음에 열면 다시 나타난다.
+  if (!store.removeTemplate(id)) return notFound();
+  return json({});
+}
+
 /** 편집기의 "열기" 목록이다. */
-async function listTemplates(store: HostStore): Promise<Response> {
-  const summaries = await Promise.all(
-    [...store.templateIds].map(async (id) => {
-      const template = await store.templates.get(id);
-      return {
-        id: template.id,
-        name: template.name,
-        updatedAt: template.updatedAt,
-        status: template.status,
-      };
-    }),
-  );
-  return json(summaries);
+function listTemplates(store: HostStore): Response {
+  // 저장 JSON에서 목록에 필요한 것만 뽑는다. 실제 호스트라면
+  // `SELECT id, name, status, version, updated_at FROM templates` 한 줄이다.
+  return json(store.latestTemplates().map((saved) => ({
+    id: saved["id"],
+    name: saved["name"],
+    updatedAt: saved["updatedAt"],
+    status: saved["status"],
+    version: saved["version"],
+  })));
 }
 
 /** 편집기가 열 때도, 사이드카가 발행할 때도 이 자리를 읽는다. */
-async function getTemplate(store: HostStore, id: string): Promise<Response> {
-  try {
-    return json((await store.templates.get(decodeURIComponent(id))).toJSON());
-  } catch {
-    return notFound();
-  }
+function getTemplate(store: HostStore, id: string, version?: string): Response {
+  // 판을 지정하면 그 판을 준다. 발행된 문서는 자기가 만들어진 판을 되찾아야 한다.
+  const wanted = version === undefined ? undefined : Number(version);
+  const saved = wanted === undefined
+    ? store.latestTemplate(decodeURIComponent(id))
+    : store.templateAt(decodeURIComponent(id), wanted);
+  return saved === undefined ? notFound() : json(saved);
 }
 
 /** 편집기가 저장한다. 판이 이미 있으면 덮어쓴다. */
 async function saveTemplate(store: HostStore, request: Request): Promise<Response> {
   const body = await request.json() as Record<string, unknown>;
-  const template = TemplateFactory.fromJSON(body);
-  await store.templates.save(template);
-  store.templateIds.add(template.id);
+  let template;
+  try {
+    template = TemplateFactory.fromJSON(body);
+  } catch (error) {
+    // 이유를 삼키면 저장 실패가 500 한 줄로만 보인다. 필드 이름 하나가 틀린 것과
+    // 서버가 죽은 것을 담당자도 개발자도 구분할 수 없다.
+    return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+  // 되살려 본 뒤 다시 JSON으로 담는다. 되살리기가 곧 검증이고, 담기는 것은
+  // 언제나 `toJSON()`이 만든 하나의 형식이다.
+  store.saveTemplate(template.toJSON());
   return json({});
 }
 
@@ -112,10 +145,63 @@ async function saveTemplate(store: HostStore, request: Request): Promise<Respons
  * 사이드카는 `published`가 아닌 양식의 발행을 거절한다. 만들다 만 양식이 직원에게
  * 나가는 것을 막는 자리다.
  */
-async function publishTemplate(store: HostStore, id: string): Promise<Response> {
-  const template = await store.templates.get(decodeURIComponent(id));
-  await store.templates.publish(template.id, template.version);
+function publishTemplate(store: HostStore, id: string): Response {
+  const template = load(store, decodeURIComponent(id));
+  if (template === null) return notFound();
+  store.saveTemplate(template.publish().toJSON());
   return json({ status: "published", version: template.version });
+}
+
+/** 저장 JSON을 이 라우트의 클래스로 되살린다. 없으면 `null`이다. */
+function load(store: HostStore, id: string): Template | null {
+  const saved = store.latestTemplate(id);
+  return saved === undefined ? null : TemplateFactory.fromJSON(saved);
+}
+
+/**
+ * 이 양식이 호스트에게 무엇을 요구하는지 알려 준다.
+ *
+ * **호스트 백엔드 개발자가 읽는 자리다.** 양식을 만드는 사람과 데이터를 주는
+ * 사람은 보통 다른 팀이고 서로 말하지 않고 일한다. 양식에 칸이 하나 늘었을 때
+ * 그것을 알 방법이 없으면, 그 칸은 빈칸으로 발행되고 아무 오류도 나지 않는다.
+ */
+async function getContract(store: HostStore, id: string): Promise<Response> {
+  const template = load(store, decodeURIComponent(id));
+  if (template === null) return notFound();
+  const sample = await employees.sample(template.id).catch(() => ({}));
+  return json(new TemplateContractReader().read(template, sample));
+}
+
+/**
+ * 발행 표시를 되돌려 다시 고칠 수 있게 한다.
+ *
+ * **이 양식으로 발행한 문서가 있으면 거절한다.** 발행본은 자기가 어느 판을
+ * 근거로 만들어졌는지 가리키고 있다. 그 판이 다시 편집 가능해지면 "무엇에
+ * 서명했는가"에 답할 수 없게 된다. 그때는 되돌리는 대신 새 버전을 만든다.
+ *
+ * 도메인에 `unpublish`가 없는 것은 실수가 아니다. 되돌릴지 말지는 발행 이력을
+ * 아는 쪽만 판단할 수 있고, 그것은 호스트다.
+ */
+function unpublishTemplate(store: HostStore, id: string): Response {
+  const templateId = decodeURIComponent(id);
+  const template = load(store, templateId);
+  if (template === null) return notFound();
+  if (store.hasDocumentsFrom(templateId, template.version)) {
+    return json({
+      error: "이미 발행한 문서가 있어 되돌릴 수 없습니다. 새 버전을 만드세요.",
+    }, 409);
+  }
+  store.saveTemplate({ ...template.toJSON(), status: "draft" });
+  return json({ status: "draft" });
+}
+
+/** 발행본은 그대로 두고 편집 가능한 다음 판을 시작한다. */
+function nextVersion(store: HostStore, id: string): Response {
+  const template = load(store, decodeURIComponent(id));
+  if (template === null) return notFound();
+  const next = template.createNextVersion();
+  store.saveTemplate(next.toJSON());
+  return json({ version: next.version, status: next.status });
 }
 
 /** 사이드카가 발행할 때 읽는 급여 데이터다. 누구 것을 줄지는 호스트가 정한다. */
@@ -213,8 +299,9 @@ function toBody(bytes: Uint8Array): ArrayBuffer {
 }
 
 /** JSON으로 답한다. */
-function json(body: unknown): Response {
+function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
+    status,
     headers: { "Content-Type": "application/json" },
   });
 }
