@@ -1,0 +1,24 @@
+{
+  "name": "@report-tool/demo-host",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100"
+  },
+  "dependencies": {
+    "@report-tool/admin": "*",
+    "@report-tool/core": "*",
+    "@report-tool/designer": "*",
+    "@report-tool/viewer": "*",
+    "next": "15.5.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "typescript": "5.9.3"
+  }
+}
