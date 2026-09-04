@@ -1,0 +1,17 @@
+{
+  "name": "@report-tool/sidecar",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main.js",
+  "scripts": {
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@report-tool/core": "*",
+    "@report-tool/renderer": "*",
+    "@report-tool/server": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43"
+  }
+}

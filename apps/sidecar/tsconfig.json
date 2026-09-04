@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+    // 검사는 테스트까지 본다. 내보내는 일은 tsconfig.build.json이 한다.
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"]
+}
